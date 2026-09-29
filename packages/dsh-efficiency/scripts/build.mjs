@@ -79,15 +79,17 @@ const wrap = (source, fileName) => {
   return `\n// ======== ${fileName} ========\nconst ${v} = (function () {\n${out}\nreturn ${exportObj};\n})();\n`;
 };
 
-// 顺序：被依赖者在前（panel / settings 互不依赖，app 依赖两者）
+// 顺序：被依赖者在前（panel / settings / probe 互不依赖，app 依赖它们）
 const PANEL = moduleVar('panel.js'); // __m_panel_js
 const SETTINGS = moduleVar('settings.js'); // __m_settings_js
 const PLACEMENT = moduleVar('placement.js'); // __m_placement_js
+const PROBE = moduleVar('probe.js'); // __m_probe_js
 
 // 顺序：被依赖者在前。placement ← panel（panel 用它的定位函数）
 const placementWrapped = wrap(readFileSync(join(srcDir, 'client', 'placement.js'), 'utf8'), 'placement.js');
 const panelWrapped = wrap(readFileSync(join(srcDir, 'client', 'panel.js'), 'utf8'), 'panel.js');
 const settingsWrapped = wrap(readFileSync(join(srcDir, 'client', 'settings.js'), 'utf8'), 'settings.js');
+const probeWrapped = wrap(readFileSync(join(srcDir, 'client', 'probe.js'), 'utf8'), 'probe.js');
 
 // app.js 用相对 import 引用本地模块；拼接后要指向各自 IIFE 的返回值。
 // 用表格驱动，新增本地模块时只需在这里加一行。
@@ -95,6 +97,7 @@ const localModules = {
   './placement.js': PLACEMENT,
   './panel.js': PANEL,
   './settings.js': SETTINGS,
+  './probe.js': PROBE,
 };
 
 const rewriteLocalImports = (source) => {
@@ -117,7 +120,7 @@ const rewriteLocalImports = (source) => {
 const appRaw = rewriteLocalImports(readFileSync(join(srcDir, 'client', 'app.js'), 'utf8'));
 const appWrapped = wrap(appRaw, 'app.js');
 
-const clientBody = [placementWrapped, panelWrapped, settingsWrapped, appWrapped].join('\n');
+const clientBody = [placementWrapped, panelWrapped, settingsWrapped, probeWrapped, appWrapped].join('\n');
 
 const client = `// 由 packages/dsh-efficiency/scripts/build.mjs 生成 —— 请勿手改。
 // 契约：window.__ModuleLoader__.load({ id: '<npm 包名>', factory: (require) => module })

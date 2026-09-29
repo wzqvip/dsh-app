@@ -10,6 +10,7 @@
 
 import { makeQuestionPanel } from './panel.js';
 import { makeSettingsSection } from './settings.js';
+import { installProbe, makeProbeBadge } from './probe.js';
 
 const NS = 'dsh-efficiency';
 
@@ -58,14 +59,21 @@ export function makeFactory() {
 
     const QuestionPanel = makeQuestionPanel({ h, useState, useEffect, useCallback, useRef });
     const SettingsSection = makeSettingsSection({ h, useState, useEffect });
+    const ProbeBadge = makeProbeBadge({ h, useState, useEffect });
 
     const name = 'efficiency';
-    const inject = ['slots', 'locale'];
+    // remote 是客户端可用的 Remote 层（见 research/11）。
+    // 声明它，apply 里才能拿到 ctx.remote.$on。
+    const inject = ['slots', 'locale', 'remote'];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function apply(ctx) {
       ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-efficiency: dictionaries');
       const t = ctx.locale.bind(NS);
+
+      // 只读探针：验证第三方客户端插件能否收到 remote waterfall。
+      // 它只计数并 return next()，不认领、不改行为（详见 probe.js 顶部说明）。
+      installProbe(ctx);
 
       // ⚠️ 必须用 generator（yield 注册结果），照抄已验证可用的第三方插件
       // （dsh-pet / dshmarket 均为此形式）。yield 出去的注册句柄由 slots
@@ -74,6 +82,10 @@ export function makeFactory() {
         yield ctx.slots.register(
           { name: 'shell.overlay', id: 'efficiency-questions', order: 900 },
           () => h(QuestionPanel, { t }),
+        );
+        yield ctx.slots.register(
+          { name: 'shell.overlay', id: 'efficiency-probe', order: 901 },
+          () => h(ProbeBadge, {}),
         );
       });
 

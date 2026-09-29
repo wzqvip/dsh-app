@@ -77,12 +77,23 @@ if (mod) {
 }
 
 // ---- 3) 在 mock ctx 上跑 apply ----
+// 注意：本文件是 CJS（用 require 加载产物），不能用顶层 await，
+// 所以这一段包在 async IIFE 里。
 console.log('[smoke] 3) apply(ctx)');
 if (mod && typeof mod.apply === 'function') {
   const registrations = [];
+  const remoteSubscriptions = [];
   const mockCtx = {
     effect(fn) { return fn(); },
     locale: { register() {}, bind: () => (k) => k },
+    // 客户端 Remote 层：官方 UI 用它订阅 agent-scoped waterfall（见 research/11）。
+    // 这里给最小可用替身，用来断言探针确实注册了监听器。
+    remote: {
+      $on(event, listener) {
+        remoteSubscriptions.push({ event, listener });
+        return () => {};
+      },
+    },
     slots: {
       // slots.inject 收到的是 generator：要把 yield 出来的句柄收集起来
       inject(slotName, gen) {
@@ -105,6 +116,26 @@ if (mod && typeof mod.apply === 'function') {
   check('完成了槽位注册', registrations.length > 0, `注册 ${registrations.length} 个`);
   const slots = registrations.map((r) => r.slotName).join(', ');
   check('注册到预期槽位', slots.includes('shell.overlay') && slots.includes('settings.section'), slots);
+
+  await (async () => {
+    // 探针契约：必须注册到 remote waterfall，且只读（调用 next() 并透传结果）
+    check('探针订阅了 remote 事件', remoteSubscriptions.length === 1, `订阅 ${remoteSubscriptions.length} 个`);
+    const sub = remoteSubscriptions[0];
+    if (!sub) return;
+    check('订阅的是 user-questions/request', sub.event === 'user-questions/request', sub.event);
+    let nextCalled = 0;
+    const fakeRequest = { wait: { callId: 'smoke-1', timed: true }, questions: [{ id: 'q1', question: 'x' }] };
+    let result;
+    try {
+      result = await sub.listener(fakeRequest, async () => { nextCalled += 1; return { answers: [] }; });
+    } catch (err) {
+      check('handler 不抛错', false, String(err));
+    }
+    check('handler 调用了 next()', nextCalled === 1, `next 调用 ${nextCalled} 次`);
+    check('handler 透传了 next() 的结果', !!result && Array.isArray(result.answers));
+    const probeState = globalThis.__DSH_EFFICIENCY_PROBE__;
+    check('探针记录了命中次数', !!probeState && probeState.seen >= 1, `seen=${probeState?.seen}`);
+  })();
 } else {
   check('可执行 apply', false, 'apply 缺失，跳过');
 }
