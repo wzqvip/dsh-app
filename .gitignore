@@ -24,3 +24,8 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 *.tmp
+
+# 重启流程的日志与临时输出
+restart-dsh.log
+restart-dsh.stdout.log
+restart-dsh.stderr.log
