@@ -95,15 +95,42 @@ About 里的 **Website** 可留空，或指向：
 
 首次发布后逐项确认：
 
-- [ ] **Description** 已填（上面的中文版）
-- [ ] **Topics** 已填（16 个）
-- [ ] **Website** 按需填写
-- [ ] **Social preview** 已上传
-- [ ] **Issues** 已启用
-- [ ] **Discussions** 按需启用（做 Q&A / 想法收集）
+- [x] **Description** 已填（**已通过 `gh` 设置**，中英双语版）
+- [x] **Topics** 已填（**已通过 `gh` 设置**，共 16 个）
+- [ ] **Website** —— 暂留空（上架插件市场后再填）
+- [ ] **Social preview** —— **需手动上传**（见下）
+- [x] **Issues** 已启用
+- [x] **Discussions** 已启用
 - [ ] **Releases** 已打第一个 tag（`v0.1.0`）并附各平台包
-- [ ] **License** 已识别为 MIT（有 `LICENSE` 文件即自动识别）
+- [x] **License** 已识别为 **MIT**（GitHub API 确认 `licenseInfo.key = mit`）
 - [ ] **README** 顶部徽章可用（见下方）
+
+### ⚠️ 两个已踩过的坑（供后续注意）
+
+1. **`LICENSE` 必须是纯净的许可证正文。**
+   最初我在 MIT 正文后追加了"依赖与素材条款"说明，导致 GitHub 识别为 `NOASSERTION`（无法识别）。
+   已改为：`LICENSE` 只放纯 MIT，附加说明移到 [NOTICE.md](NOTICE.md) 开头。
+2. **Topics 上限 20 个**，当前用 16 个，留 4 个余量给后续（如 `pwa`、`live2d`、`terminal`、`local-first`）。
+
+### 当前已设置的仓库信息（`gh` 实测）
+
+```
+名称:      wzqvip/dsh-app
+可见性:    PUBLIC
+默认分支:  main
+License:   MIT
+Issues:    已启用
+Discussions: 已启用
+
+Description:
+  效率导向的 DeepSeek Harness 增强：不打开浏览器也能秒回 agent 提问、随时看到进度。
+  桌宠与 galgame 仅为可选交互模块。Productivity-first enhancement for DeepSeek Harness.
+
+Topics (16):
+  ai-agent, approval-workflow, cordis-plugin, deepseek-harness, desktop-pet,
+  developer-tools, dsh, dsh-plugin, electron, human-in-the-loop, linux,
+  macos, notification, productivity, typescript, windows
+```
 
 ---
 
