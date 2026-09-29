@@ -32,3 +32,5 @@ restart-dsh.stderr.log
 
 # 提交信息临时文件
 commit-msg.tmp
+
+msg2.tmp
