@@ -67,3 +67,8 @@ msg12.tmp
 msg13.tmp
 
 msg14.tmp
+
+msg15.tmp
+
+# 发布产物（由 npm run deploy 生成）
+packages/dsh-efficiency/release/lib/

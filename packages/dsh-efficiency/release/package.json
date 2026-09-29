@@ -18,26 +18,13 @@
   },
   "files": [
     "lib",
-    "src",
     "cordis.patch.yml"
   ],
-  "scripts": {
-    "build": "node scripts/build.mjs",
-    "smoke": "node scripts/smoke-client.mjs",
-    "test:placement": "node scripts/test-placement.mjs",
-    "test": "node scripts/smoke-client.mjs && node scripts/test-placement.mjs",
-    "check": "node scripts/build.mjs && node scripts/smoke-client.mjs && node scripts/test-placement.mjs",
-    "deploy": "node scripts/deploy.mjs"
-  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
     "client": {
-      "inject": [
-        "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-connection"
-      ],
       "platform": "web"
     }
   },
