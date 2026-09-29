@@ -1,6 +1,12 @@
-# Restart the dsh web server on a given port. ASCII-only on purpose:
-# Windows PowerShell 5.1 reads BOM-less files as ANSI, which mangles
-# non-ASCII strings and silently breaks variable expansion (already hit once).
+﻿# Restart the dsh web server on a given port.
+#
+# !! ENCODING - READ THIS !!
+# This file is saved as UTF-8 **with BOM**. That is mandatory, not cosmetic:
+# Windows PowerShell 5.1 decodes BOM-less files as ANSI, which mangles the
+# non-ASCII comments, shifts byte offsets, and makes the parser fail with
+# "Unexpected token '}'" on a line that is perfectly valid. Already hit twice
+# (research/07-restart-findings.md, research/09). Do not re-save without BOM,
+# and do not put backticks in comments (they are PowerShell's escape char).
 #
 # !! WARNING - READ BEFORE USE !!
 # This script KILLS the process listening on the port, AND its parent process.
@@ -150,13 +156,41 @@ for ($i = 1; $i -le 30; $i++) {
 if (-not $ok) { W ('ERROR: port {0} not listening after 60s' -f $Port) }
 
 # 6) surface child output + health check
-if (Test-Path $outLog) { $s = [string](Get-Content $outLog -Raw); if ($s.Trim()) { W ('child stdout: ' + $s.Trim()) } }
-if (Test-Path $errLog) { $e = [string](Get-Content $errLog -Raw); if ($e.Trim()) { W ('child stderr: ' + $e.Trim()) } }
+#
+# 注意：不要用 [string] 直接包住 Get-Content -Raw 的结果 ——
+# 空文件时 Get-Content 返回 $null，而 [string]$null 在 PowerShell 里是
+# [NullString]::Value 而不是空字符串，紧接着的 .Trim() 会抛
+# "You cannot call a method on a null-valued expression"。
+# 这是本脚本 2026-09-29 17:09 那次运行在收尾阶段报错的原因（重启本身已成功）。
+# 另外：本文件的注释里不能出现反引号，它是 PowerShell 的转义字符，
+# 在块注释语义下会破坏后续解析（已踩过一次，PS 5.1 报 Unexpected token）。
+function Read-LogText([string]$path) {
+  if (-not (Test-Path -LiteralPath $path)) { return '' }
+  $v = Get-Content -LiteralPath $path -Raw -ErrorAction SilentlyContinue
+  if ($null -eq $v) { return '' }
+  return [string]$v
+}
+function Test-Blank([string]$s) {
+  if ($null -eq $s) { return $true }
+  return ($s.Trim().Length -eq 0)
+}
+
+$sText = Read-LogText $outLog
+if (-not (Test-Blank $sText)) { W ('child stdout: ' + $sText.Trim()) }
+$eText = Read-LogText $errLog
+if (-not (Test-Blank $eText)) { W ('child stderr: ' + $eText.Trim()) }
+
 if ($ok) {
   try { Invoke-WebRequest ('http://127.0.0.1:{0}/' -f $Port) -UseBasicParsing -TimeoutSec 10 | Out-Null }
   catch {
-    $code = $_.Exception.Response.StatusCode.value__
-    W ('health check / -> HTTP {0} (401 means auth is working)' -f $code)
+    # 401 是预期结果（认证层工作正常）；非 HTTP 异常没有 Response，需单独处理
+    $code = $null
+    try { if ($_.Exception -and $_.Exception.Response) { $code = $_.Exception.Response.StatusCode.value__ } } catch { }
+    if ($null -ne $code) {
+      W ('health check / -> HTTP {0} (401 means auth is working)' -f $code)
+    } else {
+      W ('health check / -> no HTTP response ({0})' -f $_.Exception.Message)
+    }
   }
 }
 

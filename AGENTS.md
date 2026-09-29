@@ -102,6 +102,43 @@ author name，但头像只剩默认占位图。两者**无法只要一半**（co
 - **不要注册 `root` 槽位**（会 shadow 掉整个 AppFrame）
 - 核心层（L1）**不得依赖**承载层（L2）—— 关掉桌宠，功能必须仍可用
 
+### 2.1 PowerShell 脚本：两个会静默咬人的坑
+
+`scripts/*.ps1` 是交给 **Windows PowerShell 5.1**（`powershell.exe`）跑的，不是 pwsh 7。
+下面两条都在本项目**各踩过一次**，且症状都在**报错行以外**：
+
+**① 必须存为 UTF-8 with BOM**
+
+5.1 对**无 BOM** 的文件一律按 ANSI 解码 → 中文注释被拆坏 → 字节偏移错位 →
+解析器在**完全合法**的行上报 `Unexpected token '}'`。
+症状极具误导性：pwsh 7 读同一文件 `0 errors`，只有 5.1 报错。
+
+```powershell
+# 写回时显式带 BOM
+$t = [System.IO.File]::ReadAllText($p, [System.Text.UTF8Encoding]::new($false))
+[System.IO.File]::WriteAllText($p, $t, [System.Text.UTF8Encoding]::new($true))
+```
+
+自检（必须用 5.1，不能用 pwsh）：
+
+```powershell
+powershell.exe -NoProfile -Command "`$e=`$null;`$t=`$null;[void][System.Management.Automation.Language.Parser]::ParseFile('<绝对路径>',[ref]`$t,[ref]`$e); if(`$e.Count){`$e|%{'L'+`$_.Extent.StartLineNumber+': '+`$_.Message}}else{'OK'}"
+```
+
+**② 注释里不要写反引号**
+
+`` ` `` 是 PowerShell 的转义字符，在注释中同样被处理，会破坏后续解析。
+
+**③ `[string]$null` 不是空字符串**
+
+```powershell
+[string](Get-Content $f -Raw)   # 空文件 → $null → 结果是 [NullString]::Value
+$e.Trim()                       # ❌ You cannot call a method on a null-valued expression
+```
+
+`restart-dsh.ps1` 因此在 2026-09-29 17:09 那次重启的**收尾阶段**报错
+（重启本身已成功，但输出看起来像失败）。正确写法是先做 `$null` 检查。
+
 ---
 
 ## 3. 文档约定
