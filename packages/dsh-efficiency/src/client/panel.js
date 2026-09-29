@@ -1,20 +1,21 @@
 /**
  * 待答问题面板 —— 本项目核心 UI。
  *
- * 定位：补 dsh-pet 的缺口。它在等待确认时只播动画 + 一句通用气泡
- * （"需要你确认一下呢"），**不含问题内容、不含选项、不能作答**。
- * 本面板做三件事：
- *   1. 把问题内容与选项**原样**呈现出来
- *   2. 让人**点一下就作答**，不必回浏览器里翻那段对话
- *   3. 贴在宠物旁边，视线不用来回跳
+ * 两种数据来源（同时支持）：
+ *   A. answerer 模式（主）：客户端 answerer 把问题直接投递进来，
+ *      用户点选后把答案 return 回 waterfall。**不依赖官方 UI**。
+ *   B. 轮询模式（辅）：轮询宿主 /dsh-efficiency/api/pending。
+ *      用于宿主侧确实拿到提问的场景（当前宿主侧收不到，保留作降级/未来用）。
  *
- * 数据流：轮询宿主侧 /dsh-efficiency/api/pending → 提交到 /answer
- * （宿主侧用官方 ctx.userQuestions.answer 把回复 steer 回 agent）
+ * 定位目标：把问题内容与选项**原样**呈现、**点一下就作答**、贴在宠物旁边。
+ *
+ * 安全契约：任何不确定的情况都让位（见 answerer.js），
+ *           所以面板的"放弃"必须真的把控制权交回去，不能吞掉提问。
  */
 
 import { fetchPetLayout, computePanelPlacement } from './placement.js';
 
-const POLL_MS = 1500;
+const POLL_MS = 2000;
 const API = '/dsh-efficiency/api';
 
 const S = {
@@ -34,10 +35,7 @@ const S = {
     background: '#c0392b', color: '#fff', borderRadius: 9,
     padding: '0 7px', fontSize: 11, lineHeight: '18px',
   },
-  close: {
-    marginLeft: 'auto', cursor: 'pointer', border: 'none', background: 'transparent',
-    color: 'inherit', opacity: 0.55, fontSize: 15, lineHeight: 1, padding: '0 2px', fontFamily: 'inherit',
-  },
+  sourceTag: { opacity: 0.5, fontSize: 10, marginLeft: 4 },
   qBlock: { marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--dsw-alias-border-secondary, #3a3a3f)' },
   qBlockLast: { marginBottom: 6 },
   header: { opacity: 0.62, fontSize: 11, marginBottom: 2 },
@@ -51,47 +49,86 @@ const S = {
     color: 'inherit', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontFamily: 'inherit',
     textAlign: 'left',
   }),
-  multi: { opacity: 0.55, fontSize: 11, marginLeft: 4 },
   input: {
     width: '100%', boxSizing: 'border-box', marginTop: 8, padding: '6px 8px',
     borderRadius: 8, border: '1px solid var(--dsw-alias-border-secondary, #3a3a3f)',
     background: 'transparent', color: 'inherit', fontFamily: 'inherit', fontSize: 12,
   },
-  row: { display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' },
+  row: { display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' },
   primary: {
     cursor: 'pointer', border: 'none', borderRadius: 8, background: '#4a90d9',
     color: '#fff', padding: '6px 16px', fontSize: 12, fontFamily: 'inherit', fontWeight: 500,
   },
   primaryOff: { cursor: 'not-allowed', opacity: 0.45 },
+  ghost: {
+    cursor: 'pointer', border: '1px solid var(--dsw-alias-border-secondary, #3a3a3f)',
+    background: 'transparent', color: 'inherit', borderRadius: 8, padding: '6px 12px',
+    fontSize: 12, fontFamily: 'inherit',
+  },
   err: { color: '#e74c3c', fontSize: 12, marginTop: 6 },
   ok: { color: '#27ae60', fontSize: 12, marginTop: 6 },
   hint: { opacity: 0.55, fontSize: 11 },
-  countdown: { opacity: 0.62, fontSize: 11, fontVariantNumeric: 'tabular-nums' },
 };
 
-/** 限时提问的提示（宿主暂不提供精确到期时间，故只做定性提示） */
-const TIMED_HINT = '限时提问';
+/**
+ * 构造 answers。官方要求每个问题恰有一条回答；
+ * 未作答的用 selected: [] 表示"跳过"（合法形态）。
+ */
+function buildAnswers(questions, draft) {
+  return questions.map((q) => {
+    const a = draft?.[q.id] ?? { selected: [], custom: '' };
+    const entry = { id: q.id, selected: Array.isArray(a.selected) ? a.selected : [] };
+    const custom = (a.custom ?? '').trim();
+    if (custom) entry.custom = custom;
+    return entry;
+  });
+}
+
+function hasAnyAnswer(questions, draft) {
+  if (!draft) return false;
+  return questions.some((q) => {
+    const a = draft[q.id];
+    return !!a && ((a.selected?.length ?? 0) > 0 || (a.custom ?? '').trim().length > 0);
+  });
+}
+
+function emptyDraft(questions) {
+  const d = {};
+  for (const q of questions) d[q.id] = { selected: [], custom: '' };
+  return d;
+}
 
 export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef }) {
-  return function QuestionPanel({ t }) {
-    const [items, setItems] = useState([]);
-    const [dismissed, setDismissed] = useState(() => new Set());
-    // callId -> { answers: { [qid]: { selected: string[], custom: string } } }
+  return function QuestionPanel({ t, bridge }) {
+    const [polled, setPolled] = useState([]);
+    // answerer 投递进来的提问（同一时刻通常只有一个）
+    const [local, setLocal] = useState(null);
     const [draft, setDraft] = useState({});
     const [status, setStatus] = useState({});
     const [petLayout, setPetLayout] = useState(null);
     const [viewport, setViewport] = useState({ width: 1280, height: 800 });
     const alive = useRef(true);
 
+    // ---- A. answerer 入口：把接收器交给 bridge ----
+    useEffect(() => {
+      if (!bridge?.setReceiver) return undefined;
+      const off = bridge.setReceiver((payload, control) => {
+        setLocal({ ...payload, control });
+        setDraft((prev) => ({ ...prev, [payload.callId]: emptyDraft(payload.questions) }));
+      });
+      return off;
+    }, [bridge]);
+
+    // ---- B. 轮询宿主（辅助路径）----
     const poll = useCallback(async () => {
       try {
         const res = await fetch(`${API}/pending`, { credentials: 'same-origin' });
         if (!res.ok) return;
         const data = await res.json();
         if (!alive.current) return;
-        setItems(Array.isArray(data?.items) ? data.items : []);
+        setPolled(Array.isArray(data?.items) ? data.items : []);
       } catch {
-        /* 宿主不可用时静默，不影响页面其它功能 */
+        /* 宿主不可用：静默，不影响 answerer 主路径 */
       }
     }, []);
 
@@ -102,7 +139,7 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
       return () => { alive.current = false; clearInterval(timer); };
     }, [poll]);
 
-    // 宠物布局（用于就近定位）；设置页可能改动，故定期刷新
+    // ---- 宠物布局（就近定位）----
     useEffect(() => {
       let a = true;
       const load = async () => {
@@ -121,58 +158,52 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
       return () => window.removeEventListener('resize', update);
     }, []);
 
-    const visible = items.filter((it) => !dismissed.has(it.callId));
-    if (visible.length === 0) return null;
+    // 统一视图模型：本地（answerer）优先，其后是轮询来的
+    const items = [];
+    if (local) items.push({ ...local, source: 'local' });
+    for (const it of polled) {
+      if (local && it.callId === local.callId) continue;
+      items.push({ ...it, source: 'poll' });
+    }
+    if (items.length === 0) return null;
 
     const placement = computePanelPlacement(petLayout, viewport);
 
-    /** 取得（或初始化）某条提问的草稿 */
-    const getDraft = (item) => {
-      const d = draft[item.callId];
-      if (d) return d;
-      const answers = {};
-      for (const q of item.questions) answers[q.id] = { selected: [], custom: '' };
-      return { answers };
-    };
-
-    const patchAnswer = (item, qid, patch) => {
+    const patchAnswer = (callId, qid, patch, questions) => {
       setDraft((prev) => {
-        const cur = prev[item.callId] ?? getDraft(item);
-        const a = cur.answers[qid] ?? { selected: [], custom: '' };
-        return { ...prev, [item.callId]: { answers: { ...cur.answers, [qid]: { ...a, ...patch } } } };
+        const cur = prev[callId] ?? emptyDraft(questions);
+        const a = cur[qid] ?? { selected: [], custom: '' };
+        return { ...prev, [callId]: { ...cur, [qid]: { ...a, ...patch } } };
       });
     };
 
     const toggleOption = (item, q, label) => {
-      const cur = draft[item.callId] ?? getDraft(item);
-      const a = cur.answers[q.id] ?? { selected: [], custom: '' };
+      const cur = draft[item.callId] ?? emptyDraft(item.questions);
+      const a = cur[q.id] ?? { selected: [], custom: '' };
       const has = a.selected.includes(label);
       const selected = q.multiSelect
         ? (has ? a.selected.filter((x) => x !== label) : [...a.selected, label])
         : (has ? [] : [label]);
-      patchAnswer(item, q.id, { selected });
-    };
-
-    const hasAnyAnswer = (item) => {
-      const cur = draft[item.callId];
-      if (!cur) return false;
-      return item.questions.some((q) => {
-        const a = cur.answers?.[q.id];
-        return !!a && ((a.selected?.length ?? 0) > 0 || (a.custom ?? '').trim().length > 0);
-      });
+      patchAnswer(item.callId, q.id, { selected }, item.questions);
     };
 
     const submit = async (item) => {
-      const cur = draft[item.callId] ?? getDraft(item);
-      // 官方要求：每个问题恰有一条回答。无条件为每题生成条目，
-      // 未作答的用 selected: []（合法形态，语义是"跳过"）。
-      const answers = item.questions.map((q) => {
-        const a = cur.answers[q.id] ?? { selected: [], custom: '' };
-        const entry = { id: q.id, selected: Array.isArray(a.selected) ? a.selected : [] };
-        const custom = (a.custom ?? '').trim();
-        if (custom) entry.custom = custom;
-        return entry;
-      });
+      const cur = draft[item.callId] ?? emptyDraft(item.questions);
+      const answers = buildAnswers(item.questions, cur);
+
+      if (item.source === 'local') {
+        // answerer 模式：把答案 return 回 waterfall，由官方链路落地
+        try {
+          item.control.submit({ answers });
+          setStatus((s) => ({ ...s, [item.callId]: { kind: 'ok', text: t('answered') } }));
+          setLocal(null);
+        } catch (err) {
+          setStatus((s) => ({ ...s, [item.callId]: { kind: 'err', text: `${t('failed')}: ${String(err)}` } }));
+        }
+        return;
+      }
+
+      // 轮询模式：POST 给宿主
       try {
         const res = await fetch(`${API}/answer`, {
           method: 'POST',
@@ -192,14 +223,24 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
       }
     };
 
+    /** 放弃作答：answerer 模式下必须真的让位，否则会吞掉提问 */
+    const decline = (item) => {
+      if (item.source === 'local') {
+        item.control.decline();
+        setLocal(null);
+        return;
+      }
+      setPolled((p) => p.filter((x) => x.callId !== item.callId));
+    };
+
     return h(
       'div',
       { style: placement.style, 'data-dsh-efficiency': 'questions', 'data-anchor': placement.anchor },
-      ...visible.map((item) => {
-        const cur = draft[item.callId] ?? getDraft(item);
+      ...items.map((item) => {
+        const cur = draft[item.callId] ?? emptyDraft(item.questions);
         const st = status[item.callId];
         const multiQ = item.questions.length > 1;
-        const canSubmit = hasAnyAnswer(item);
+        const canSubmit = hasAnyAnswer(item.questions, cur);
 
         return h(
           'div',
@@ -207,12 +248,9 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
           h(
             'div',
             { style: S.head },
-            h('span', { style: S.badge }, String(visible.length)),
+            h('span', { style: S.badge }, String(item.questions.length)),
             h('span', null, t('title')),
-            h('button', {
-              type: 'button', style: S.close, title: t('dismiss'),
-              onClick: () => setDismissed((d) => new Set(d).add(item.callId)),
-            }, '×'),
+            item.source === 'local' ? h('span', { style: S.sourceTag }, t('liveTag')) : null,
           ),
           ...item.questions.map((q, qi) =>
             h(
@@ -231,7 +269,7 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
                         key: opt.label,
                         type: 'button',
                         title: opt.description ?? '',
-                        style: S.option((cur.answers[q.id]?.selected ?? []).includes(opt.label)),
+                        style: S.option((cur[q.id]?.selected ?? []).includes(opt.label)),
                         onClick: () => toggleOption(item, q, opt.label),
                       }, opt.label),
                     ),
@@ -240,8 +278,8 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
               h('input', {
                 style: S.input,
                 placeholder: t('customPlaceholder'),
-                value: cur.answers[q.id]?.custom ?? '',
-                onChange: (e) => patchAnswer(item, q.id, { custom: e.target.value }),
+                value: cur[q.id]?.custom ?? '',
+                onChange: (e) => patchAnswer(item.callId, q.id, { custom: e.target.value }, item.questions),
               }),
             ),
           ),
@@ -255,7 +293,13 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
               disabled: !canSubmit,
               onClick: () => submit(item),
             }, t('submit')),
-            h('span', { style: S.hint }, item.timed ? TIMED_HINT : t('pollHint')),
+            h('button', {
+              type: 'button',
+              style: S.ghost,
+              title: t('declineHint'),
+              onClick: () => decline(item),
+            }, t('decline')),
+            h('span', { style: S.hint }, item.timed ? t('timedHint') : t('pollHint')),
           ),
         );
       }),

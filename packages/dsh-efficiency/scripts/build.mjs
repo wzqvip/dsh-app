@@ -84,20 +84,23 @@ const PANEL = moduleVar('panel.js'); // __m_panel_js
 const SETTINGS = moduleVar('settings.js'); // __m_settings_js
 const PLACEMENT = moduleVar('placement.js'); // __m_placement_js
 const PROBE = moduleVar('probe.js'); // __m_probe_js
+const ANSWERER = moduleVar('answerer.js'); // __m_answerer_js
 
-// 顺序：被依赖者在前。placement ← panel（panel 用它的定位函数）
-const placementWrapped = wrap(readFileSync(join(srcDir, 'client', 'placement.js'), 'utf8'), 'placement.js');
-const panelWrapped = wrap(readFileSync(join(srcDir, 'client', 'panel.js'), 'utf8'), 'panel.js');
-const settingsWrapped = wrap(readFileSync(join(srcDir, 'client', 'settings.js'), 'utf8'), 'settings.js');
-const probeWrapped = wrap(readFileSync(join(srcDir, 'client', 'probe.js'), 'utf8'), 'probe.js');
+// 顺序：依赖在前。所有模块统一走 readClient（重写 import 后再 wrap）
 
 // app.js 用相对 import 引用本地模块；拼接后要指向各自 IIFE 的返回值。
 // 用表格驱动，新增本地模块时只需在这里加一行。
+//
+// ⚠️ 顺序由依赖决定，且**必须对所有本地模块做重写**，不能只重写 app.js。
+//    踩过的坑：answerer.js 也 import 了 './probe.js'，只重写 app.js 时
+//    它的 import 被原样留下，运行到 handler 里就 ReferenceError。
+//    node --check 查不出（语法合法），只有真正调用 handler 才炸 —— 冒烟测试抓到。
 const localModules = {
   './placement.js': PLACEMENT,
   './panel.js': PANEL,
   './settings.js': SETTINGS,
   './probe.js': PROBE,
+  './answerer.js': ANSWERER,
 };
 
 const rewriteLocalImports = (source) => {
@@ -117,10 +120,19 @@ const rewriteLocalImports = (source) => {
   return out;
 };
 
-const appRaw = rewriteLocalImports(readFileSync(join(srcDir, 'client', 'app.js'), 'utf8'));
-const appWrapped = wrap(appRaw, 'app.js');
+// 每个本地模块都先重写 import，再包 IIFE。
+// 顺序 = 依赖顺序：probe（无依赖）→ placement（无依赖）→ answerer（依赖 probe）
+//                → panel（依赖 placement）→ settings（无依赖）→ app（依赖全部）
+const readClient = (f) => rewriteLocalImports(readFileSync(join(srcDir, 'client', f), 'utf8'));
 
-const clientBody = [placementWrapped, panelWrapped, settingsWrapped, probeWrapped, appWrapped].join('\n');
+const probeWrapped = wrap(readClient('probe.js'), 'probe.js');
+const placementWrapped = wrap(readClient('placement.js'), 'placement.js');
+const answererWrapped = wrap(readClient('answerer.js'), 'answerer.js');
+const panelWrapped = wrap(readClient('panel.js'), 'panel.js');
+const settingsWrapped = wrap(readClient('settings.js'), 'settings.js');
+const appWrapped = wrap(readClient('app.js'), 'app.js');
+
+const clientBody = [probeWrapped, placementWrapped, answererWrapped, panelWrapped, settingsWrapped, appWrapped].join('\n');
 
 const client = `// 由 packages/dsh-efficiency/scripts/build.mjs 生成 —— 请勿手改。
 // 契约：window.__ModuleLoader__.load({ id: '<npm 包名>', factory: (require) => module })
