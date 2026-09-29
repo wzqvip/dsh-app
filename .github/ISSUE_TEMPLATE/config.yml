@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 讨论与想法
+    url: https://github.com/wzqvip/dsh-app/discussions
+    about: 不确定是不是 bug、或想先聊聊设计，请走 Discussions
+  - name: 安全问题
+    url: https://github.com/wzqvip/dsh-app/security/advisories/new
+    about: 安全漏洞请勿公开提 Issue，走私密报告
+  - name: DSH 官方仓库
+    url: https://github.com/deepseek-ai/deepseek-harness
+    about: 与 DSH 本体（非本插件）相关的问题
+  - name: dsh-pet（承载层，第三方）
+    url: https://github.com/PC2005-cloud/dsh-pet
+    about: 桌宠形象、动画素材、桌面窗口本身的问题
