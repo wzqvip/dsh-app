@@ -67,19 +67,19 @@ export function makeFactory() {
       ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-efficiency: dictionaries');
       const t = ctx.locale.bind(NS);
 
-      ctx.slots.inject('shell.overlay', function* () {
-        yield ctx.slots.register(
+      ctx.slots.inject('shell.overlay', () =>
+        ctx.slots.register(
           { name: 'shell.overlay', id: 'efficiency-questions', order: 900 },
           () => h(QuestionPanel, { t }),
-        );
-      });
+        ),
+      );
 
-      ctx.slots.inject('settings.section', function* () {
-        yield ctx.slots.register(
+      ctx.slots.inject('settings.section', () =>
+        ctx.slots.register(
           { name: 'settings.section', id: 'efficiency-config', order: 40, label: () => t('nav') },
           () => h(SettingsSection, { t }),
-        );
-      });
+        ),
+      );
     }
 
     module.exports = { apply, inject, name };

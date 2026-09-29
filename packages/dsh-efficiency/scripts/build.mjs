@@ -109,15 +109,13 @@ const clientBody = [panelWrapped, settingsWrapped, appWrapped].join('\n');
 
 const client = `// 由 packages/dsh-efficiency/scripts/build.mjs 生成 —— 请勿手改。
 // 契约：window.__ModuleLoader__.load({ id: '<npm 包名>', factory: (require) => module })
-window.__ModuleLoader__.load({
-  id: ${JSON.stringify(PKG_ID)},
-  factory: function (require) {
-    const module = { exports: {} };
+(function () {
 ${clientBody}
-    module.exports = { apply, inject, name };
-    return module.exports;
-  },
-});
+  window.__ModuleLoader__.load({
+    id: ${JSON.stringify(PKG_ID)},
+    factory: ${moduleVar('app.js')}.makeFactory(),
+  });
+})();
 `;
 
 writeFileSync(join(outDir, 'client.js'), client, 'utf8');
