@@ -5,8 +5,10 @@ lib/
 *.tsbuildinfo
 .pnpm-store/
 
-# 调研快照体积较大（5.1 MB），如不希望入库请取消下一行注释
-# research/registry-snapshot.json
+# 调研快照：5 MB 的社区插件目录 dump，可随时用 curl 重新获取，不入库
+#   curl -sf https://awesome-dsh-plugin.com/plugins.json -o research/registry-snapshot.json
+# 需要留档时注释掉下一行
+research/registry-snapshot.json
 
 # 本地备份（profile 配置备份，见 todo.md P0-1）
 backup/
