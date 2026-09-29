@@ -24,7 +24,9 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "smoke": "node scripts/smoke-client.mjs",
-    "check": "node scripts/build.mjs && node scripts/smoke-client.mjs"
+    "test:placement": "node scripts/test-placement.mjs",
+    "test": "node scripts/smoke-client.mjs && node scripts/test-placement.mjs",
+    "check": "node scripts/build.mjs && node scripts/smoke-client.mjs && node scripts/test-placement.mjs"
   },
   "dsh": {
     "bundle": {

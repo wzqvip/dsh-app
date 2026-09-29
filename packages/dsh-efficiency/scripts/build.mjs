@@ -52,10 +52,12 @@ const wrap = (source, fileName) => {
     // 去掉顶层（及缩进后的）import 语句
     .replace(/^[ \t]*import\s+[\s\S]*?from\s+['"][^'"]+['"];?[ \t]*$/gm, '')
     .replace(/^[ \t]*import\s+['"][^'"]+['"];?[ \t]*$/gm, '')
-    // export function x -> function x（并记录导出名）
-    .replace(/^export\s+function\s+([A-Za-z0-9_$]+)/gm, (_m, n) => {
+    // export [async] function x -> function x（并记录导出名）
+    // ⚠️ 必须处理 async 修饰符：漏掉会留下 `export async function`，
+    //    在 CJS factory 里直接 SyntaxError（已被冒烟测试抓到一次）。
+    .replace(/^export\s+(?:async\s+)?function\s+([A-Za-z0-9_$]+)/gm, (_m, n) => {
       names.add(n);
-      return `function ${n}`;
+      return _m.replace(/^export\s+/, '');
     })
     // export const/let/var x -> const/let/var x（并记录）
     .replace(/^export\s+(const|let|var)\s+([A-Za-z0-9_$]+)/gm, (_m, kw, n) => {
@@ -80,32 +82,42 @@ const wrap = (source, fileName) => {
 // 顺序：被依赖者在前（panel / settings 互不依赖，app 依赖两者）
 const PANEL = moduleVar('panel.js'); // __m_panel_js
 const SETTINGS = moduleVar('settings.js'); // __m_settings_js
+const PLACEMENT = moduleVar('placement.js'); // __m_placement_js
 
+// 顺序：被依赖者在前。placement ← panel（panel 用它的定位函数）
+const placementWrapped = wrap(readFileSync(join(srcDir, 'client', 'placement.js'), 'utf8'), 'placement.js');
 const panelWrapped = wrap(readFileSync(join(srcDir, 'client', 'panel.js'), 'utf8'), 'panel.js');
 const settingsWrapped = wrap(readFileSync(join(srcDir, 'client', 'settings.js'), 'utf8'), 'settings.js');
 
-// app.js 里写的是 `import { makeQuestionPanel } from './panel.js'`，
-// 拼接后要指向 IIFE 的返回值，先做重写再包装。
-const appRaw = readFileSync(join(srcDir, 'client', 'app.js'), 'utf8')
-  .replace(/import\s*\{([^}]+)\}\s*from\s*['"][^'"]*panel\.js['"];?/g, (_m, names) =>
-    names
-      .split(',')
-      .map((n) => n.trim())
-      .filter(Boolean)
-      .map((n) => `const ${n} = ${PANEL}.${n};`)
-      .join('\n'),
-  )
-  .replace(/import\s*\{([^}]+)\}\s*from\s*['"][^'"]*settings\.js['"];?/g, (_m, names) =>
-    names
-      .split(',')
-      .map((n) => n.trim())
-      .filter(Boolean)
-      .map((n) => `const ${n} = ${SETTINGS}.${n};`)
-      .join('\n'),
-  );
+// app.js 用相对 import 引用本地模块；拼接后要指向各自 IIFE 的返回值。
+// 用表格驱动，新增本地模块时只需在这里加一行。
+const localModules = {
+  './placement.js': PLACEMENT,
+  './panel.js': PANEL,
+  './settings.js': SETTINGS,
+};
+
+const rewriteLocalImports = (source) => {
+  let out = source;
+  for (const [spec, varName] of Object.entries(localModules)) {
+    const esc = spec.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`import\\s*\\{([^}]+)\\}\\s*from\\s*['"]${esc}['"];?`, 'g');
+    out = out.replace(re, (_m, names) =>
+      names
+        .split(',')
+        .map((n) => n.trim())
+        .filter(Boolean)
+        .map((n) => `const ${n} = ${varName}.${n};`)
+        .join('\n'),
+    );
+  }
+  return out;
+};
+
+const appRaw = rewriteLocalImports(readFileSync(join(srcDir, 'client', 'app.js'), 'utf8'));
 const appWrapped = wrap(appRaw, 'app.js');
 
-const clientBody = [panelWrapped, settingsWrapped, appWrapped].join('\n');
+const clientBody = [placementWrapped, panelWrapped, settingsWrapped, appWrapped].join('\n');
 
 const client = `// 由 packages/dsh-efficiency/scripts/build.mjs 生成 —— 请勿手改。
 // 契约：window.__ModuleLoader__.load({ id: '<npm 包名>', factory: (require) => module })
