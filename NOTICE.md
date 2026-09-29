@@ -1,0 +1,92 @@
+# 第三方依赖与致谢
+
+本项目自身代码为 MIT（见 [LICENSE](LICENSE)）。
+本文件列出**依赖或复用**的第三方项目及其许可条款。分发本项目（尤其是打包了第三方素材时）**必须保留本文件与下列声明**。
+
+---
+
+## 1. 宿主平台
+
+### DeepSeek Harness (`@deepseek-ai/*`)
+
+- 来源：<https://github.com/deepseek-ai/deepseek-harness>
+- 许可：**MIT**
+- 用途：本项目运行其上的宿主平台。所有 `@deepseek-ai/dsh-*` 包均为 MIT。
+- 本项目**不修改**其源码，仅通过官方插件机制扩展。
+
+---
+
+## 2. 桌面常驻层 / 桌宠载体
+
+### PC2005-cloud/dsh-pet
+
+- 来源：<https://github.com/PC2005-cloud/dsh-pet>
+- npm：`dsh-pet`
+- 用途：提供桌面常驻小窗、网页浮层（`shell.overlay`）、状态动画、气泡对话、系统通知。
+  本项目**复用其承载能力**，只添加自己的信号采集与提醒逻辑。
+
+#### ⚠️ 许可条款（重要）
+
+| 部分 | 条款 |
+|---|---|
+| **代码** | **MIT** |
+| **素材**（动画 / 提示词 / 源视频） | **允许开源使用，禁止商用** |
+| **二创约定（强制）** | 基于本项目的衍生 / 改版 / 换皮作品，在**任何介绍、展示、分发该作品的地方**，须附上原作者 GitHub 地址 |
+
+#### 署名要求（本项目必须遵守）
+
+> 本项目在 [README.md](README.md) 与 [ARCHITECTURE.md](ARCHITECTURE.md) 中均已附上原作者地址。
+> **任何基于本项目的分发、展示或介绍，也必须保留以下地址：**
+>
+> **<https://github.com/PC2005-cloud/dsh-pet>**
+
+#### 其他注意
+
+- Safari / WKWebView 不认 webm alpha（渲染为黑底）。macOS 需改用其 Release `assets-mov` 提供的 HEVC-alpha `.mov` 素材。
+- 其桌面模式会自动下载 Electron 运行时到 `~/.dsh/electron/`（首次启动）。
+
+---
+
+## 3. 其他可能采用的社区插件
+
+按需选用，各自遵循其许可。截至调研时（2026-09-28）均为 MIT，但**采用前应自行核对其最新许可**。
+
+| 插件 | 用途 | 来源 |
+|---|---|---|
+| `dsh-auto-collapse` | 折叠工具/思考过程，只留最终正文 | awesome-dsh-plugin |
+| `dsh-web-mobile` | 窄屏移动端适配 | awesome-dsh-plugin |
+| `@wingsky-1/dsh-lan-proxy` | 局域网访问转发（**含安全权衡，见 plan.md §5**） | awesome-dsh-plugin |
+| `@tomowang/dsh-tui` | 终端界面 | awesome-dsh-plugin |
+
+---
+
+## 4. 素材来源（非代码）
+
+### aigengtu.com（梗鲸 · DeepSeek 鲸鱼娘表情包库）
+
+- 来源：<https://aigengtu.com/>
+- 用途：**可选**的宠物素材 / 气泡配图来源
+- ⚠️ **许可状态：不明确**。该站是社区梗图收集站，图片版权**归属各原作者**（投稿经其 GitHub issue 流程，并附 takedown 模板）。
+- **结论**：自用可接受；**商用或公开发布前必须自行确认授权**。
+- 技术限制：dsh-pet 播放的是**透明动画 webm**，静态表情图**不能直接**作为动画使用，需经素材链转码或仅作静态贴图。
+
+---
+
+## 5. 插件生态目录
+
+### awesome-dsh-plugin
+
+- 来源：<https://awesome-dsh-plugin.com> / <https://github.com/awesome-dsh-plugin/awesome-dsh-plugin>
+- 用途：本项目的插件选型依据（4382 个插件的目录快照）。
+- 本项目在 `research/registry-snapshot.json` 保留了该目录的快照用于调研记录。
+
+---
+
+## 6. 声明汇总（分发时请一并保留）
+
+```
+本项目的桌面常驻层 / 桌宠载体基于 PC2005-cloud/dsh-pet：
+  https://github.com/PC2005-cloud/dsh-pet
+其代码为 MIT；素材允许开源使用、禁止商用；
+二创作品必须在任何介绍、展示、分发处附上上述地址。
+```

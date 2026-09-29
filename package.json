@@ -1,0 +1,30 @@
+{
+  "name": "dsh-efficiency",
+  "version": "0.0.0",
+  "private": true,
+  "description": "效率导向的 DeepSeek Harness 增强：不打开浏览器也能秒回 agent 提问、随时看到进度。桌宠与 galgame 仅为可选交互模块。",
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "productivity",
+    "notification",
+    "desktop-pet"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wzqvip/dsh-app.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node -e \"console.log('planning stage: no build yet')\""
+  },
+  "dsh": {
+    "note": "插件包尚未创建。实现时的包结构、dsh.bundle.patch 与 dsh.client 字段见 plan.md 与 research/01-plugin-architecture.md"
+  }
+}
