@@ -683,7 +683,19 @@ dsh plugin --profile web add link:<本地目录>
     而 `%APPDATA%\npm` 下**没有全局安装** → **不能假设 `dsh` 命令存在**
   - 缺失时二选一：`npx --yes @deepseek-ai/dsh`（无侵入，默认）或 `npm install -g`（显式选项）
   - ⚠️ **版本不匹配只提示，不阻断**（实测存在"版本双镜像"：磁盘新版 + 运行中旧版进程）
-- **启动时序**：拉起 `dsh web --no-open` → 从 stdout 抓 `?token=` → 持久 partition **同源**载入
+- **启动时序**：**按级联回退**（⚠️ 按维护者实际用法设计）→ 从 stdout 抓 `?token=` → 持久 partition **同源**载入
+  - 🔑 **维护者实际用 `npm run deepseek`，不是全局 `dsh` 命令** → 启动器不能只认一种方式：
+    ```
+    ① npm run deepseek                             ← 首选
+    ② 读 package.json，有 start 则 npm run start     ← 回退
+    ③ npm 不存在 → 引导安装（浏览器打开 nodejs.org）→ 一键重试
+    ④ dsh 不存在 → npx --yes @deepseek-ai/dsh web
+    ```
+  - ⚠️ **`npm run`（不带脚本名）会打印脚本列表并以 0 退出，不报错** → 第②档必须**读 `package.json`** 判断（L12）
+  - ⚠️ **级联前提是工作目录**：`npm run <script>` 必须在含该 script 的 `package.json` 所在目录执行；
+    实测 `Documents`/`Desktop`/`Downloads`/用户根目录下**都没有**定义 `deepseek` 的 `package.json`
+    → 它在用户自己的项目目录里，**启动器无从猜测** → 首次启动让用户**选择并记住**（L11）
+  - ⚠️ **忠实转发参数**，不硬编码（若用户的 `deepseek` 脚本自带端口/profile/workspace）（L10）
   - ⚠️ **禁止 `file://`**（`Origin: null` → 403）
   - ⚠️ **端口与 cookie 绑定**：cookie 名与载荷都绑定 `host:port`，换端口即失效
   - ⚠️ token 兑换硬要求 `pathname === "/"` → **不支持子路径挂载**

@@ -57,34 +57,102 @@ PS> dsh --version
 
 ---
 
-## 3. 启动时序
+## 2.5 启动策略：级联回退（**按实际使用方式设计**）
+
+维护者的实际启动方式是 **`npm run deepseek`** —— 不是全局 `dsh` 命令。
+因此启动器采用**级联回退**，而不是只认一种方式：
+
+```
+① npm run deepseek          ← 首选：维护者实际使用的脚本
+   │ 失败（脚本不存在 / 非零退出）
+   ▼
+② npm run                   ← 回退：仓库默认启动脚本
+   │ 失败
+   ▼
+③ 检查 npm 是否存在
+   ├─ 不存在 ──► ④ 提示安装（浏览器打开安装页）→ 用户装好 → 「重试」
+   └─ 存在   ──► ⑤ 检查 dsh 是否存在
+                   ├─ 不存在 ──► ⑥ 引导安装 dsh（npx / 全局）
+                   └─ 存在   ──► ⑦ 直接启动 dsh web
+```
+
+### 2.5.1 ⚠️ 必须先解决的问题：在**哪个目录**执行 `npm run`？
+
+`npm run <script>` **必须在含有该 `script` 的 `package.json` 所在目录执行**。
+实测：本机 `Documents` / `Desktop` / `Downloads` / 用户根目录下**都没有**定义 `deepseek` 脚本的 `package.json`
+→ **它在用户自己的项目目录里**，启动器无从猜测。
+
+**设计方案**（按推荐度）：
+
+| 方案 | 做法 | 评价 |
+|---|---|---|
+| **A（推荐）** | 首次启动让用户**选择项目目录**，记住它；支持多目录（workspace 列表） | 一次配置，长期省事；与 DSH 的 workspace 概念天然对应 |
+| B | 启动器自带一个内置的 `package.json`（`deepseek` 脚本指向 `dsh web`） | 零配置，但**失去"用户自己的项目配置"**语义 |
+| C | 从当前工作目录 / 拖入的文件夹推断 | 不明确，容易出错 |
+
+**建议 A + 内置兜底**：优先用用户选定的目录；若该目录没有 `deepseek`/`start` 脚本，
+则用启动器内置脚本直接起 `dsh web`（等价于方案 B 作为最后一档）。
+
+> ⚠️ 待验证（新增 L10）：`npm run deepseek` 脚本的**实际内容**是什么语义 ——
+> 它是否等价于 `dsh web`？是否带了额外参数（端口、profile、workspace）？
+> 若是后者，启动器**不应**硬编码自己的参数，而应**忠实转发**（含把 `--port` / `--no-open` 传进去）。
+
+### 2.5.2 级联各档的判定方式
+
+| 档 | 判定"失败"的依据 |
+|---|---|
+| ① `npm run deepseek` | 退出码非 0；或 stderr 含 `Missing script` / `npm ERR!` |
+| ② `npm run` | 同上（`npm run` 无参数会列出脚本，需注意它**不报错**——应改为读 `package.json` 判断是否存在 `start`） |
+| ③ npm 存在性 | `npm --version` 成功 |
+| ⑤ dsh 存在性 | `dsh --version` 成功；否则试 `npx --yes @deepseek-ai/dsh --version` |
+
+> ⚠️ **实现注意**：`npm run`（不带脚本名）在有 `scripts` 时会**打印脚本列表并以 0 退出**，不会启动任何东西。
+> 所以第②档应实现为"**读 `package.json`，若有 `start` 则 `npm run start`**"，而不是裸跑 `npm run`。
+
+### 2.5.3 缺 npm 时的引导
+
+```
+检测到未安装 npm / Node.js
+  ├─ 说明缺什么（不是抛 stack trace）
+  ├─ 提供「打开安装页」按钮（默认浏览器打开 https://nodejs.org/）
+  ├─ 提供「我已装好，重试」按钮 → 重新走整条级联
+  └─ 可折叠的原始输出（便于求助时贴出）
+```
+
+**关键点**：安装完成后必须能**一键重试整条级联**，而不是让用户重启启动器。
+
+
+
+## 3. 启动时序（完整流程）
 
 ```
 ① 启动
    │
    ▼
-② 环境检测（不通过则进入引导）
-   ├─ Node.js 存在？版本 ≥ 20？
-   ├─ npm / npx 可用？
-   ├─ dsh 可用？（全局 或 npx 缓存）
-   └─ 端口 3080 是否已被占用？
-   │
-   ├── 任一失败 ──► ③ 环境引导（§4）
-   │
-   ▼ 全部通过
-④ 拉起 DSH
-   npx --yes @deepseek-ai/dsh web --no-open [--port <port>]
-   （优先用已装的 dsh，缺失则 fallback 到 npx）
+② 确定工作目录（§2.5.1）
+   ├─ 记住的上次目录 / 用户选定的 workspace 列表
+   └─ 都没有 ──► 首次启动让用户选择
    │
    ▼
-⑤ 抓取 token（从 stdout）
-   等 "dsh web: http://127.0.0.1:3080/?token=<t>" 出现
-   ⚠️ 带超时（例如 90s）；超时进失败处理（§5）
+③ 环境检测（Node ≥20 / npm / dsh / 端口 3080）
+   └─ 不通过 ──► 环境引导（§4），可一键重试
+   │
+   ▼
+④ 拉起 DSH —— 按级联回退（§2.5）
+   ① npm run deepseek
+   ② 读 package.json，有 start 则 npm run start
+   ③ npm 不存在 → 引导安装 → 重试
+   ④ dsh 不存在 → npx --yes @deepseek-ai/dsh web
+   │
+   ▼
+⑤ 抓取 token（从子进程 stdout）
+   等 "dsh web: http://127.0.0.1:<port>/?token=<t>" 出现
+   ⚠️ 带超时（如 90s）；超时进失败处理（§5）
    │
    ▼
 ⑥ 载入界面
    用【持久 partition】先 loadURL(tokenizedUrl) → 服务端 303 + Set-Cookie
-   再载入 http://127.0.0.1:3080/
+   再载入 http://127.0.0.1:<port>/
    ⚠️ 必须同源，绝不能用 file://（Origin: null → 403）
    │
    ▼
@@ -97,7 +165,7 @@ PS> dsh --version
    │
    ▼
 ⑨ 退出
-   优雅关闭 dsh 子进程（不能留孤儿进程）
+   优雅关闭 dsh 子进程树（不能留孤儿进程）
 ```
 
 **关键约束（来自 [ARCHITECTURE.md](ARCHITECTURE.md) 与 [plan.md](plan.md)）**：
@@ -105,9 +173,10 @@ PS> dsh --version
 | 约束 | 原因 |
 |---|---|
 | **必须同源加载**，禁止 `file://` | `isTrustedApiRequest` 对 `Origin: null` 会抛错 → 403 |
-| **端口要么钉死 3080，要么整条链路用同一端口** | cookie 名与载荷绑定 `host:port`，换端口 cookie 全废 |
+| **端口要么钉死，要么整条链路用同一端口** | cookie 名与载荷绑定 `host:port`，换端口 cookie 全废 |
 | **token 只在 `GET /` 兑换**，且硬要求 `pathname === "/"` | 不支持子路径挂载 |
-| **退出必须杀子进程** | 否则留下占用 3080 的孤儿 `node` |
+| **退出必须杀子进程树** | 否则留下占用端口的孤儿 `node` |
+| **忠实转发参数，不硬编码** | 若用户的 `deepseek` 脚本自带端口/profile/workspace，启动器应尊重它 |
 
 ---
 
@@ -243,3 +312,7 @@ PS> dsh --version
 | L6 | macOS 未签名 `.app` 的实际拦截行为 | macOS 发布 |
 | L7 | Linux 无图形会话下的降级行为 | Linux 支持 |
 | L8 | 退出时子进程树是否被可靠清理（Windows 尤其） | 不留孤儿进程 |
+| L9 | 干净环境（无 Node / 无 dsh）下的引导流程是否真的可走通 | 非开发者能否自助 |
+| **L10** | **`npm run deepseek` 脚本的实际内容** —— 是否等价于 `dsh web`？是否自带端口/profile/workspace 参数？ | 决定启动器是**忠实转发**还是自己拼参数 |
+| **L11** | 用户项目目录的**选定与记忆**方案（§2.5.1） | 决定首次启动体验 |
+| **L12** | `npm run` 无参数时的行为（会打印脚本列表并以 0 退出，**不报错**） | 级联第②档的正确判定方式 |

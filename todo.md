@@ -423,11 +423,27 @@
 - [ ] **P5-4** 🚦 在一台**干净环境**上验证引导流程（或手动清空 PATH 模拟）
 
 ### 6.2 启动与承载
-- [ ] **P5-5** [自研] 拉起 `dsh web` 并抓 token ⏱️4h
-  - `npx --yes @deepseek-ai/dsh web --no-open [--port <port>]`
-  - 等 stdout 出现 `dsh web: http://127.0.0.1:<port>/?token=<t>`
-  - ⚠️ **带超时**（如 90s），超时进失败处理
+- [ ] **P5-5** [自研] 拉起 DSH —— **按级联回退**（⚠️ 按维护者实际用法设计）⏱️6h
+  - 🔑 **维护者实际用 `npm run deepseek`，不是全局 `dsh` 命令** —— 启动器不能只认一种方式
+  - 级联顺序：
+    ```
+    ① npm run deepseek                             ← 首选
+    ② 读 package.json，有 start 则 npm run start     ← 回退
+    ③ npm 不存在 → 引导安装（浏览器打开 nodejs.org）→ 一键重试
+    ④ dsh 不存在 → npx --yes @deepseek-ai/dsh web
+    ```
+  - ⚠️ **`npm run`（不带脚本名）会打印脚本列表并以 0 退出，不报错** → 第②档必须
+    **读 `package.json` 判断 `start` 是否存在**，而不是裸跑 `npm run`（L12）
+  - ⚠️ **忠实转发参数，不硬编码**：若用户的 `deepseek` 脚本自带端口/profile/workspace，
+    启动器应尊重它（L10）
+  - ⚠️ **带超时**（如 90s）等 stdout 出现 `dsh web: http://127.0.0.1:<port>/?token=<t>`
   - 🔴 `npx` 有 `ECOMPROMISED: Lock compromised` 的**实战记录** → 必须重试（退避）+ 清晰报错（L2）
+- [ ] **P5-5b** [自研] 确定**工作目录**（级联的前提）⏱️3h
+  - `npm run <script>` **必须在含该 script 的 `package.json` 所在目录执行**
+  - 实测：`Documents`/`Desktop`/`Downloads`/用户根目录下**都没有**定义 `deepseek` 的 `package.json`
+    → 它在用户自己的项目目录里，**启动器无从猜测**（L11）
+  - 方案 A（推荐）：首次启动让用户**选择项目目录**并记住，支持多目录
+  - 兜底：若该目录没有 `deepseek`/`start` 脚本 → 用内置脚本直接起 `dsh web`
 - [ ] **P5-6** [自研] 同源载入界面 ⏱️3h
   - **持久 partition** 先 `loadURL(tokenizedUrl)` → 服务端 `303` + `Set-Cookie`
   - 再载入 `http://127.0.0.1:<port>/`
@@ -547,6 +563,9 @@ P0-0 重启 ──► P0-1 备份 ──► P1-14 装 dsh-pet（含版本豁免�
 | **L7** | Linux 无图形会话下的降级行为 | Linux 支持 | ⬜ |
 | **L8** | 退出时子进程树是否被可靠清理（Windows 尤其） | 不留孤儿进程占用 3080 | ⬜ |
 | **L9** | 干净环境（无 Node / 无 dsh）下的引导流程是否真的可走通 | 非开发者能否自助 | ⬜ |
+| **L10** | **`npm run deepseek` 脚本的实际内容** —— 是否等价于 `dsh web`？是否自带端口/profile/workspace 参数？ | 决定启动器**忠实转发**还是自己拼参数 | ⬜ **需维护者确认** |
+| **L11** | 用户项目目录的**选定与记忆**方案 | 首次启动体验 | ⬜ |
+| **L12** | `npm run` 无参数会打印脚本列表并以 0 退出（**不报错**） | 级联第②档的正确判定方式 | ✅ 已确认行为，实现需读 `package.json` |
 
 ### V 系列（通用）
 
