@@ -34,3 +34,14 @@ restart-dsh.stderr.log
 commit-msg.tmp
 
 msg2.tmp
+
+# 凭据与密钥（绝不可入库）
+.credentials.yaml
+*.credentials.yaml
+.env
+.env.*
+
+msg3.tmp
+
+# 插件构建产物
+packages/*/lib/
