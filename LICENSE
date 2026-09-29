@@ -19,21 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-NOTE ON DEPENDENCIES AND ASSETS
-
-This license covers the source code of THIS repository only.
-
-Third-party plugins and assets this project depends on or reuses carry their own
-terms. In particular, PC2005-cloud/dsh-pet (used as the desktop presence /
-pet carrier template) is:
-
-  - code: MIT
-  - assets (animations, prompts, source videos): open-source use permitted,
-    COMMERCIAL USE PROHIBITED
-  - derivative works: MUST credit https://github.com/PC2005-cloud/dsh-pet in
-    any introduction, display, or distribution of the derivative work
-
-See NOTICE.md for the full attribution list.
