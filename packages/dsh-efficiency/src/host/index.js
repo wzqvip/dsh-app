@@ -44,6 +44,13 @@ let appliedAt = 0;
 /** 旁听到的提问次数（用于排障） */
 let seenRequests = 0;
 
+/**
+ * 沙箱专用开关：只有进程环境变量 DSH_EFFICIENCY_DEV_TOOLS=1 时，
+ * 才注册 /api/dev/* 端点（注入合成提问，用于在没人提问时验证 UI）。
+ * 生产环境不设该变量 → 端点根本不存在。
+ */
+const DEV_TOOLS = process.env.DSH_EFFICIENCY_DEV_TOOLS === '1';
+
 function apply(ctx) {
   appliedAt = Date.now();
   // ctx.logger 可能不写 stdout；排障时用 console 直接打，确保可见
@@ -155,8 +162,48 @@ function apply(ctx) {
       seenRequests,
       pending: pending.size,
       answered: answered.size,
+      devTools: DEV_TOOLS,
     });
   });
+
+  // ---- 沙箱专用：注入一条合成提问，用于在没有人提问时验证 UI ----
+  // ⚠️ 只有进程环境变量 DSH_EFFICIENCY_DEV_TOOLS=1 时才注册。
+  //    这样生产环境（不设该变量）永远不会暴露这个端点。
+  if (DEV_TOOLS) {
+    route('/dsh-efficiency/api/dev/inject', async (req, res) => {
+      if (req.method !== 'POST') return json(res, 405, { ok: false, error: 'method-not-allowed' });
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch (err) {
+        return json(res, 400, { ok: false, error: `bad-json: ${String(err)}` });
+      }
+      const callId = body?.callId || `dev-${Date.now()}`;
+      const questions = body?.questions;
+      if (!Array.isArray(questions) || questions.length === 0) {
+        return json(res, 400, { ok: false, error: 'questions (non-empty array) required' });
+      }
+      pending.set(callId, {
+        callId,
+        questions,
+        agent: null, // 合成提问没有真实 agent
+        timed: body?.timed === true,
+        receivedAt: Date.now(),
+        dev: true,
+      });
+      log(`[dev] injected synthetic question ${callId} (${questions.length} item(s))`);
+      return json(res, 200, { ok: true, callId });
+    });
+
+    route('/dsh-efficiency/api/dev/clear', async (req, res) => {
+      const n = pending.size;
+      for (const [id, e] of pending) if (e.dev) pending.delete(id);
+      log(`[dev] cleared synthetic questions (had ${n})`);
+      return json(res, 200, { ok: true });
+    });
+
+    log('dev tools enabled (DSH_EFFICIENCY_DEV_TOOLS=1)');
+  }
 
   log('host half ready');
 }
