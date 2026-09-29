@@ -38,6 +38,62 @@ git push origin main
 
 ---
 
+## 1.5 提交署名：单一身份（2026-09-29 起）
+
+| 身份 | name | email |
+|---|---|---|
+| **全部提交** | `蓝色大肥鱼` | `wang.20306@osu.edu` |
+
+维护者在 2026-09-29 要求「把之前的内容都改成这个，force 一下，清理掉历史」，
+随后又要求「带有改头像相关，不是内容的都清理掉或者合并掉」。于是当天整理了两轮：
+
+1. 用 `git filter-branch` + force-push **统一全部署名**（含早期手写提交）；
+2. 把 **15 条「署名/头像」元提交** fixup 成一条文档提交，`git rebase -i --root` + force-push。
+
+**结果：25 → 11 个提交**，全部署名 `蓝色大肥鱼 <wang.20306@osu.edu>`，
+log 里只剩正事与文档（文件内容一字未改）。
+⚠️ 旧 commit 已不在任何分支上，但 **GitHub 仍会按旧 SHA 直接提供它们**
+（实测 commit 页面与 raw URL 均 200）—— 要彻底清除需请 GitHub Support 处理；
+其它克隆也应重新 clone。详见 [COMMIT-IDENTITY.md](COMMIT-IDENTITY.md) §5。
+
+**提交时用**（`scripts/git-ai.ps1` 已封装，不碰全局 config）：
+
+```powershell
+.\scripts\git-ai.ps1 commit -F .git/COMMIT_MSG_TMP.txt
+.\scripts\git-ai.ps1 push origin main
+```
+
+⚠️ **绝不用 `git config user.name` 改** —— 那会污染维护者其它仓库的身份。
+必须用 `GIT_AUTHOR_*` / `GIT_COMMITTER_*` 环境变量（脚本已封装）。
+
+⚠️ **反过来要注意**：维护者**手写**提交若仍走全局身份（`Taco <163>`），
+新提交就会重新出现第二种署名、历史重新变得不统一。要不要连手写提交也用这个身份由他决定，
+**本文件不替他改全局配置**。
+
+⚠️ **做 `rebase` / `amend` / `filter-branch` 前必须先设 `GIT_AUTHOR_*` 与
+`GIT_COMMITTER_*`** —— 重写会生成新提交，committer 取自 git config，只保 author 会让
+署名重新变成两种（本项目已踩过）。重写后自查：
+`git log --format='%an <%ae>|%cn <%ce>' | Sort-Object -Unique` 应**只有一行**。
+详见 [COMMIT-IDENTITY.md](COMMIT-IDENTITY.md) §2.1。
+
+⚠️ **commit 信息含特殊字符时走 `-F <文件>`**，不要内联 `-m "..."`：
+中文 + `【】` + `*` 会被 PowerShell 解析，导致 `pathspec did not match` 错误。
+
+⚠️ **头像与显示名由同一个开关决定：commit 的 email 是否绑定 GitHub 账号**。
+绑定 → 头像用该账号的，**名字也渲染成该账号的 login**；未绑定 → 名字用 commit 里的
+author name，但头像只剩默认占位图。两者**无法只要一半**（commit 对象里既没有头像字段，
+名字也不被采用）。所以本项目现在 GitHub 上显示的是 **`wzqvip` + 维护者头像**，
+而不是 `蓝色大肥鱼` —— 实测见 [COMMIT-IDENTITY.md](COMMIT-IDENTITY.md) §3.2.1。
+✅ **维护者 2026-09-29 已拍板：取头像，接受显示 `wzqvip`** ——
+不要再为"显示中文名"去改署名或重写历史。
+
+⚠️ `wang.20306@osu.edu` 已实测关联 `wzqvip`（它也是该账号的公开资料邮箱）；
+用未绑定账号的邮箱提交，圆形位置是默认占位图 —— 本项目已踩过。
+（曾用"在 commit 信息里注入图片"绕路，实测 HTML 注释被 GitHub 剥离、可见 markdown 又会
+污染 `git log` 输出，**已放弃并从脚本移除**。详见 [COMMIT-IDENTITY.md](COMMIT-IDENTITY.md) §3。）
+
+---
+
 ## 2. 代码约定（实现阶段适用）
 
 - **不声明 `@deepseek-ai/dsh*` 的 `peerDependencies`** —— 本项目刻意绕开 DSH 的版本闸门
