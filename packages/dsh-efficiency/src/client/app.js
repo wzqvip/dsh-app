@@ -67,19 +67,22 @@ export function makeFactory() {
       ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-efficiency: dictionaries');
       const t = ctx.locale.bind(NS);
 
-      ctx.slots.inject('shell.overlay', () =>
-        ctx.slots.register(
+      // ⚠️ 必须用 generator（yield 注册结果），照抄已验证可用的第三方插件
+      // （dsh-pet / dshmarket 均为此形式）。yield 出去的注册句柄由 slots
+      // 负责在卸载时回收；改成普通回调会丢掉这个句柄。
+      ctx.slots.inject('shell.overlay', function* () {
+        yield ctx.slots.register(
           { name: 'shell.overlay', id: 'efficiency-questions', order: 900 },
           () => h(QuestionPanel, { t }),
-        ),
-      );
+        );
+      });
 
-      ctx.slots.inject('settings.section', () =>
-        ctx.slots.register(
+      ctx.slots.inject('settings.section', function* () {
+        yield ctx.slots.register(
           { name: 'settings.section', id: 'efficiency-config', order: 40, label: () => t('nav') },
           () => h(SettingsSection, { t }),
-        ),
-      );
+        );
+      });
     }
 
     module.exports = { apply, inject, name };

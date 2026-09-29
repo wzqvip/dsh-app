@@ -45,3 +45,5 @@ msg3.tmp
 
 # 插件构建产物
 packages/*/lib/
+
+msg4.tmp
