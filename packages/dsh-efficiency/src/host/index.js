@@ -39,16 +39,29 @@ async function readJsonBody(req) {
 const name = 'dsh-efficiency';
 const inject = ['webServer', 'userQuestions'];
 
+/** 插件是否已 apply（用于排障：客户端可读） */
+let appliedAt = 0;
+/** 旁听到的提问次数（用于排障） */
+let seenRequests = 0;
+
 function apply(ctx) {
-  const log = (msg) => ctx.logger?.info?.(`[dsh-efficiency] ${msg}`);
+  appliedAt = Date.now();
+  // ctx.logger 可能不写 stdout；排障时用 console 直接打，确保可见
+  const log = (msg) => {
+    try { ctx.logger?.info?.(`[dsh-efficiency] ${msg}`); } catch { /* ignore */ }
+    console.log(`[dsh-efficiency] ${msg}`);
+  };
+  log('apply() 开始');
 
   // ---- 1) 在 waterfall 上旁听提问，记录后【交回】官方链路 ----
   ctx.effect(() => {
     const dispose = ctx.on('user-questions/request', (request, next) => {
       try {
+        seenRequests += 1;
         const wait = request?.wait;
         const callId = wait?.callId;
         const questions = request?.questions;
+        log(`waterfall 命中 #${seenRequests} callId=${callId} questions=${Array.isArray(questions) ? questions.length : 'n/a'}`);
         if (callId && Array.isArray(questions) && questions.length > 0) {
           pending.set(callId, {
             callId,
@@ -133,7 +146,16 @@ function apply(ctx) {
 
   // 健康检查（便于排障）
   route('/dsh-efficiency/api/health', async (req, res) => {
-    json(res, 200, { ok: true, plugin: name, pending: pending.size, answered: answered.size });
+    json(res, 200, {
+      ok: true,
+      plugin: name,
+      // 排障字段：确认 apply 真的跑过、waterfall 是否命中过
+      appliedAt,
+      appliedAgoMs: appliedAt ? Date.now() - appliedAt : null,
+      seenRequests,
+      pending: pending.size,
+      answered: answered.size,
+    });
   });
 
   log('host half ready');
