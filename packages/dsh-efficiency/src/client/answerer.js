@@ -112,7 +112,8 @@ async function handleRequest(ctx, bridge, request, next, log) {
   let claimIterator = null;
   let claimEnded = null;
   const claimLifetime = new AbortController();
-  const sessionId = ctx?.sessions?.scopeOf?.(this) ?? undefined;
+  let sessionId;
+  try { sessionId = ctx?.sessions?.scopeOf?.(this); } catch { sessionId = undefined; }
 
   if (timed && sessionId && ctx?.remote?.userQuestions?.attachWait) {
     try {

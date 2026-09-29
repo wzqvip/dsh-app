@@ -25,11 +25,18 @@ let installed = false;
 function push(entry) {
   queue.push(entry);
   if (queue.length > MAX_QUEUE) queue.shift();
-  if (timer === null) timer = setTimeout(flush, FLUSH_MS);
+  if (entry.level === 'error') {
+    void flush();
+  } else if (timer === null) {
+    timer = setTimeout(flush, FLUSH_MS);
+  }
 }
 
-async function flush() {
-  timer = null;
+export async function flush() {
+  if (timer !== null) {
+    clearTimeout(timer);
+    timer = null;
+  }
   if (flushing || queue.length === 0) return;
   const batch = queue;
   queue = [];

@@ -14,7 +14,7 @@
 import { makeQuestionPanel } from './panel.js';
 import { makeSettingsSection } from './settings.js';
 import { createAnswerBridge, installAnswerer } from './answerer.js';
-import { clog, installClientLogging } from './logger.js';
+import { clog, installClientLogging, flush } from './logger.js';
 
 const NS = 'dsh-efficiency';
 
@@ -102,13 +102,13 @@ export function makeFactory() {
       // 先把排障通道装上：后面的一切都会回流到宿主日志（AI 读得到）
       installClientLogging();
       clog('info', 'apply() 开始');
+      const safe = (fn) => { try { return fn(); } catch { return false; } };
       clog('info', '注入面检查', {
-        slots: !!ctx?.slots,
-        locale: !!ctx?.locale,
-        remote: !!ctx?.remote,
-        remoteOn: typeof ctx?.remote?.$on === 'function',
-        sessions: !!ctx?.sessions,
-        effect: typeof ctx?.effect,
+        slots: safe(() => !!ctx?.slots),
+        locale: safe(() => !!ctx?.locale),
+        remote: safe(() => !!ctx?.remote),
+        remoteOn: safe(() => typeof ctx?.remote?.$on === 'function'),
+        effect: safe(() => typeof ctx?.effect === 'function'),
       });
 
       // 整体 try/catch：插件 apply 抛错时，框架多半用【自己的 logger】记录，
@@ -121,6 +121,7 @@ export function makeFactory() {
         clog('error', `apply 主体抛出: ${String(err)}`, {
           stack: err?.stack ? String(err.stack).slice(0, 1500) : undefined,
         });
+        void flush();
         throw err;
       }
     }
