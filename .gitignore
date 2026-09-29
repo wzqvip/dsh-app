@@ -29,3 +29,6 @@ pnpm-debug.log*
 restart-dsh.log
 restart-dsh.stdout.log
 restart-dsh.stderr.log
+
+# 提交信息临时文件
+commit-msg.tmp
