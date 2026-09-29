@@ -1,15 +1,22 @@
-# 以"完全分离"的方式启动重启脚本，然后立刻退出。
+# Launch the restart in a fully detached way, after a delay, then exit.
+# ASCII-only: Windows PowerShell 5.1 misreads BOM-less files as ANSI.
 #
-# 目的：本包装进程不等结果、不占用终端，立即返回；
-# 真正的重启由一个独立进程执行，结果写入 restart-dsh.log。
-# 这样即使发起方（AI 会话）在重启瞬间被中断，动作也会照常完成。
+# The delay exists so the caller (an AI session served by that very server)
+# can finish its reply before the server goes down.
+
+param(
+  [int]$Port = 3080,
+  [int]$DelaySeconds = 20
+)
 
 $ErrorActionPreference = 'Continue'
 $target = Join-Path $PSScriptRoot 'restart-dsh.ps1'
 
-Start-Process -FilePath 'powershell' `
-  -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $target) `
-  -WindowStyle Hidden
+$cmd = 'Start-Sleep -Seconds {0}; & "{1}" -Port {2}' -f $DelaySeconds, $target, $Port
 
-Write-Output "已分离启动重启流程: $target"
-Write-Output "如被中断，请查看日志: $(Join-Path $PSScriptRoot '..\restart-dsh.log')"
+Start-Process -FilePath 'powershell' `
+  -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $cmd) `
+  -WindowStyle Hidden | Out-Null
+
+Write-Output ('detached restart scheduled: port={0}, delay={1}s, script={2}' -f $Port, $DelaySeconds, $target)
+Write-Output ('log will be written to: {0}' -f (Join-Path $PSScriptRoot ('..\restart-dsh-{0}.log' -f $Port)))
