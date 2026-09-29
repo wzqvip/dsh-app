@@ -45,23 +45,47 @@ W ('=== restart begin (port={0}, dryrun={1}) ===' -f $Port, [bool]$DryRun)
 if (-not $bin) { W 'ERROR: no dsh entry point found'; exit 3 }
 W ('using bin: ' + $bin)
 
-# 0) self-kill guard: is this process a descendant of the target listener?
+# 0) self-kill guard
+#    A process cannot reliably restart a server it depends on. Two dangerous
+#    directions must both be refused:
+#      (a) the target is an ANCESTOR of us  -> killing it kills us
+#          (this is the common real case: a tool call spawned by the very
+#           server that owns the port)
+#      (b) we are a DESCENDANT of the target -> same thing, seen the other way
+#    Already hit once: research/07-restart-findings.md
 $conn0 = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($conn0 -and -not $ForceFromAncestor) {
   $targetPid = [int]$conn0.OwningProcess
+
+  # (a) walk OUR ancestry: is the target one of our ancestors?
   $cursor = $PID
   $depth = 0
   while ($cursor -and $depth -lt 32) {
     if ($cursor -eq $targetPid) {
-      W ('REFUSING: this process (PID {0}) descends from the target listener (PID {1}).' -f $PID, $targetPid)
-      W 'Killing it would kill this script too. Run from an independent context,'
-      W 'or pass -ForceFromAncestor if you really mean it.'
+      W ('REFUSING: the target listener (PID {0}) is an ANCESTOR of this process (PID {1}, {2} levels up).' -f $targetPid, $PID, $depth)
+      W 'Killing it would kill this script (and whatever launched it).'
+      W 'Run this from an independent context, e.g. a normal terminal window:'
+      W ('  powershell -NoProfile -ExecutionPolicy Bypass -File "{0}" -Port {1}' -f $PSCommandPath, $Port)
+      W 'Or pass -ForceFromAncestor if you really accept losing the caller.'
       exit 2
     }
     $cursor = (Get-CimInstance Win32_Process -Filter ('ProcessId={0}' -f $cursor) -ErrorAction SilentlyContinue).ParentProcessId
     $depth++
   }
-  W ('self-kill guard: not a descendant of PID {0} (checked {1} levels)' -f $targetPid, $depth)
+
+  # (b) walk the TARGET's ancestry: are we one of its ancestors? (kept for completeness)
+  $cursor = $targetPid
+  $depth2 = 0
+  while ($cursor -and $depth2 -lt 32) {
+    if ($cursor -eq $PID) {
+      W ('REFUSING: this process (PID {0}) is an ANCESTOR of the target listener (PID {1}).' -f $PID, $targetPid)
+      exit 2
+    }
+    $cursor = (Get-CimInstance Win32_Process -Filter ('ProcessId={0}' -f $cursor) -ErrorAction SilentlyContinue).ParentProcessId
+    $depth2++
+  }
+
+  W ('self-kill guard: OK - target PID {0} is neither our ancestor ({1} levels checked) nor our descendant ({2} levels checked)' -f $targetPid, $depth, $depth2)
 }
 
 # 1) who holds the port
