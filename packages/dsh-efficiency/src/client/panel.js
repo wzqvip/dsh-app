@@ -14,6 +14,7 @@
  */
 
 import { fetchPetLayout, computePanelPlacement } from './placement.js';
+import { clog } from './logger.js';
 
 const POLL_MS = 2000;
 const API = '/dsh-efficiency/api';
@@ -108,6 +109,20 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
     const [petLayout, setPetLayout] = useState(null);
     const [viewport, setViewport] = useState({ width: 1280, height: 800 });
     const alive = useRef(true);
+    const mounted = useRef(false);
+    const loggedEmpty = useRef(false);
+    const loggedRendered = useRef(false);
+
+    // 组件挂载即上报一次：这是区分"没渲染"与"渲染了但看不见"的关键证据。
+    // 若宿主日志里没有这一行 → 组件根本没被挂载 → 问题在槽位注册。
+    // 若有这一行却没有卡片 → 组件在渲染，问题在定位/样式/数据。
+    if (!mounted.current) {
+      mounted.current = true;
+      clog('info', 'QuestionPanel 已挂载（组件被 React 渲染）', {
+        hasBridge: !!bridge,
+        win: typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'n/a',
+      });
+    }
 
     // ---- A. answerer 入口：把接收器交给 bridge ----
     useEffect(() => {
@@ -123,12 +138,17 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
     const poll = useCallback(async () => {
       try {
         const res = await fetch(`${API}/pending`, { credentials: 'same-origin' });
-        if (!res.ok) return;
+        if (!res.ok) {
+          clog('warn', `poll /pending 非 200: ${res.status}`);
+          return;
+        }
         const data = await res.json();
         if (!alive.current) return;
-        setPolled(Array.isArray(data?.items) ? data.items : []);
-      } catch {
-        /* 宿主不可用：静默，不影响 answerer 主路径 */
+        const list = Array.isArray(data?.items) ? data.items : [];
+        setPolled(list);
+        if (list.length > 0) clog('info', `poll 得到 ${list.length} 条待答`);
+      } catch (err) {
+        clog('warn', `poll /pending 失败: ${String(err)}`);
       }
     }, []);
 
@@ -165,9 +185,25 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
       if (local && it.callId === local.callId) continue;
       items.push({ ...it, source: 'poll' });
     }
-    if (items.length === 0) return null;
+    if (items.length === 0) {
+      // 没有待答：组件返回 null。这是正常状态，但要能区分"没数据"与"没渲染"。
+      if (!loggedEmpty.current) {
+        loggedEmpty.current = true;
+        clog('info', 'QuestionPanel 渲染但无待答数据（返回 null）');
+      }
+      return null;
+    }
+    loggedEmpty.current = false;
 
     const placement = computePanelPlacement(petLayout, viewport);
+    if (!loggedRendered.current) {
+      loggedRendered.current = true;
+      clog('info', `面板开始渲染 ${items.length} 条`, {
+        anchor: placement.anchor,
+        style: placement.style,
+        petLayout,
+      });
+    }
 
     const patchAnswer = (callId, qid, patch, questions) => {
       setDraft((prev) => {

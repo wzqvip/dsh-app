@@ -19,6 +19,13 @@ const pending = new Map();
 /** 已作答的 callId，避免轮询重复提示。 */
 const answered = new Set();
 
+/**
+ * 客户端回流的日志（最近 200 条）。
+ * 用途：插件跑在浏览器里，AI 看不到它的 console；
+ * 把关键事件与异常 POST 回来，就能在宿主侧读到并据此排障。
+ */
+const clientLogs = [];
+
 function json(res, code, body) {
   const text = JSON.stringify(body);
   res.writeHead(code, {
@@ -163,7 +170,43 @@ function apply(ctx) {
       pending: pending.size,
       answered: answered.size,
       devTools: DEV_TOOLS,
+      clientLogs: clientLogs.length,
     });
+  });
+
+  // ---- 客户端日志回流 ----
+  // 为什么需要：本插件跑在浏览器里，它的 console 我看不到。
+  // 而"面板没渲染"这类问题只能靠浏览器端的错误信息定位。
+  // 于是让客户端把关键事件 / 异常 POST 回来，我写进宿主日志（我读得到）。
+  //
+  // ⚠️ 同一路径只注册一次：route() 每次调用都会 webServer.register 一次，
+  //    注册两次会互相覆盖。GET/POST 在这里显式分派。
+  route('/dsh-efficiency/api/client-log', async (req, res) => {
+    if (req.method === 'GET') {
+      return json(res, 200, { ok: true, count: clientLogs.length, entries: clientLogs });
+    }
+    if (req.method !== 'POST') {
+      return json(res, 405, { ok: false, error: 'method-not-allowed' });
+    }
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch {
+      return json(res, 400, { ok: false, error: 'bad-json' });
+    }
+    const entries = Array.isArray(body?.entries) ? body.entries : [body];
+    for (const e of entries.slice(0, 50)) {
+      const line = {
+        at: e?.at ?? new Date().toISOString(),
+        level: String(e?.level ?? 'info').slice(0, 12),
+        msg: String(e?.msg ?? '').slice(0, 600),
+        extra: e?.extra === undefined ? undefined : String(JSON.stringify(e.extra)).slice(0, 600),
+      };
+      clientLogs.push(line);
+      if (clientLogs.length > 200) clientLogs.shift();
+      log(`[client:${line.level}] ${line.msg}${line.extra ? ` :: ${line.extra}` : ''}`);
+    }
+    return json(res, 200, { ok: true, stored: clientLogs.length });
   });
 
   // ---- 沙箱专用：注入一条合成提问，用于在没有人提问时验证 UI ----

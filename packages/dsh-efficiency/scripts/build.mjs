@@ -85,6 +85,7 @@ const SETTINGS = moduleVar('settings.js'); // __m_settings_js
 const PLACEMENT = moduleVar('placement.js'); // __m_placement_js
 const PROBE = moduleVar('probe.js'); // __m_probe_js
 const ANSWERER = moduleVar('answerer.js'); // __m_answerer_js
+const LOGGER = moduleVar('logger.js'); // __m_logger_js
 
 // 顺序：依赖在前。所有模块统一走 readClient（重写 import 后再 wrap）
 
@@ -101,6 +102,7 @@ const localModules = {
   './settings.js': SETTINGS,
   './probe.js': PROBE,
   './answerer.js': ANSWERER,
+  './logger.js': LOGGER,
 };
 
 const rewriteLocalImports = (source) => {
@@ -125,6 +127,7 @@ const rewriteLocalImports = (source) => {
 //                → panel（依赖 placement）→ settings（无依赖）→ app（依赖全部）
 const readClient = (f) => rewriteLocalImports(readFileSync(join(srcDir, 'client', f), 'utf8'));
 
+const loggerWrapped = wrap(readClient('logger.js'), 'logger.js');
 const probeWrapped = wrap(readClient('probe.js'), 'probe.js');
 const placementWrapped = wrap(readClient('placement.js'), 'placement.js');
 const answererWrapped = wrap(readClient('answerer.js'), 'answerer.js');
@@ -132,7 +135,7 @@ const panelWrapped = wrap(readClient('panel.js'), 'panel.js');
 const settingsWrapped = wrap(readClient('settings.js'), 'settings.js');
 const appWrapped = wrap(readClient('app.js'), 'app.js');
 
-const clientBody = [probeWrapped, placementWrapped, answererWrapped, panelWrapped, settingsWrapped, appWrapped].join('\n');
+const clientBody = [loggerWrapped, probeWrapped, placementWrapped, answererWrapped, panelWrapped, settingsWrapped, appWrapped].join('\n');
 
 const client = `// 由 packages/dsh-efficiency/scripts/build.mjs 生成 —— 请勿手改。
 // 契约：window.__ModuleLoader__.load({ id: '<npm 包名>', factory: (require) => module })

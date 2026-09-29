@@ -14,7 +14,7 @@
 import { makeQuestionPanel } from './panel.js';
 import { makeSettingsSection } from './settings.js';
 import { createAnswerBridge, installAnswerer } from './answerer.js';
-import { ensureDiag, diagNoteRequest, diagNoteOutcome, diagNoteError } from './probe.js';
+import { clog, installClientLogging } from './logger.js';
 
 const NS = 'dsh-efficiency';
 
@@ -99,43 +99,74 @@ export function makeFactory() {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function apply(ctx) {
-      ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-efficiency: dictionaries');
-      const t = ctx.locale.bind(NS);
+      // 先把排障通道装上：后面的一切都会回流到宿主日志（AI 读得到）
+      installClientLogging();
+      clog('info', 'apply() 开始');
+      clog('info', '注入面检查', {
+        slots: !!ctx?.slots,
+        locale: !!ctx?.locale,
+        remote: !!ctx?.remote,
+        remoteOn: typeof ctx?.remote?.$on === 'function',
+        sessions: !!ctx?.sessions,
+        effect: typeof ctx?.effect,
+      });
 
-      const diag = ensureDiag();
-      const log = (msg) => {
-        diag.lastLog = String(msg);
-        console.log(`[dsh-efficiency] ${msg}`);
-      };
+      // 整体 try/catch：插件 apply 抛错时，框架多半用【自己的 logger】记录，
+      // 浏览器全局 onerror 未必收到 —— 实测就丢过一次关键堆栈。
+      // 所以这里自己兜一层并回流，保证异常一定可见。
+      // （这个兜底立刻抓到过一个真实 ReferenceError，见提交说明。）
+      try {
+        applyBody(ctx, { clog, bridge, QuestionPanel, SettingsSection });
+      } catch (err) {
+        clog('error', `apply 主体抛出: ${String(err)}`, {
+          stack: err?.stack ? String(err.stack).slice(0, 1500) : undefined,
+        });
+        throw err;
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function applyBody(ctx, { clog: clogFn, bridge: b, QuestionPanel: Panel, SettingsSection: Settings }) {
+      ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-efficiency: dictionaries');
+      clogFn('info', 'locale 注册完成');
+
+      const tBound = ctx.locale.bind(NS);
 
       // 核心：注册 answerer。任何不确定的情况都会让位给官方链路。
       try {
-        installAnswerer(ctx, bridge, (m) => {
-          log(m);
-          if (/失败|不可用|让位/.test(m)) diagNoteError(m);
-        });
+        installAnswerer(ctx, b, (m) => clogFn('info', `answerer: ${m}`));
+        clogFn('info', 'answerer 注册流程返回');
       } catch (err) {
-        diagNoteError(err);
-        log(`answerer 装配异常: ${String(err)}`);
+        clogFn('error', `answerer 装配异常: ${String(err)}`, { stack: err?.stack });
       }
 
       // overlay：待答面板
       // ⚠️ 必须用 generator（yield 注册结果），照抄已验证可用的第三方插件。
-      ctx.slots.inject('shell.overlay', function* () {
-        yield ctx.slots.register(
-          { name: 'shell.overlay', id: 'efficiency-questions', order: 900 },
-          () => h(QuestionPanel, { t, bridge }),
-        );
-      });
+      try {
+        ctx.slots.inject('shell.overlay', function* () {
+          yield ctx.slots.register(
+            { name: 'shell.overlay', id: 'efficiency-questions', order: 900 },
+            () => h(Panel, { t: tBound, bridge: b }),
+          );
+        });
+        clogFn('info', '已注册 shell.overlay: efficiency-questions');
+      } catch (err) {
+        clogFn('error', `注册 shell.overlay 失败: ${String(err)}`, { stack: err?.stack });
+      }
 
-      ctx.slots.inject('settings.section', function* () {
-        yield ctx.slots.register(
-          { name: 'settings.section', id: 'efficiency-config', order: 40, label: () => t('nav'), inject: () => ({ t }) },
-          () => h(SettingsSection, { t }),
-        );
-      });
+      try {
+        ctx.slots.inject('settings.section', function* () {
+          yield ctx.slots.register(
+            { name: 'settings.section', id: 'efficiency-config', order: 40, label: () => tBound('nav'), inject: () => ({ t: tBound }) },
+            () => h(Settings, { t: tBound }),
+          );
+        });
+        clogFn('info', '已注册 settings.section: efficiency-config');
+      } catch (err) {
+        clogFn('error', `注册 settings.section 失败: ${String(err)}`, { stack: err?.stack });
+      }
 
-      log('装配完成');
+      clogFn('info', '装配完成');
     }
 
     module.exports = { apply, inject, name };

@@ -127,11 +127,24 @@ if (mod && typeof mod.apply === 'function') {
     },
   };
   try {
-    mod.apply(mockCtx);
-    check('apply 执行不抛错', true);
+    globalThis.__smokeErrors = [];
+    const origError = console.error;
+    console.error = (...a) => { globalThis.__smokeErrors.push(a.map(String).join(' ')); origError(...a); };
+    try {
+      mod.apply(mockCtx);
+      check('apply 执行不抛错', true);
+    } finally {
+      console.error = origError;
+    }
   } catch (err) {
     check('apply 执行不抛错', false, String(err));
   }
+  // 关键断言：apply 期间**不能有错误日志**。
+  // 这条能抓住"apply 中途抛错但被框架吞掉"的情形 ——
+  // 实测抓到过一个 ReferenceError: t is not defined，它导致整个插件没装配、
+  // 面板完全不出现，而只检查"apply 没抛"是发现不了的。
+  const errs = globalThis.__smokeErrors ?? [];
+  check('apply 期间无错误日志', errs.length === 0, errs.length ? errs.join(' | ').slice(0, 300) : '');
   check('完成了槽位注册', registrations.length > 0, `注册 ${registrations.length} 个`);
   const slots = registrations.map((r) => r.slotName).join(', ');
   check('注册到预期槽位', slots.includes('shell.overlay') && slots.includes('settings.section'), slots);
