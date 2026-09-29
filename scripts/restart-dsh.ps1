@@ -2,17 +2,36 @@
 # Windows PowerShell 5.1 reads BOM-less files as ANSI, which mangles
 # non-ASCII strings and silently breaks variable expansion (already hit once).
 #
+# !! WARNING - READ BEFORE USE !!
+# This script KILLS the process listening on the port, AND its parent process.
+# If you invoke it from a shell whose process tree descends from that server
+# (e.g. an AI session served by it), THE SCRIPT WILL KILL ITSELF and never
+# reach the start-new-instance step. That already happened once - see
+# research/07-restart-findings.md.
+# A process cannot reliably restart its own ancestor. Run this only from an
+# INDEPENDENT context: another terminal, Task Scheduler, or a launcher that
+# is the PARENT of dsh web (not its child).
+#
 # Usage:
-#   powershell -NoProfile -ExecutionPolicy Bypass -File restart-dsh.ps1 -Port 3080
-#   ... -Port 3098 -DryRun        # exercise the logic without touching 3080
+#   powershell -NoProfile -ExecutionPolicy Bypass -File restart-dsh.ps1 -Port 3080 -DryRun
+#   ... -Port 3080 -ForceFromAncestor   # override the self-kill guard (dangerous)
 
 param(
   [int]$Port = 3080,
-  [switch]$DryRun
+  [switch]$DryRun,
+  # Bypass the "am I a descendant of the target?" guard
+  [switch]$ForceFromAncestor
 )
 
 $ErrorActionPreference = 'Continue'
-$bin = 'C:\Users\WANGZ\AppData\Local\npm-cache\_npx\1e7f6d9597241db0\node_modules\@deepseek-ai\dsh\lib\bin.js'
+
+# dsh entry: prefer the current install location, fall back to the npx cache path
+$binCandidates = @(
+  'C:\Users\WANGZ\node_modules\@deepseek-ai\dsh\lib\bin.js',
+  'C:\Users\WANGZ\AppData\Local\npm-cache\_npx\1e7f6d9597241db0\node_modules\@deepseek-ai\dsh\lib\bin.js'
+)
+$bin = $binCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+
 $log = Join-Path $PSScriptRoot ('..\restart-dsh-{0}.log' -f $Port)
 $outLog = Join-Path $PSScriptRoot ('..\restart-dsh-{0}.stdout.log' -f $Port)
 $errLog = Join-Path $PSScriptRoot ('..\restart-dsh-{0}.stderr.log' -f $Port)
@@ -23,6 +42,27 @@ function W([string]$m) {
 }
 
 W ('=== restart begin (port={0}, dryrun={1}) ===' -f $Port, [bool]$DryRun)
+if (-not $bin) { W 'ERROR: no dsh entry point found'; exit 3 }
+W ('using bin: ' + $bin)
+
+# 0) self-kill guard: is this process a descendant of the target listener?
+$conn0 = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($conn0 -and -not $ForceFromAncestor) {
+  $targetPid = [int]$conn0.OwningProcess
+  $cursor = $PID
+  $depth = 0
+  while ($cursor -and $depth -lt 32) {
+    if ($cursor -eq $targetPid) {
+      W ('REFUSING: this process (PID {0}) descends from the target listener (PID {1}).' -f $PID, $targetPid)
+      W 'Killing it would kill this script too. Run from an independent context,'
+      W 'or pass -ForceFromAncestor if you really mean it.'
+      exit 2
+    }
+    $cursor = (Get-CimInstance Win32_Process -Filter ('ProcessId={0}' -f $cursor) -ErrorAction SilentlyContinue).ParentProcessId
+    $depth++
+  }
+  W ('self-kill guard: not a descendant of PID {0} (checked {1} levels)' -f $targetPid, $depth)
+}
 
 # 1) who holds the port
 $conn = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
