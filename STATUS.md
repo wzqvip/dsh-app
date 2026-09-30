@@ -29,8 +29,8 @@
 | 桌宠网页浮层 | ✅ | CDP 实测 `dsh-pet-root=1 stage=1 video=2 bubble=1` + 截图 `build/web-overlay.png` |
 | 桌宠桌面小窗 | ✅ | 实机 smoke：`sprites=1 configOk=true menuOpen=true`；截图 `build/desktop-smoke.png` |
 | **按生产配置** 复验（`display=desktop`） | ✅ | 桌面端正常；网页端**正确抑制**；恢复 `both` 后网页端重新渲染 |
-| 通知 | ⚠️ 部分 | 接线已核对完整（见 §3）；**帧→toast 的展示段未验** |
-| 状态联动 | ✅ | `/balance` 返回 79.16 与桌面气泡 `余额（谷）¥79.16` 一致；`/work-status` 门控正确 |
+| 通知 | ✅ | `scripts/manual-notify-flow.mjs` **13 项全绿**（见 §3）：引擎把帧映射成通知并弹出、正文/图标正确、`/notify` 轮询在跑、聚焦门两个方向都对 |
+| 状态联动 | ✅ | `/balance` 返回 76.34 与桌面气泡 `余额（谷）¥76.34` 一致；`/work-status` 门控正确 |
 | 设置 GUI + 右键「设置…」 | ✅ | 8 分区 / 33 行 / 241 控件；**内置配置全部字段可编辑、无只读项**；截图 `build/settings-window.png`；保存链路实测成功 |
 | 提问链路（核心价值） | ✅ | 注入合成提问 → 面板渲染出选项 + Submit/Skip + 输入框；截图 `build/question-panel.png` |
 | deploy 五道门禁 | ✅ | build / smoke / placement / materialize / config-write 全绿 |
@@ -38,7 +38,7 @@
 
 ---
 
-## 3. 通知的接线现状（唯一部分验证项）
+## 3. 通知链路（**已完整验证**）
 
 分工（**不是缺陷**）：
 
@@ -52,16 +52,30 @@
 - 帧契约两侧**共用同一份** `shared/notify.ts`（`frameToToast` / `NOTIFY_ICONS`），
   漂移风险低。
 
-**未验的只是最后一段**：帧到达后 toast 是否真的弹出。
-原因：帧只能由**真实 DSH 事件**触发；而注入需要给宿主加 dev 钩子，
-但 `pushNotifyFrame` **没有对外导出**（只有 pet 宿主模块内部可见），
-不值得为验证去改 vendor。
+**验证方式**：`scripts/manual-notify-flow.mjs`（13 项全绿，不进 deploy 门禁）。
+不改 vendor —— 用页面内可控注入把整条链跑通：
 
-**若要补验**，两条现成路径：
+1. 替换 `window.Notification` 为记录器 → 不依赖系统真弹窗，精确捕获 `(title, body, icon)`；
+2. 拦截 `fetch`，让 `/notify` 返回构造的帧（`seq` 递增，否则引擎判"无新帧"）
+   → 真正跑起来的是 `startNotify` 的消费循环
+   （`fetchNotify → batch.seq > seq → toastFrame → frameToToast → new Notification`）；
+   帧类型用 `question/requested`，**不需要真实 DSH 事件**；
+3. 切换可见性并**派发真实事件**，验聚焦门两个方向。
+
+**结论**：引擎把帧映射成通知并弹出
+（`{title:"模型在等你回答", body:…, icon:"notify-question.png"}`）、
+`/notify` 轮询在跑、**聚焦门两个方向都对**（前台不弹 / 后台弹）。
+
+⚠️ 验证过程中两次"判据没验证"的坑（都写进脚本注释，避免重犯）：
+① 前台断言忘了**停掉假帧供给** → 引擎当然继续弹，差点当成"聚焦门失效"；
+② 引擎的 `isPageActive()` 用的是**模块级缓存变量**，只在
+`visibilitychange` / `focus` / `blur` 事件里更新 —— 直接覆盖 `document.hidden`
+**不会刷新缓存**。两次都是测试假象，产品行为一直是对的。
+
+**想在有桌面的环境里亲眼看到弹窗**，两条现成路径：
 1. 设置页里的**「测试通知」按钮**（`settings.ts:368` 直接 `new Notification(...)`）
-   —— 验的是浏览器通知权限与弹出能力，**不经过宿主队列**。
-   注意 headless 浏览器通常不展示系统通知，需在有桌面的浏览器里点。
-2. 跑一次真实 agent 会话（回合结束即触发 `turn/end`）→ 看是否弹「对话完成」。
+   —— 验的是浏览器通知权限与弹出能力，**不经过宿主队列**；
+2. 跑一次真实 agent 会话（回合结束即触发 `turn/end`）→ 应弹「对话完成」。
 
 ---
 
