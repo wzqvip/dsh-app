@@ -120,6 +120,6 @@ function apply(ctx) {
 自研设置页只需负责 dsh-pet 白名单**之外**的东西，以及本插件自己的项。
 
 ⚠️ 耦合权衡：这会让本插件的设置页**依赖 dsh-pet 已安装**。
-按 [ARCHITECTURE.md](../ARCHITECTURE.md) §9 的 L1/L2 分层，
+按 [ARCHITECTURE.md](../docs/ARCHITECTURE.md) §9 的 L1/L2 分层，
 「核心层不得依赖承载层」→ 所以设置页必须**检测 dsh-pet 是否可用**，
 不可用时隐藏相关分区，而不是报错。

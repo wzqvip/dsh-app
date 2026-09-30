@@ -7,7 +7,7 @@
 >
 > 🎯 **项目定位（v0.3 修订）**：**效率导向**。核心痛点是"agent 提问时你不在网页前，任务干等"。
 > 桌宠只是**不打开网页就能看到提问与进度**的载体；**桌宠属性与 galgame 都是可选交互模块，不是主要内容**。
-> 详见 [README.md](README.md) 与 [ARCHITECTURE.md](ARCHITECTURE.md)。
+> 详见 [README.md](README.md) 与 [ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 >
 > ⭐ **桌宠已选定模板：[`PC2005-cloud/dsh-pet`](https://github.com/PC2005-cloud/dsh-pet)**（npm `dsh-pet@0.2.12`，832★）。它**自带 Electron 透明置顶窗桌面模式** + `shell.overlay` 网页浮层 + 六档工作状态联动 + 完整素材链 → **本项目不再需要自研 Tauri/Electron 薄壳**（详见 §4.2）。
 >
@@ -19,10 +19,10 @@
 
 **配套文档**
 - [README.md](README.md) —— 项目介绍（效率定位、核心能力、进度档位）
-- [ARCHITECTURE.md](ARCHITECTURE.md) —— 技术设计（提问-回答管线、进度来源、token 成本）
-- [LAUNCHER.md](LAUNCHER.md) —— 启动器设计（解压即用、环境检测、跨平台）
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) —— 技术设计（提问-回答管线、进度来源、token 成本）
+- [LAUNCHER.md](docs/LAUNCHER.md) —— 启动器设计（解压即用、环境检测、跨平台）
 - [todo.md](todo.md) —— 可执行任务清单
-- [CONTRIBUTING.md](CONTRIBUTING.md) / [SECURITY.md](SECURITY.md) / [NOTICE.md](NOTICE.md) —— 贡献、安全、许可
+- [CONTRIBUTING.md](docs/CONTRIBUTING.md) / [SECURITY.md](docs/SECURITY.md) / [NOTICE.md](NOTICE.md) —— 贡献、安全、许可
 - 调研原始报告（源码级，含行号）：`research/01-plugin-architecture.md`、`02-embedding-and-sdk.md`、`03-web-lan-access.md`、`04-responsive-ui.md`、`05-display-modes.md`
 
 ### 已确认的方向性决策（v0.3）
@@ -37,7 +37,7 @@
 | 分发 | **只发 GitHub，不发布 npm**；用户 `clone → build → add file:` | 避免过早处理 npm 发布细节 |
 | **启动器** | **做成 exe，GitHub Release 发布，解压即用**；自动检测环境、缺失则引导配置 | 消除"装 Node + 装 dsh + 敲命令 + 终端不能关"的摩擦 |
 | **启动器技术栈** | **Electron**（与 `dsh-pet` 同栈） | 复用同一运行时与经验，避免引入第二套桌面技术栈；代价是包体较大 |
-| **启动器优先级** | **低于 R0/R0b** —— 它是分发/引导层，不是核心效率层 | MVP 不包含启动器；详见 [LAUNCHER.md](LAUNCHER.md) |
+| **启动器优先级** | **低于 R0/R0b** —— 它是分发/引导层，不是核心效率层 | MVP 不包含启动器；详见 [LAUNCHER.md](docs/LAUNCHER.md) |
 | 插件市场上架 | **等 MVP 跑通再上架** | 避免为未验证的功能写英文 README 与元信息 |
 | 素材 | **先用 `dsh-pet` 自带素材**，只做署名 | 零素材工作量，最快验证核心功能 |
 | 许可 | 本项目代码 **MIT** | 与依赖生态一致 |
@@ -80,7 +80,7 @@ DSH 是 cordis 插件宿主，社区已有 **4382 个**插件，桌宠载体直�
 
 | # | 需求 | 性质 | 归属层 | 优先级 | 调研判定 |
 |---|---|---|---|---|---|
-| **R0** | **不打开网页即可收到 agent 提问并一键回答** | **事件+交互** | 官方 `userQuestions` + 承载层 | **★★★ 主线** | ✅ **官方机制齐备**（`askTimed`/`answer`/投影），见 [ARCHITECTURE.md](ARCHITECTURE.md) §3 |
+| **R0** | **不打开网页即可收到 agent 提问并一键回答** | **事件+交互** | 官方 `userQuestions` + 承载层 | **★★★ 主线** | ✅ **官方机制齐备**（`askTimed`/`answer`/投影），见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) §3 |
 | **R0b** | **随时看到进度**（状态/待办/工具/时长/待答角标） | 事件+UI | 客户端插件 | **★★★ 主线** | ✅ 零额外 token，信号齐备 |
 | R2a | 可选「完整过程」/「只显示思考中」 | UI 状态 | 客户端插件 | ★★ | 🟡 **一半已存在**（内置 4 档），缺"藏正文"档 |
 | R2b | 输出写入文件 | 宿主能力 | 宿主 | ★★ | 🟡 已有 `/export`（ZIP），**缺"写宿主机任意路径"** |
@@ -95,7 +95,7 @@ DSH 是 cordis 插件宿主，社区已有 **4382 个**插件，桌宠载体直�
 ### 1.3 四个必须分层的事实
 
 1. **R0/R0b 是主线，且彼此独立于全部可选模块**。
-   架构上必须保证：**关掉桌宠、关掉 galgame、关掉进度气泡，R0/R0b 依然完整可用**（见 [ARCHITECTURE.md](ARCHITECTURE.md) §2）。
+   架构上必须保证：**关掉桌宠、关掉 galgame、关掉进度气泡，R0/R0b 依然完整可用**（见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) §2）。
 2. **R4/R5（局域网与多端）是纯 Web 能力，与桌宠无关**（v0.3.1 澄清）。
    手机/平板走**浏览器访问响应式网页**，不做成桌宠；桌宠设置面板只是**放开关的地方**。
    → **桌宠没装/装不上时，R4/R5 也必须可用**（它属于 L0 宿主能力的开关）。
@@ -274,7 +274,7 @@ session scope 的标准 props **直接给**：
 
 ## 4. 推荐架构
 
-> 完整技术设计见 **[ARCHITECTURE.md](ARCHITECTURE.md)**。此处只给分层与归属。
+> 完整技术设计见 **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**。此处只给分层与归属。
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -574,7 +574,7 @@ dsh plugin --profile web add link:<本地目录>
 
 ### Phase 2 — ★ 核心效率层（3–4 天，**本项目存在的主要理由**）
 
-> 契约已完全摸清（§2.1–2.4），**可直接开工**。技术细节见 [ARCHITECTURE.md](ARCHITECTURE.md) §3–§4。
+> 契约已完全摸清（§2.1–2.4），**可直接开工**。技术细节见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) §3–§4。
 > 最佳模板 = 本机 `dshmarket`（**`src/` 源码随包发布**）：`src/client/index.ts`（289 行）一次演示完设置页 / Tab / 配置卡 / `shell.overlay` / `ctx.provide` / slot 探测；`src/routes.ts` 有 **40+ 个 `webServer.register` 实例**。
 
 **2.0 骨架（所有后续工作的前提）**
@@ -605,7 +605,7 @@ dsh plugin --profile web add link:<本地目录>
 
 **2.3 统一设置页**
 - 挂 `settings.section`（整页）或 `settings.general.item`（单行）
-- 按"主线默认开 / 可选默认关"分组（见 [ARCHITECTURE.md](ARCHITECTURE.md) §7）
+- 按"主线默认开 / 可选默认关"分组（见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) §7）
 - 中文必须走 `ctx.locale`（**新增文案不走会被 i18n 校验拒绝**）
 - ⚠️ **非 loopback 页面设置不持久化**（`dsh-client-ui-settings/README.md:106`）→ 远程场景需自建存储
 
@@ -675,7 +675,7 @@ dsh plugin --profile web add link:<本地目录>
 
 ### Phase 5 — 启动器（解压即用 exe，3–5 天）
 
-> 完整设计见 **[LAUNCHER.md](LAUNCHER.md)**。**它不是 MVP 的一部分**，排在 R0/R0b 之后。
+> 完整设计见 **[LAUNCHER.md](docs/LAUNCHER.md)**。**它不是 MVP 的一部分**，排在 R0/R0b 之后。
 > 选型 **Electron**（与 `dsh-pet` 同栈，复用其运行时探测经验）。
 
 - **环境检测**：Node ≥20 / npm / dsh / 端口占用 / 网络可达

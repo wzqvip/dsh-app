@@ -71,7 +71,7 @@
 
 #### 署名要求（本项目必须遵守）
 
-> 本项目在 [README.md](README.md) 与 [ARCHITECTURE.md](ARCHITECTURE.md) 中均已附上原作者地址。
+> 本项目在 [README.md](README.md) 与 [ARCHITECTURE.md](docs/ARCHITECTURE.md) 中均已附上原作者地址。
 > **任何基于本项目的分发、展示或介绍，也必须保留以下地址：**
 >
 > **<https://github.com/PC2005-cloud/dsh-pet>**

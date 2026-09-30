@@ -126,7 +126,7 @@ node scripts/cache-stats.mjs .\session.jsonl
    切换 reasoning 档位、加/减上下文注入。
 2. **`systemPrompt.section` 的代价不只是 KV cache 重建** ——
    它是**每一轮**都在改变前缀的一部分，会持续压低命中率。
-   （这也是为什么 [ARCHITECTURE.md](../ARCHITECTURE.md) 里的输出长度档位
+   （这也是为什么 [ARCHITECTURE.md](../docs/ARCHITECTURE.md) 里的输出长度档位
    要标注"运行时可切换，代价是打断 provider KV cache"。）
 3. **桌面宠物这类"只监听、不调模型"的功能，对缓存零影响**
    （`workStatusEnabled` 官方注释明确"仅监听，不调用模型"）。

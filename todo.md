@@ -172,7 +172,7 @@
 > 前置：Phase 1 收口完成，已明确"哪些不自己写"。
 > 🎯 **本阶段只做 R0（问题提醒+一键回答）与 R0b（进度采集）** —— 这两个是项目的全部价值来源。
 > 其余（显示模式、galgame、进度气泡）全部挪到 **Phase 2b**，**可延后也可砍**。
-> 技术细节见 [ARCHITECTURE.md](ARCHITECTURE.md) §3–§4。
+> 技术细节见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) §3–§4。
 
 ### 2.0 工程骨架（**契约已确认，可直接开工**）
 
@@ -252,7 +252,7 @@
 
 - [ ] **P2-15** [自研] 设置页 ⏱️4h
   - 挂 `settings.section`（整页）或 `settings.general.item`（单行）
-  - 按"**主线默认开 / 可选默认关**"分组（见 [ARCHITECTURE.md](ARCHITECTURE.md) §7）
+  - 按"**主线默认开 / 可选默认关**"分组（见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) §7）
   - **中文必须走 `ctx.locale`**（否则 i18n 校验会拒绝新增文案）；zh 已内置
   - ⚠️ **非 loopback 页面设置不持久化**（`dsh-client-ui-settings/README.md:106`）→ 远程场景需自建存储
 - [ ] **P2-16** [自研] R5 第一步：注入 `viewport-fit=cover` ⏱️1h
@@ -272,7 +272,7 @@
 
 ## Phase 2b — 可选表达层（**可延后、可砍**）
 
-> 架构上已保证（[ARCHITECTURE.md](ARCHITECTURE.md) §2）：**不做这些，Phase 2 的核心价值依然成立。**
+> 架构上已保证（[ARCHITECTURE.md](docs/ARCHITECTURE.md) §2）：**不做这些，Phase 2 的核心价值依然成立。**
 > 按价值排序：R2a > R2d ≈ R2c > 档位 C。
 
 ### 2b.1 显示模式（R2a）
@@ -402,7 +402,7 @@
 
 ## Phase 5 — 启动器（解压即用 exe）
 
-> 完整设计见 **[LAUNCHER.md](LAUNCHER.md)**。**不是 MVP 的一部分**，排在 R0/R0b 之后。
+> 完整设计见 **[LAUNCHER.md](docs/LAUNCHER.md)**。**不是 MVP 的一部分**，排在 R0/R0b 之后。
 > 选型 **Electron**（与 `dsh-pet` 同栈）。⚠️ **不要做成"另一个 DSH 客户端"** —— 只做引导 + 承载。
 
 ### 6.1 环境检测与引导

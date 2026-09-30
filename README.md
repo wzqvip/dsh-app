@@ -7,7 +7,7 @@
 一个效率导向的 DeepSeek Harness 增强项目。
 不打开浏览器，也能**秒回 agent 的提问**、**随时看到它在干什么**。
 
-[规划](plan.md) · [任务清单](todo.md) · [架构说明](ARCHITECTURE.md) · 调研报告 [`research/`](research/)
+[规划](plan.md) · [任务清单](todo.md) · [架构说明](docs/ARCHITECTURE.md) · 调研报告 [`research/`](research/)
 
 </div>
 
@@ -117,7 +117,7 @@ agent 提问时，在**桌面常驻层**立刻呈现：
 
 - **一眼看到问题**：题干 + 选项，不需要打开网页
 - **一键回答**：点选项即回，支持多选与"其他"自由文本
-- **不丢**：即使你当时不在，问题**不会消失**，回来仍可回答（见 [架构说明](ARCHITECTURE.md#为什么问题不会丢)）
+- **不丢**：即使你当时不在，问题**不会消失**，回来仍可回答（见 [架构说明](docs/ARCHITECTURE.md#为什么问题不会丢)）
 - **系统通知**：窗口失焦时也能提醒到
 
 > 这是"生产力"的直接来源：**它把一次上下文切换，压缩成一次点击。**
@@ -175,7 +175,7 @@ dsh web                            # 2. 自己在终端敲
 
 > ⚠️ **启动器不是 MVP 的一部分**，优先级低于 R0/R0b（它是分发层，不是核心效率层）。
 > 它还**不是"另一个 DSH 客户端"** —— 不重写会话 UI，只做引导 + 承载。
-> 完整设计（启动时序、环境检测、跨平台要点、失败处理）见 **[LAUNCHER.md](LAUNCHER.md)**。
+> 完整设计（启动时序、环境检测、跨平台要点、失败处理）见 **[LAUNCHER.md](docs/LAUNCHER.md)**。
 
 ---
 
@@ -218,7 +218,7 @@ dsh web                            # 2. 自己在终端敲
 └──────────────────────────────────────────────────────────┘
 ```
 
-详细设计（含事件名、数据流、为什么问题不会丢）见 **[ARCHITECTURE.md](ARCHITECTURE.md)**。
+详细设计（含事件名、数据流、为什么问题不会丢）见 **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**。
 
 ---
 
@@ -237,7 +237,7 @@ dsh web                            # 2. 自己在终端敲
 ## 快速开始
 
 > **想亲手试一下？** 完整的沙箱实测步骤（含前置、启动、该看到什么、排查）
-> 见 **[TESTING.md](TESTING.md)** —— 那份是照着做就能跑通的版本，本节只是摘要。
+> 见 **[TESTING.md](docs/TESTING.md)** —— 那份是照着做就能跑通的版本，本节只是摘要。
 
 本项目**只发布在 GitHub，不发布 npm**。`lib/` 构建产物不入库，因此安装分两步：**先构建，再 `add file:`**。
 
@@ -251,7 +251,7 @@ dsh plugin --profile web add dsh-pet     # 只作依赖，不要放进 bundles
 ```
 
 > ⚠️ 装好后**不要**把 `dsh-pet` 加进 `dsh.profile.bundles` ——
-> 它和我们打包的宠物都会注册 `/dsh-pet-7340/*`，会互相抢。详见 [TESTING.md](TESTING.md) §3。
+> 它和我们打包的宠物都会注册 `/dsh-pet-7340/*`，会互相抢。详见 [TESTING.md](docs/TESTING.md) §3。
 
 ### ② 本项目
 
@@ -339,15 +339,15 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 
 | 文档 | 内容 |
 |---|---|
-| [**TESTING.md**](TESTING.md) | **沙箱实测指南**：前置、构建安装、启动、该看到什么、排查 —— 照着做就能跑通 |
+| [**TESTING.md**](docs/TESTING.md) | **沙箱实测指南**：前置、构建安装、启动、该看到什么、排查 —— 照着做就能跑通 |
 | [STATUS.md](STATUS.md) | **交付状态**：逐项验证证据、已知取舍、部署前核对表 |
-| [DEPLOY-CHECKLIST.md](DEPLOY-CHECKLIST.md) | 部署到生产的步骤与注意事项（含最容易搞错的一点） |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 技术设计：提问-回答管线、进度数据来源、token 成本控制 |
-| [LAUNCHER.md](LAUNCHER.md) | 启动器设计：启动时序、环境检测、跨平台要点、失败处理 |
+| [DEPLOY-CHECKLIST.md](docs/DEPLOY-CHECKLIST.md) | 部署到生产的步骤与注意事项（含最容易搞错的一点） |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术设计：提问-回答管线、进度数据来源、token 成本控制 |
+| [LAUNCHER.md](docs/LAUNCHER.md) | 启动器设计：启动时序、环境检测、跨平台要点、失败处理 |
 | [plan.md](plan.md) | 完整规划：需求拆解、调研结论、架构、分阶段路线图、风险登记 |
 | [todo.md](todo.md) | 可执行任务清单（84 项，含工时、门禁、A/V/L 待验证清单） |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南与**许可/署名必读** |
-| [SECURITY.md](SECURITY.md) | 安全说明：**局域网暴露 = RCE 风险** |
+| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | 贡献指南与**许可/署名必读** |
+| [SECURITY.md](docs/SECURITY.md) | 安全说明：**局域网暴露 = RCE 风险** |
 | [NOTICE.md](NOTICE.md) | 第三方许可与**强制署名**义务 |
 | [`.github/REPO-METADATA.md`](.github/REPO-METADATA.md) | 仓库 Description / Topics / Social preview 文案（需手动填到 GitHub 设置） |
 | [`research/`](research/) | 源码级调研报告 5 份：插件架构、嵌入方案、局域网安全、响应式、显示模式 |

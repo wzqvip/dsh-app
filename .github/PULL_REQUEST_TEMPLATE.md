@@ -20,7 +20,7 @@
 - [ ] 新增的用户可见文案走 `ctx.locale`
 - [ ] 没有注册 `root` 槽位
 - [ ] 若改了核心层：**关掉桌宠时功能仍可用**（L1 不依赖 L2）
-- [ ] 若涉及局域网：已按 [SECURITY.md](SECURITY.md) 与 plan.md §5 的安全门槛处理
+- [ ] 若涉及局域网：已按 [SECURITY.md](../docs/SECURITY.md) 与 plan.md §5 的安全门槛处理
 - [ ] 文档已同步更新（README / ARCHITECTURE / plan / todo 中受影响的部分）
 
 ## 素材与许可

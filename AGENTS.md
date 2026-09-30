@@ -54,7 +54,7 @@ git push origin main
 log 里只剩正事与文档（文件内容一字未改）。
 ⚠️ 旧 commit 已不在任何分支上，但 **GitHub 仍会按旧 SHA 直接提供它们**
 （实测 commit 页面与 raw URL 均 200）—— 要彻底清除需请 GitHub Support 处理；
-其它克隆也应重新 clone。详见 [COMMIT-IDENTITY.md](COMMIT-IDENTITY.md) §5。
+其它克隆也应重新 clone。详见 [COMMIT-IDENTITY.md](docs/COMMIT-IDENTITY.md) §5。
 
 **提交时用**（`scripts/git-ai.ps1` 已封装，不碰全局 config）：
 
@@ -74,7 +74,7 @@ log 里只剩正事与文档（文件内容一字未改）。
 `GIT_COMMITTER_*`** —— 重写会生成新提交，committer 取自 git config，只保 author 会让
 署名重新变成两种（本项目已踩过）。重写后自查：
 `git log --format='%an <%ae>|%cn <%ce>' | Sort-Object -Unique` 应**只有一行**。
-详见 [COMMIT-IDENTITY.md](COMMIT-IDENTITY.md) §2.1。
+详见 [COMMIT-IDENTITY.md](docs/COMMIT-IDENTITY.md) §2.1。
 
 ⚠️ **commit 信息含特殊字符时走 `-F <文件>`**，不要内联 `-m "..."`：
 中文 + `【】` + `*` 会被 PowerShell 解析，导致 `pathspec did not match` 错误。
@@ -83,14 +83,14 @@ log 里只剩正事与文档（文件内容一字未改）。
 绑定 → 头像用该账号的，**名字也渲染成该账号的 login**；未绑定 → 名字用 commit 里的
 author name，但头像只剩默认占位图。两者**无法只要一半**（commit 对象里既没有头像字段，
 名字也不被采用）。所以本项目现在 GitHub 上显示的是 **`wzqvip` + 维护者头像**，
-而不是 `蓝色大肥鱼` —— 实测见 [COMMIT-IDENTITY.md](COMMIT-IDENTITY.md) §3.2.1。
+而不是 `蓝色大肥鱼` —— 实测见 [COMMIT-IDENTITY.md](docs/COMMIT-IDENTITY.md) §3.2.1。
 ✅ **维护者 2026-09-29 已拍板：取头像，接受显示 `wzqvip`** ——
 不要再为"显示中文名"去改署名或重写历史。
 
 ⚠️ `wang.20306@osu.edu` 已实测关联 `wzqvip`（它也是该账号的公开资料邮箱）；
 用未绑定账号的邮箱提交，圆形位置是默认占位图 —— 本项目已踩过。
 （曾用"在 commit 信息里注入图片"绕路，实测 HTML 注释被 GitHub 剥离、可见 markdown 又会
-污染 `git log` 输出，**已放弃并从脚本移除**。详见 [COMMIT-IDENTITY.md](COMMIT-IDENTITY.md) §3。）
+污染 `git log` 输出，**已放弃并从脚本移除**。详见 [COMMIT-IDENTITY.md](docs/COMMIT-IDENTITY.md) §3。）
 
 ---
 
@@ -146,11 +146,11 @@ $e.Trim()                       # ❌ You cannot call a method on a null-valued 
 | 文件 | 职责 | 改它的时机 |
 |---|---|---|
 | [README.md](README.md) | 给**使用者**看：这是什么、怎么用 | 能力/安装方式变化时 |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 给**实现者**看：技术设计、数据流、约束 | 技术方案变化时 |
-| [LAUNCHER.md](LAUNCHER.md) | 启动器专属设计 | 启动器方案变化时 |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 给**实现者**看：技术设计、数据流、约束 | 技术方案变化时 |
+| [LAUNCHER.md](docs/LAUNCHER.md) | 启动器专属设计 | 启动器方案变化时 |
 | [plan.md](plan.md) | **规划**：需求、调研、路线图、风险 | 方向性决策变化时 |
 | [todo.md](todo.md) | **可执行清单**：任务、工时、门禁、待验证 | 任务有增删/完成时 |
-| [CHANGELOG.md](CHANGELOG.md) | 面向发布的变化记录 | 每次发布前 |
+| [CHANGELOG.md](docs/CHANGELOG.md) | 面向发布的变化记录 | 每次发布前 |
 | [NOTICE.md](NOTICE.md) | 第三方许可与署名义务 | 引入/移除依赖时 |
 
 **规则**：
@@ -170,7 +170,7 @@ $e.Trim()                       # ❌ You cannot call a method on a null-valued 
   - **素材（立绘/动画/提示词/表情包/字体）禁止商用** → **绝不复制进本仓库**，
     运行时从已安装的 `dsh-pet` npm 包读取
   - 二创**必须在任何介绍/展示/分发处署名**：<https://github.com/PC2005-cloud/dsh-pet>
-- 详见 [NOTICE.md](NOTICE.md) 与 [CONTRIBUTING.md](CONTRIBUTING.md)
+- 详见 [NOTICE.md](NOTICE.md) 与 [CONTRIBUTING.md](docs/CONTRIBUTING.md)
 
 ### 4.1 vendor 清单（内联复用第三方代码时在此登记）
 

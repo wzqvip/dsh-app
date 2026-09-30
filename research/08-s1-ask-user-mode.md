@@ -91,7 +91,7 @@ if (config.mode === "timed") {
 | 待补 | 等 R0 实现后，用真实场景验证 **`pending` → 稍后补答** 这条路径（A2） |
 
 **A2 仍未验证**：超时后的 `continued` 提问，`answer()` 是否真能 steer 回 agent。
-这需要 R0 实现到一半才能测（要能提交回答）。计划在 [EXECUTION.md](../EXECUTION.md) 的 S4 一并验证。
+这需要 R0 实现到一半才能测（要能提交回答）。计划在 [EXECUTION.md](../docs/EXECUTION.md) 的 S4 一并验证。
 
 ---
 

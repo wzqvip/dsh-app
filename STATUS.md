@@ -135,7 +135,7 @@
 
 **生产部署 —— 需要维护者一句明确同意**（重启期间网页会白屏一次）。
 
-步骤与注意事项见 [DEPLOY-CHECKLIST.md](../DEPLOY-CHECKLIST.md)，
+步骤与注意事项见 [DEPLOY-CHECKLIST.md](docs/DEPLOY-CHECKLIST.md)，
 其中最容易搞错的一点：
 
 > 上游 `dsh-pet` 要**留依赖、移 bundle** ——

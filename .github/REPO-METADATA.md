@@ -79,7 +79,7 @@ GitHub 设置 → Social preview，建议尺寸 **1280×640**。
 - 底部小字：`DeepSeek Harness · 效率增强`
 
 > ⚠️ 若使用 `dsh-pet` 的截图或素材，**必须署名** <https://github.com/PC2005-cloud/dsh-pet>
-> （其素材**禁止商用**，开源展示属允许范围）。详见 [NOTICE.md](NOTICE.md)。
+> （其素材**禁止商用**，开源展示属允许范围）。详见 [NOTICE.md](../NOTICE.md)。
 
 ---
 
@@ -109,7 +109,7 @@ About 里的 **Website** 可留空，或指向：
 
 1. **`LICENSE` 必须是纯净的许可证正文。**
    最初我在 MIT 正文后追加了"依赖与素材条款"说明，导致 GitHub 识别为 `NOASSERTION`（无法识别）。
-   已改为：`LICENSE` 只放纯 MIT，附加说明移到 [NOTICE.md](NOTICE.md) 开头。
+   已改为：`LICENSE` 只放纯 MIT，附加说明移到 [NOTICE.md](../NOTICE.md) 开头。
 2. **Topics 上限 20 个**，当前用 16 个，留 4 个余量给后续（如 `pwa`、`live2d`、`terminal`、`local-first`）。
 
 ### 当前已设置的仓库信息（`gh` 实测）
@@ -165,7 +165,7 @@ Topics (16):
 - 
 
 ## 安装
-见 [README 快速开始](README.md#快速开始)。
+见 [README 快速开始](../README.md#快速开始)。
 
 ## 校验
 SHA256SUMS 附于本 Release。

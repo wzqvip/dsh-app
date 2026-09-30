@@ -120,4 +120,4 @@ node "$env:USERPROFILE\node_modules\@deepseek-ai\dsh\lib\bin.js" web --port 3080
 2. `npx` 会在启动时联网解析/重装 → 启动慢且可能失败
 3. 正确做法：**定位一份稳定安装**（本地/全局/随包分发），用 `node <bin.js>` 直接启动
 
-这已写入 [LAUNCHER.md](../LAUNCHER.md) 的 L 系列待验证项。
+这已写入 [LAUNCHER.md](../docs/LAUNCHER.md) 的 L 系列待验证项。
