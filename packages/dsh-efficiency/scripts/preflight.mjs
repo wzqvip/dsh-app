@@ -200,7 +200,11 @@ const relDirEarly = join(pkgRoot, 'release');
 for (const [rel, what] of [
   [join(repoRoot, 'README.md'), '仓库 README（介绍）'],
   [join(repoRoot, 'NOTICE.md'), '仓库 NOTICE（署名义务）'],
-  [join(repoRoot, 'CONTRIBUTING.md'), '贡献指南'],
+  // ⚠️ 文档结构在 2026-09-30 调整过：次要文档移进 docs/，根目录只留
+  //    README / plan / todo / STATUS / AGENTS / NOTICE。
+  //    这里原先写的是根目录 CONTRIBUTING.md，搬走后 preflight 立刻报
+  //    "署名材料缺失" —— 正好说明这条检查是有效的。以后搬文档记得同步此处。
+  [join(repoRoot, 'docs', 'CONTRIBUTING.md'), '贡献指南'],
   [join(pkgRoot, 'THIRD-PARTY-NOTICES.md'), '包内第三方声明'],
   [join(pkgRoot, 'package.json'), '包清单 contributors'],
   [join(pkgRoot, 'vendor', 'dsh-pet', 'README.dsh-app.md'), 'vendor 出处说明'],
