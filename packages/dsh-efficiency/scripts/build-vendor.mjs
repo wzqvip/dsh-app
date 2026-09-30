@@ -20,9 +20,10 @@
  * 用法：node scripts/build-vendor.mjs
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripTypeScriptTypes } from 'node:module';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = join(here, '..');
@@ -49,13 +50,13 @@ function walk(dir, acc = []) {
  * 只处理相对路径（./ 或 ../），已带扩展名的原样保留；
  * 裸模块名（'react' 等）不在此正则的匹配范围内，天然不受影响。
  */
-function addTsExtensions(source) {
+function addJsExtensions(source) {
   return source.replace(
     /(\bfrom\s*['"])(\.\.?\/[^'"]+)(['"])/g,
     (whole, pre, spec, post) => {
       if (/\.(ts|tsx|js|mjs|cjs|json)$/.test(spec)) return whole;
       rewritten += 1;
-      return `${pre}${spec}.ts${post}`;
+      return `${pre}${spec}.js${post}`;
     },
   );
 }
@@ -91,6 +92,11 @@ function lazifyElectronDeps(source, file) {
   return out;
 }
 
+// ⚠️ 必须先清空输出目录：否则上一轮的产物会残留（实测：改成“客户端保留 .ts + 宿主输出 .js”后，
+//    旧的 client/*.js 还在，被解析器优先命中，导致客户端打包拿到陈旧内容而报
+//    makePetUI is not defined。构建脚本清理自己的输出目录是最基本的保证。
+if (existsSync(outRoot)) rmSync(outRoot, { recursive: true, force: true });
+
 let rewritten = 0;
 let copies = 0;
 let lazified = 0;
@@ -98,15 +104,35 @@ const files = walk(vendorSrc);
 
 for (const abs of files) {
   const rel = relative(vendorSrc, abs);
-  const dest = join(outRoot, rel);
+  const relPosix = rel.replace(/\\/g, '/');
+  // 客户端半侧（client/ 与 shared/）保留 .ts：它由 build-client-vendor.mjs 消费，
+  // 而那个打包器**自己**就做类型剥离（它逐模块 wrap，剥离必须在 wrap 之后才安全）。
+  // 宿主半侧（host/ 等）则在这里就剥成纯 .js —— 宿主产物是【单文件 ESM】，
+  // 运行时绝不能含 TS（实测：dsh 经 cordis Loader 加载时，含 .ts 的模块会
+  // "failed to import"，且 fiber 根本不建起来，说明发生在导入阶段）。
+  const isClientSide = relPosix.startsWith('client/') || relPosix.startsWith('shared/');
+  const dest = join(outRoot, !isClientSide && rel.endsWith('.ts') ? rel.slice(0, -3) + '.js' : rel);
   mkdirSync(dirname(dest), { recursive: true });
 
   if (abs.endsWith('.ts')) {
     const src = readFileSync(abs, 'utf8');
-    const withExt = addTsExtensions(src);
-    const final = lazifyElectronDeps(withExt, rel.replace(/\\/g, '/'));
-    if (final !== withExt) lazified += 1;
-    writeFileSync(dest, final, 'utf8');
+    const withExt = addJsExtensions(src);
+    const lazifiedSrc = lazifyElectronDeps(withExt, relPosix);
+    if (lazifiedSrc !== withExt) lazified += 1;
+    if (isClientSide) {
+      // 客户端：原样保留 TS，交给 build-client-vendor.mjs 处理
+      writeFileSync(dest, lazifiedSrc, 'utf8');
+    } else {
+      // 宿主：构建期一次性剥离（Node 官方 API），运行期零成本
+      let plain;
+      try {
+        plain = stripTypeScriptTypes(lazifiedSrc, { mode: 'strip' });
+      } catch (err) {
+        console.error(`[vendor] 类型剥离失败于 ${rel}: ${String(err).split('\n')[0]}`);
+        process.exit(1);
+      }
+      writeFileSync(dest, plain, 'utf8');
+    }
   } else {
     writeFileSync(dest, readFileSync(abs)); // .json 等原样复制
   }
@@ -114,6 +140,7 @@ for (const abs of files) {
 }
 
 console.log(`[vendor] 转译 ${copies} 个文件 -> build/vendor/`);
-console.log(`[vendor] 补全 ${rewritten} 处相对 import 的 .ts 后缀`);
+console.log('[vendor] 宿主半侧已剥成纯 .js；客户端半侧保留 .ts（由 build-client-vendor 剥）');
+console.log(`[vendor] 补全 ${rewritten} 处相对 import 的 .js 后缀`);
 if (lazified) console.log(`[vendor] 懒加载化 ${lazified} 个文件的 Electron 下载依赖`);
 console.log('[vendor] 无 enum/namespace/装饰器/参数属性，Node 内置类型剥离即可运行');

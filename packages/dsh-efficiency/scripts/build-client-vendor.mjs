@@ -18,7 +18,7 @@
  * 用法：node scripts/build-client-vendor.mjs
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
@@ -46,8 +46,13 @@ const relOf = (f) => f.replace(vendorRoot, '').replace(/\\/g, '/');
 /** 相对 import 解析（client 与 shared 两个目录都允许） */
 function resolveRel(fromFile, spec) {
   const base = resolve(dirname(fromFile), spec);
-  for (const cand of [base, `${base}.ts`, join(base, 'index.ts')]) {
-    if (existsSync(cand) && cand.endsWith('.ts')) return cand;
+  const cands = [base, `${base}.ts`, join(base, 'index.ts'), `${base}.js`, join(base, 'index.js')];
+  // ⚠️ 关键：build-vendor 会把 import 后缀统一改写成 .js，而客户端半侧实际
+  //    交付的是 .ts 文件 → 必须试「.js 说明符指向 .ts 文件」这个映射。
+  //    否则所有相对 import 都"未解析"（症状：makePetUI is not defined）。
+  if (base.endsWith('.js')) cands.push(base.slice(0, -3) + '.ts');
+  for (const cand of cands) {
+    if (existsSync(cand) && !statSync(cand).isDirectory()) return cand;
   }
   return null;
 }

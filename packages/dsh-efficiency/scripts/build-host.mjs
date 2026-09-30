@@ -47,7 +47,7 @@ const outFile = join(pkgRoot, 'lib', 'index.js');
 //
 // 合成入口写到 build/ 下（生成物，不入库），路径与 vendor 一致（都在 build/ 内），
 // 这样打包器的相对解析规则不用改。
-const syntheticEntry = join(pkgRoot, 'build', 'host-entry.ts');
+const syntheticEntry = join(pkgRoot, 'build', 'host-entry.js');
 const entry = syntheticEntry;
 
 /** 先把合成入口写出来（每次构建重写，保证与源一致） */
@@ -64,17 +64,35 @@ function writeSyntheticEntry() {
     syntheticEntry,
     `// 由 scripts/build-host.mjs 生成 —— 请勿手改。
 // 组合两个宿主插件：宠物（vendor/dsh-pet）+ 效率助手（本仓库 src/host）。
-import * as pet from '${relFromEntryDir(join(buildVendor, 'host', 'index.ts'))}';
+import * as pet from '${relFromEntryDir(join(buildVendor, 'host', 'index.js'))}';
 import * as own from '${relFromEntryDir(ourHostSrc)}';
 
 export const name = 'dsh-efficiency';
 export const inject = [...new Set([...(pet.inject ?? []), ...(own.inject ?? [])])];
 
 export function apply(ctx) {
-  // 先跑宠物宿主：它注册 /dsh-pet-7340/* 与桌面 helper 拉起
-  pet.apply(ctx);
-  // 再跑我们的宿主：它注册 /dsh-efficiency/api/* 并监听提问
-  own.apply(ctx);
+  // ⚠️ 两侧分别包 try/catch 并打标：cordis 对 apply 抛错的报告很含蓄
+  //    （实测只给 "failed to import" 且不指原因），分开打标才能一眼定位是哪一侧。
+  console.log('[dsh-efficiency] apply 开始（宠物宿主 + 效率宿主）');
+  let petOk = false;
+  try {
+    // 先跑宠物宿主：它注册 /dsh-pet-7340/* 与桌面 helper 拉起
+    pet.apply(ctx);
+    petOk = true;
+    console.log('[dsh-efficiency] 宠物宿主 apply 完成');
+  } catch (e) {
+    console.error('[dsh-efficiency] 宠物宿主 apply 抛错:', e && e.stack ? e.stack : e);
+    throw e;
+  }
+  try {
+    // 再跑我们的宿主：它注册 /dsh-efficiency/api/* 并监听提问
+    own.apply(ctx);
+    console.log('[dsh-efficiency] 效率宿主 apply 完成');
+  } catch (e) {
+    console.error('[dsh-efficiency] 效率宿主 apply 抛错（宠物宿主已' + (petOk ? '成功' : '失败') + '）:', e && e.stack ? e.stack : e);
+    throw e;
+  }
+  console.log('[dsh-efficiency] apply 全部完成');
 }
 `,
     'utf8',
@@ -200,19 +218,68 @@ function rewriteImports(module, file, varNameOf) {
       if (!abs || !varNameOf.has(abs)) return `/* [host] 未解析的相对 import: ${spec} */`;
       ref = varNameOf.get(abs);
     } else {
+      // ⚠️ 裸模块只有 CJS 能直接 require；DSH 的包是 ESM，且在 cordis 的
+      //    Promise.all(import()) 期间可能还没加载完 → 必须惰性取（见文件头说明）。
+      //    但 Node 内建模块（node:*）和 CJS 包可以直接 require，无需惰性。
+      //    统一走惰性最省事，且对 CJS 也无害（只是推迟到首次使用）。
       ref = `__ext_${spec.replace(/[^\w]/g, '_')}`;
     }
-    const pre = isRel ? '' : `const ${ref} = __hostRequire(${JSON.stringify(spec)}); `;
 
-    const parts = [];
+    // 相对 import：所有名字从兄弟模块的 IIFE 返回值上取，此时就已求值好，
+    // 不需要惰性，直接 const 解构即可。
+    if (isRel) {
+      const relOut = [];
+      if (!/^\*/.test(clause)) {
+        const defM = clause.match(/^([A-Za-z_$][\w$]*)/);
+        if (defM) relOut.push(`const ${defM[1]} = ${ref}.default ?? ${ref};`);
+      }
+      const starR = clause.match(/\*\s*as\s+([A-Za-z_$][\w$]*)/);
+      if (starR) relOut.push(`const ${starR[1]} = ${ref};`);
+      const braceR = clause.match(/\{([^}]*)\}/);
+      if (braceR) {
+        for (const p of braceR[1]
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .filter((s) => !/^type\s/.test(s))) {
+          const as = p.match(/^([\w$]+)\s+as\s+([\w$]+)$/);
+          relOut.push(as ? `const ${as[2]} = ${ref}.${as[1]};` : `const ${p} = ${ref}.${p};`);
+        }
+      }
+      return relOut.join(' ');
+    }
+
+    // ⚠️ 每个裸模块绑定都做成【惰性零参函数】，而不是立即取值：
+    //      const BlockAssembler = __bare('@deepseek-ai/dsh-llm').BlockAssembler;
+    //    →   const BlockAssembler = () => __bare('@deepseek-ai/dsh-llm').BlockAssembler;
+    //
+    //   为什么必须这样（实测，很隐蔽）：cordis 用 Promise.all() 并行 import() 所有插件，
+    //   而我们的 bundle 在【模块求值阶段】就 require() DSH 的 ESM 包 ——
+    //   那时它还没加载完，Node 抛
+    //     ERR_INTERNAL_ASSERTION: Unexpected module status 0.
+    //     Cannot require() ES Module ... not yet fully loaded
+    //   而 cordis 只报 "failed to import"，完全不给原因（靠给每个模块包 try/catch 才抓到）。
+    //
+    //   做成函数后：模块顶层只是声明一个函数，require 推迟到该名字真正被【调用】。
+    //   实测本包所有模块都只在函数体内使用这些绑定（顶层 const 都是纯字面量常量），
+    //   所以这个改法不改变任何语义。
+    //
+    //   注意 `new X()`：对箭头函数用 new 会 TypeError！
+    //   所以凡是在 `new` 后面出现的绑定都要单独处理（见下面的 __ctor）。
+    const asFn = (localName, memberExpr) => `const ${localName} = __bind(() => ${memberExpr});`;
+    // 命名空间导入无法做成函数（要当对象用）—— 必须立即取值，
+    // 这类导入只出现在 CJS/node: 包上，不存在上面的竞态。
+    const asNs = (localName, memberExpr) => `const ${localName} = ${memberExpr};`;
+
+    const out = [];
     // 默认导入：`X` 或 `X, { ... }`
     if (!/^\*/.test(clause)) {
       const defM = clause.match(/^([A-Za-z_$][\w$]*)/);
-      if (defM) parts.push(`const ${defM[1]} = ${ref}.default ?? ${ref};`);
+      if (defM) out.push(asFn(defM[1], `(__bare(${JSON.stringify(spec)}).default ?? __bare(${JSON.stringify(spec)}))`));
     }
     // 命名空间导入：`* as X`
     const starM = clause.match(/\*\s*as\s+([A-Za-z_$][\w$]*)/);
-    if (starM) parts.push(`const ${starM[1]} = ${ref};`);
+    if (starM) out.push(asNs(starM[1], `__bare(${JSON.stringify(spec)})`));
     // 具名导入：`{ a, b as c, type T }`
     const braceM = clause.match(/\{([^}]*)\}/);
     if (braceM) {
@@ -223,11 +290,11 @@ function rewriteImports(module, file, varNameOf) {
         .filter((s) => !/^type\s/.test(s));
       for (const p of names) {
         const as = p.match(/^([\w$]+)\s+as\s+([\w$]+)$/);
-        parts.push(as ? `const ${as[2]} = ${ref}.${as[1]};` : `const ${p} = ${ref}.${p};`);
+        if (as) out.push(asFn(as[2], `__bare(${JSON.stringify(spec)})[${JSON.stringify(as[1])}]`));
+        else out.push(asFn(p, `__bare(${JSON.stringify(spec)})[${JSON.stringify(p)}]`));
       }
     }
-    if (parts.length === 0) return pre.trimEnd() || '';
-    return `${pre}${parts.join(' ')}`;
+    return out.join(' ');
   });
 
   // 2) 副作用 import（import 'spec'）—— 上面那条要求有 from，这条兜住没有 from 的
@@ -355,9 +422,18 @@ for (const f of order) {
     }
     process.exit(1);
   }
+  // ⚠️ 包一层 try/catch：模块【求值阶段】抛错时，cordis 只报
+  //    「failed to import」且完全不给原因（实测：排查了很久）。
+  //    包起来后哪个模块求值失败会直接打到宿主日志。
   chunks.push(
     `// ======== ${f.replace(buildVendor, '').replace(/\\/g, '/')} ========\n` +
-      `const ${varNameOf.get(f)} = (function () {\n${stripped}\nreturn { ${[...exported].join(', ')} };\n})();`,
+      `let ${varNameOf.get(f)};\n` +
+      `try {\n` +
+      `  ${varNameOf.get(f)} = (function () {\n${stripped}\nreturn { ${[...exported].join(', ')} };\n})();\n` +
+      `} catch (e) {\n` +
+      `  console.error('[dsh-efficiency] 模块求值失败: ${f.replace(buildVendor, '').replace(/\\/g, '/')}', e && e.stack ? e.stack : e);\n` +
+      `  throw e;\n` +
+      `}`,
   );
 }
 
@@ -383,6 +459,65 @@ const out = `// 由 packages/dsh-efficiency/scripts/build-host.mjs 生成 ——
 //
 import { createRequire } from 'node:module';
 const __hostRequire = createRequire(import.meta.url);
+// ⚠️ 裸模块必须【惰性】加载，不能在建模块求值阶段 require。
+//
+// 实测根因（很隐蔽，靠给每个模块包 try/catch 才抓到）：
+//   cordis 用 Promise.all() 并行 import() 所有插件，而我们的自包含 bundle
+//   在**求值阶段**就 require() DSH 的 ESM 包（@deepseek-ai/dsh-llm）——
+//   此时那个 ESM 还没加载完，Node 直接抛
+//     ERR_INTERNAL_ASSERTION: Unexpected module status 0.
+//     Cannot require() ES Module ... because it is not yet fully loaded.
+//   症状是 cordis 只报 "failed to import"，完全不给原因。
+//
+// 所以裸模块一律走这个惰性取值器：第一次真正被【读到】时才 require。
+// 模块顶层只声明、不调用，求值阶段就完全不碰 DSH 的 ESM 包。
+const __bareCache2 = new Map();
+function __bare(id) {
+  let m = __bareCache2.get(id);
+  if (m === undefined) {
+    m = __hostRequire(id);
+    __bareCache2.set(id, m);
+  }
+  return m;
+}
+
+/**
+ * 惰性绑定：把 import { X } from 某个包 变成"用到才加载"。
+ *
+ * 为什么不直接用箭头函数：箭头函数不能 new，且会把自身当值传入
+ *   （实测：createRequire 被写成 () => ...，调用时参数丢失，报
+ *    ERR_INVALID_ARG_VALUE: filename 必须是 URL/绝对路径，收到 'node:fs'）。
+ * 用 Proxy 才能同时满足三种用法：函数调用、new、属性读取。
+ */
+function __bind(get) {
+  let cached;
+  const resolve = () => (cached === undefined ? (cached = get()) : cached);
+  const target = function () {};
+  return new Proxy(target, {
+    apply: (_t, thisArg, args) => Reflect.apply(resolve(), thisArg, args),
+    construct: (_t, args) => Reflect.construct(resolve(), args),
+    get: (_t, prop) => {
+      const v = resolve();
+      // ⚠️ 必须处理 Symbol.toPrimitive，否则【模板字面量里直接写绑定名】的用法会炸：
+      //    JS 走 ToPrimitive(proxy) → proxy.toString() 得到 Object.prototype.toString，
+      //    它内部调 String.prototype.toString 时 this 是 Proxy 而非字符串 → 抛
+      //      "String.prototype.toString requires that 'this' be a String"
+      //    （实测踩过：/dsh-pet-7340/pic/* 全部 500，错误信息极难猜来源。
+      //     真实触发点是 resolveExisting 里的模板字面量 join(root, name)。）
+      if (prop === Symbol.toPrimitive) {
+        return (hint) => {
+          const v2 = resolve();
+          if (hint === 'number') return Number(v2);
+          if (hint === 'string') return String(v2);
+          return typeof v2 === 'object' && v2 !== null ? String(v2) : v2;
+        };
+      }
+      if (prop === Symbol.toStringTag) return 'LazyBinding';
+      return v[prop];
+    },
+    has: (_t, prop) => prop in Object(resolve()),
+  });
+}
 
 ${body}
 

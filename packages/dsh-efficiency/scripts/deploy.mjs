@@ -21,7 +21,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, existsSync, readFileSync, writeFileSync, statSync } from 'node:fs';
+import { copyFileSync, mkdirSync, existsSync, readFileSync, writeFileSync, statSync, cpSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -69,6 +69,16 @@ for (const f of files) {
   }
   copyFileSync(src, join(releaseLib, f));
 }
+
+// 桌面运行时代码（Electron helper）也必须进 release：
+// 宿主按 PACKAGE_ROOT/runtime/electron-helper/main.js 拉起它，
+// 而生产安装的是 release/，所以这里必须带上，否则桌面模式起不来。
+const runtimeSrc = join(libDir, 'runtime');
+if (!existsSync(runtimeSrc)) {
+  console.error('[deploy] 缺少 lib/runtime/ —— 先跑 node scripts/build-runtime.mjs');
+  process.exit(1);
+}
+cpSync(runtimeSrc, join(releaseLib, 'runtime'), { recursive: true });
 
 // cordis.patch.yml 也要进 release（生产靠它挂载 bundle）
 const patchSrc = join(pkgRoot, 'cordis.patch.yml');
