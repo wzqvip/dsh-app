@@ -364,29 +364,81 @@ function buildAnimationsEditor(animations, onInput, notify) {
     }
   }
 
-  // 3) 分类权重（只读展示 + 权重可调）
+  // 3) 分类（id / weight / noMirror / actions 全可改；宿主只校验 categories 是数组）
+  //    三个字段都被真正消费：weight 参与加权抽取（pickWeightedCategory）、
+  //    noMirror 在朝右时被排除（避免文字镜像）、id 是分类名（也用于菜单树）、
+  //    actions 是该类下的动画清单。
   if (Array.isArray(draft.categories)) {
-    const rows = draft.categories.map((cat, idx) => {
-      const wInput = el('input', { type: 'number', min: 0, max: 1000 });
-      wInput.value = String(cat.weight ?? 0);
-      wInput.addEventListener('input', () => {
-        const v = Number(wInput.value);
-        if (Number.isFinite(v) && v >= 0) {
-          draft.categories[idx].weight = v;
+    const catWrap = el('div', { class: 'anim-cats' });
+
+    const rerenderCats = () => {
+      catWrap.textContent = '';
+      draft.categories.forEach((cat, idx) => {
+        const idInput = el('input', { type: 'text', class: 'anim-cat-idin' });
+        idInput.value = String(cat.id ?? '');
+        idInput.placeholder = '分类名';
+        idInput.addEventListener('input', () => {
+          draft.categories[idx].id = idInput.value;
           emit();
-        }
+        });
+
+        const wInput = el('input', { type: 'number', min: 0, max: 1000, class: 'anim-cat-w' });
+        wInput.value = String(cat.weight ?? 0);
+        wInput.addEventListener('input', () => {
+          const v = Number(wInput.value);
+          if (Number.isFinite(v) && v >= 0) {
+            draft.categories[idx].weight = v;
+            emit();
+          }
+        });
+
+        const nm = el('input', { type: 'checkbox' });
+        nm.checked = cat.noMirror === true;
+        nm.addEventListener('change', () => {
+          if (nm.checked) draft.categories[idx].noMirror = true;
+          else delete draft.categories[idx].noMirror;
+          emit();
+        });
+
+        const del = el('button', { type: 'button', class: 'btn memes-del', text: '删除此类' });
+        del.addEventListener('click', () => {
+          draft.categories.splice(idx, 1);
+          emit();
+          rerenderCats();
+        });
+
+        catWrap.appendChild(
+          el('div', { class: 'anim-cat-head' }, [
+            idInput,
+            el('span', { class: 'desc', text: '权重' }),
+            wInput,
+            el('label', { class: 'anim-cat-nm' }, [nm, el('span', { text: '文字类（不镜像）' })]),
+            del,
+          ]),
+        );
+        catWrap.appendChild(
+          buildStringListEditor(cat.actions ?? [], (v) => {
+            draft.categories[idx].actions = v;
+            emit();
+          }),
+        );
       });
-      return el('div', { class: 'anim-cat' }, [
-        el('span', { class: 'anim-cat-id', text: String(cat.id ?? '(无 id)') }),
-        el('span', { class: 'desc', text: `${(cat.actions ?? []).length} 个动画${cat.noMirror ? ' · 不镜像' : ''}` }),
-        wInput,
-      ]);
-    });
+
+      const addCat = el('button', { type: 'button', class: 'btn', text: '＋ 添加分类' });
+      addCat.addEventListener('click', () => {
+        draft.categories.push({ id: `新分类${draft.categories.length + 1}`, weight: 10, actions: [] });
+        emit();
+        rerenderCats();
+      });
+      catWrap.appendChild(addCat);
+    };
+
+    rerenderCats();
     wrap.appendChild(
       section(
-        `分类权重（${draft.categories.length} 类）`,
-        '权重决定空闲时更常进入哪一类；动画清单本身请在 animations 里改（或直接编辑配置文件）。',
-        el('div', { class: 'anim-cats' }, rows),
+        `分类（${draft.categories.length} 类）`,
+        '空闲时按权重挑一个分类再从中抽动画；文字类勾上"不镜像"可避免朝右时文字反了。',
+        catWrap,
       ),
     );
   }

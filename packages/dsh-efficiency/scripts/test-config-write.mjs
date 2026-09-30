@@ -248,6 +248,34 @@ try {
     JSON.stringify(bbA?.animations?.events),
   );
 
+  console.log('[config-write] 4c) 分类（含 noMirror）可写入');
+  const wCat = await call('PUT', {
+    pets: [PET],
+    animations: {
+      idle: ['CONTRACT-IDLE'],
+      turn: ['CONTRACT-TURN'],
+      drag: ['CONTRACT-DRAG'],
+      clicks: ['CONTRACT-CLICK-A'],
+      moves: { default: { minDist: 60, maxDist: 240, margin: 20, leadSec: 2, tailSec: 2 }, actions: [{ name: 'CONTRACT-MOVE' }] },
+      categories: [
+        { id: 'CONTRACT-文字类', weight: 7, noMirror: true, actions: ['CONTRACT-T1', 'CONTRACT-T2'] },
+        { id: 'CONTRACT-动作类', weight: 13, actions: ['CONTRACT-A1'] },
+      ],
+      events: { balance: ['CONTRACT-BAL'], whisper: ['CONTRACT-WHI'], workStatus: ['CONTRACT-WS'] },
+    },
+  });
+  check('含 noMirror 的分类写入成功', wCat.statusCode === 200, `实际 ${wCat.statusCode}`);
+  const bc = wCat.json();
+  const bbC = bc && typeof bc === 'object' ? bc[Object.keys(bc)[0]] : null;
+  const cats = bbC?.animations?.categories ?? [];
+  check('分类数量生效（2 类）', cats.length === 2, `实际 ${cats.length}`);
+  check(
+    '分类 weight 与 noMirror 生效',
+    cats[0]?.weight === 7 && cats[0]?.noMirror === true && cats[1]?.weight === 13 && !cats[1]?.noMirror,
+    JSON.stringify(cats.map((c) => ({ id: c.id, w: c.weight, nm: c.noMirror }))),
+  );
+  check('分类 actions 清单生效', JSON.stringify(cats[0]?.actions) === JSON.stringify(['CONTRACT-T1', 'CONTRACT-T2']), JSON.stringify(cats[0]?.actions));
+
   console.log('[config-write] 5) 缺 pets 必须拒绝（宿主契约要求必填）');
   const r5 = await call('PUT', { whisperPrompt: 'no-pets' });
   check('缺 pets 被拒', r5.statusCode === 400, `实际 ${r5.statusCode}`);

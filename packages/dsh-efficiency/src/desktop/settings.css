@@ -319,3 +319,28 @@ input[type='range'] {
 .anim-cat-id {
   font-size: 13px;
 }
+
+/* [dsh-app] 动画分类编辑器 */
+.anim-cat-head {
+  display: grid;
+  grid-template-columns: minmax(90px, 150px) auto 88px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+.anim-cat-nm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.anim-cat-nm input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.anim-cats > .slist {
+  margin: 4px 0 0 12px;
+  max-height: 200px;
+}
