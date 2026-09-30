@@ -78,6 +78,33 @@ if (!existsSync(patchSrc)) {
 }
 copyFileSync(patchSrc, join(releaseDir, 'cordis.patch.yml'));
 
+// ---- 许可与第三方署名（发布门禁的一部分） ----
+// 本包内含 vendor 自 dsh-pet 的代码（MIT）。按 MIT 与上游二创约定，
+// 分发时必须带上版权声明、许可原文与署名。漏掉就等于违反许可，
+// 所以这里把"许可文件存在"也做成硬门禁，而不是尽力而为。
+for (const f of ['LICENSE', 'THIRD-PARTY-NOTICES.md']) {
+  const src = join(pkgRoot, f);
+  if (!existsSync(src)) {
+    console.error(`[deploy] 缺少许可文件 ${f} —— 本包含第三方代码，必须随之分发`);
+    process.exit(1);
+  }
+  copyFileSync(src, join(releaseDir, f));
+}
+
+// 上游 LICENSE 原文与出处说明也要带上（MIT 要求保留版权与许可原文）
+const upstreamDir = join(pkgRoot, 'vendor', 'dsh-pet');
+for (const rel of [join('vendor', 'dsh-pet', 'LICENSE'), join('vendor', 'dsh-pet', 'README.dsh-app.md')]) {
+  const src = join(pkgRoot, rel);
+  if (!existsSync(src)) {
+    console.error(`[deploy] 缺少 ${rel} —— vendor 代码的许可/出处说明必须随之分发`);
+    process.exit(1);
+  }
+  const dest = join(releaseDir, rel);
+  mkdirSync(dirname(dest), { recursive: true });
+  copyFileSync(src, dest);
+}
+void upstreamDir;
+
 // 5) 写一份部署记录，便于回溯"生产上是哪次构建"
 const stamp = {
   deployedAt: new Date().toISOString(),

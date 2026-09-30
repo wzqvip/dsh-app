@@ -1,6 +1,6 @@
 {
-  "deployedAt": "2026-09-29T22:05:57.226Z",
-  "clientBytes": 45434,
-  "hostBytes": 9656,
+  "deployedAt": "2026-09-30T02:32:10.242Z",
+  "clientBytes": 316311,
+  "hostBytes": 182668,
   "source": "packages/dsh-efficiency/lib"
 }
