@@ -90,7 +90,20 @@ export function makeFactory() {
 
     const react = require('react');
     const { useEffect, useState, useCallback, useRef } = react;
-    const { jsx: h } = require('react/jsx-runtime');
+    // ⚠️ 必须用 createElement，**不能**用 react/jsx-runtime 的 jsx。
+    //
+    // 曾经写成 `const { jsx: h } = require('react/jsx-runtime')`，结果是
+    // 提问面板"容器渲染了但子元素全空"（实测 childNodes: 0、innerHTML 为空、
+    // 客户端日志却明确写着"面板开始渲染 1 条"）。
+    // 根因：jsx 的签名是 `jsx(type, config, key)` —— **第三个参数是 key，不是 children**，
+    // children 必须放在 config.children 里。而我们所有组件都按 createElement 的语义写
+    // （children 作为第 3、4、5… 个参数展开传），于是 children 被**静默丢弃**。
+    // 设置页看起来正常只是因为它的表单行每个元素只传一个 children，恰好落在
+    // jsx 能容忍的范围内。
+    //
+    // 教训：`h` 这个名字掩盖了两套不同的调用约定；发现"元素在、内容空"时，
+    // 先怀疑 children 传递方式，而不是怀疑数据。
+    const h = react.createElement;
 
     // 单例桥：answerer 与面板通过它交换提问/答案
     const bridge = createAnswerBridge();

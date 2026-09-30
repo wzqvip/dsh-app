@@ -285,7 +285,15 @@ export function makeQuestionPanel({ h, useState, useEffect, useCallback, useRef 
             'div',
             { style: S.head },
             h('span', { style: S.badge }, String(item.questions.length)),
-            h('span', null, t('title')),
+            // ⚠️ 第二参数必须是对象，**不能是 null**。
+            //    h 是 react/jsx-runtime 的 jsx（签名 jsx(type, config, key)），
+            //    它内部会读 config.key —— 传 null 直接抛
+            //      TypeError: Cannot read properties of null (reading 'key')
+            //    而且是【崩在宿主页面的 React 里】（错误栈指向 DSH 自己的 bundle），
+            //    现场表现为 "slot entry crashed in 'shell.overlay'"，
+            //    极难反推到这一行。只有真的有提问要渲染时才会走到这里，
+            //    所以这个缺陷长期潜伏（踩过，记下来）。
+            h('span', {}, t('title')),
             item.source === 'local' ? h('span', { style: S.sourceTag }, t('liveTag')) : null,
           ),
           ...item.questions.map((q, qi) =>
