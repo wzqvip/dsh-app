@@ -398,7 +398,12 @@ try {
           '  try {',
           '    var r = await window.settingsBridge.getConfig();',
           '    var b = r.json[Object.keys(r.json)[0]];',
-          '    window.__e2eOrigDisplay = b.pets[0].display;',
+          // ⚠️ 存**整只宠物的快照**，不只 display。
+          //    只存 display 会造成跨脚本污染：本测试结束时把"当前读到的整个 pet"
+          //    PUT 回去、仅把 name/display 改回原值 → **其它字段被当时的值覆盖**。
+          //    实测：跑在 workstatus 脚本之后时，会把它的 workStatusEnabled=true
+          //    固化进配置（即使那个脚本自己已复原）。
+          '    window.__e2eOrigPet = JSON.parse(JSON.stringify(b.pets[0]));',
           '    return b.pets[0].display;',
           '  } catch (e) { return "ERR:" + e; }',
           '})()',
@@ -514,15 +519,17 @@ try {
           '  var r = await window.settingsBridge.getConfig();',
           '  var b = r.json[Object.keys(r.json)[0]];',
           '  var pet = b.pets[0];',
-          '  var before = { name: pet.name, display: pet.display };',
-          '  pet.name = String(pet.name).replace(/·E2E2?$/, "");',
-          // ⚠️ 不要把"原值"硬编码成 both —— 内置默认已改为 desktop（2026-09-30），
-          //    硬编码会把沙箱**改成 both**，属测试污染配置（本行此前就是
-          //    `pet.display = "both"; // 沙箱的原值`，默认一变它立刻变成错的）。
-          //    正确做法：测试开始时记下原值，结束时按记录复原。
-          '  if (window.__e2eOrigDisplay) pet.display = window.__e2eOrigDisplay;',
-          '  var p = await window.settingsBridge.putConfig({ pets: [pet] });',
-          '  return JSON.stringify({ before: before, putStatus: p.status, err: p.json && p.json.error ? p.json.error : null });',
+          // ⚠️ 按**整对象快照**复原，不要只改 name/display。
+          //    只改两个字段时，本测试会把"当前读到的整个 pet"PUT 回去 →
+          //    **其它字段被当时的值覆盖**。实测：跑在 workstatus 脚本之后时，
+          //    会把它的 workStatusEnabled=true 固化进配置（即使那个脚本自己已复原），
+          //    从而污染后续验证的前置条件。
+          '  if (window.__e2eOrigPet) {',
+          '    window.__e2eOrigPet.name = String(pet.name).replace(/·E2E2?$/, "");',
+          '    var p = await window.settingsBridge.putConfig({ pets: [window.__e2eOrigPet] });',
+          '    return JSON.stringify({ restored: window.__e2eOrigPet, putStatus: p.status });',
+          '  }',
+          '  return JSON.stringify({ skipped: "no snapshot recorded" });',
           '})()',
         ].join('\n'),
         awaitPromise: true,
