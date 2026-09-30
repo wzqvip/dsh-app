@@ -203,10 +203,50 @@ try {
     ['memes', { 'a/b': 'x' }],
     ['memes', { '': 'x' }],
     ['memes', { ok: 123 }],
+    // animations：宿主校验要求**整个结构完整**。
+    // 缺任何必需键都必须被拒 —— 曾经因为"与现有值部分合并"让残缺对象通过校验，
+    // 结果把用户的 clicks 清单清空（磁盘 0 项、接口却显示默认 5 项）。实测踩到。
+    ['animations', []],
+    ['animations', { idle: [], turn: [], drag: [], clicks: [] }],
+    [
+      'animations',
+      { idle: [], turn: [], drag: [], clicks: [], moves: { default: {}, actions: [] }, categories: [], events: { a: [] } },
+    ],
   ]) {
     const r = await call('PUT', { pets: [PET], [field]: bad });
     check(`${field} 非法值被拒`, r.statusCode === 400, `实际 ${r.statusCode} ← ${JSON.stringify(bad)}`);
   }
+
+  console.log('[config-write] 4b) animations 完整结构应可写入');
+  const wAnim = await call('PUT', {
+    pets: [PET],
+    // 必须是完整结构：四个数组 + moves.default/actions + categories + events 每池非空
+    animations: {
+      idle: ['CONTRACT-IDLE'],
+      turn: ['CONTRACT-TURN'],
+      drag: ['CONTRACT-DRAG'],
+      clicks: ['CONTRACT-CLICK-A', 'CONTRACT-CLICK-B'],
+      moves: {
+        default: { minDist: 60, maxDist: 240, margin: 20, leadSec: 2, tailSec: 2 },
+        actions: [{ name: 'CONTRACT-MOVE' }],
+      },
+      categories: [{ id: 'CONTRACT-CAT', weight: 20, actions: ['CONTRACT-ACT'] }],
+      events: { balance: ['CONTRACT-BAL'], whisper: ['CONTRACT-WHI'], workStatus: ['CONTRACT-WS'] },
+    },
+  });
+  check('animations 完整结构写入成功', wAnim.statusCode === 200, `实际 ${wAnim.statusCode}`);
+  const ba = wAnim.json();
+  const bbA = ba && typeof ba === 'object' ? ba[Object.keys(ba)[0]] : null;
+  check(
+    'animations.clicks 生效',
+    JSON.stringify(bbA?.animations?.clicks) === JSON.stringify(['CONTRACT-CLICK-A', 'CONTRACT-CLICK-B']),
+    JSON.stringify(bbA?.animations?.clicks),
+  );
+  check(
+    'animations.events.workStatus 生效',
+    bbA?.animations?.events?.workStatus?.[0] === 'CONTRACT-WS',
+    JSON.stringify(bbA?.animations?.events),
+  );
 
   console.log('[config-write] 5) 缺 pets 必须拒绝（宿主契约要求必填）');
   const r5 = await call('PUT', { whisperPrompt: 'no-pets' });

@@ -227,6 +227,188 @@ function buildCard(title, hint, rows) {
 }
 
 // ---------------------------------------------------------------------------
+// 通用：字符串列表编辑器（增/删/改行）
+//
+// 用在动画池的简单数组上（idle / turn / drag / clicks / events.*），
+// 以及分类里的 actions。每一项就是一个动画名。
+// ---------------------------------------------------------------------------
+function buildStringListEditor(list, onInput, opts = {}) {
+  let draft = Array.isArray(list) ? [...list] : [];
+  const wrap = el('div', { class: 'slist' });
+  const min = opts.min ?? 0;
+
+  const rerender = () => {
+    wrap.textContent = '';
+    if (draft.length === 0) {
+      wrap.appendChild(el('p', { class: 'loading', text: opts.emptyHint ?? '（空）' }));
+    }
+    draft.forEach((item, i) => {
+      const input = el('input', { type: 'text', class: 'slist-item' });
+      input.value = item;
+      input.placeholder = opts.placeholder ?? '动画名（照抄 assets 里的文件名，不含扩展名）';
+      const del = el('button', { type: 'button', class: 'btn memes-del', text: '删除' });
+      input.addEventListener('input', () => {
+        draft[i] = input.value.trim();
+        onInput([...draft]);
+      });
+      del.addEventListener('click', () => {
+        // ⚠️ 有些池不允许为空（events.* 的校验要求每个池非空），
+        //    所以设了 min 时拒绝删到低于下限，并明确提示原因。
+        if (draft.length <= min) {
+          opts.onReject?.(`这一类至少要保留 ${min} 项（宿主校验要求非空）`);
+          return;
+        }
+        draft.splice(i, 1);
+        onInput([...draft]);
+        rerender();
+      });
+      wrap.appendChild(el('div', { class: 'slist-row' }, [input, del]));
+    });
+    const add = el('button', { type: 'button', class: 'btn', text: '＋ 添加' });
+    add.addEventListener('click', () => {
+      draft.push('');
+      onInput([...draft]);
+      rerender();
+    });
+    wrap.appendChild(add);
+  };
+
+  rerender();
+  return wrap;
+}
+
+// ---------------------------------------------------------------------------
+// 动画池编辑
+//
+// 结构（来自内置默认 assets/config.jsonc）：
+//   idle / turn / drag / clicks : 字符串数组
+//   moves  : { default:{minDist,maxDist,margin,leadSec,tailSec}, actions:[{name,params?}] }
+//   categories : [{ id, weight, noMirror?, actions:[名字] }]
+//   events : { balance:[...], whisper:[...], workStatus:[...] }（每池**非空**）
+//
+// ⚠️ 宿主校验 animationsValid 要求**整个结构都完整**：
+//    四个数组必须在、moves.default 与 moves.actions 必须在、categories 必须是数组、
+//    events 每个池必须**非空且成员非空串**。
+//    缺任何一项 → topFieldValid 判非法 → 退回内置默认（"磁盘写了、响应是默认值"）。
+//    所以这里只在**已有结构上改**，绝不构造残缺对象：
+//      · 简单数组（4 个 + events 3 个 + 分类的 actions）→ 可增删改
+//      · moves / 分类的 id 与 weight → 只读展示（结构与语义复杂，改错会静默回退）
+//    提交时把改动合并回**原对象**，保证上面那些必需键一个都不少。
+// ---------------------------------------------------------------------------
+const ANIM_SIMPLE_KEYS = ['idle', 'turn', 'drag', 'clicks'];
+const ANIM_EVENT_KEYS = [
+  { key: 'balance', label: '余额档位（6 档：钱袋满溢 → 分文不剩）' },
+  { key: 'whisper', label: '碎碎念动画池' },
+  { key: 'workStatus', label: '工作状态档位（思考/忙碌/归档/踱步/庆祝/叹气）' },
+];
+
+function buildAnimationsEditor(animations, onInput, notify) {
+  const wrap = el('div', { class: 'anim' });
+  const cur = animations && typeof animations === 'object' && !Array.isArray(animations) ? animations : null;
+  if (!cur) {
+    wrap.appendChild(el('p', { class: 'loading', text: '当前没有动画配置（读不到内置默认？）—— 本编辑器只在已有结构上修改。' }));
+    return wrap;
+  }
+  // 每次提交都基于**最新草稿**合并，避免相互覆盖
+  let draft = JSON.parse(JSON.stringify(cur));
+  const emit = () => onInput(JSON.parse(JSON.stringify(draft)));
+
+  const section = (title, hint, node) => {
+    const box = el('div', { class: 'anim-sec' }, [el('h3', { text: title })]);
+    if (hint) box.appendChild(el('p', { class: 'hint', text: hint }));
+    box.appendChild(node);
+    return box;
+  };
+
+  // 1) 四个简单数组
+  for (const k of ANIM_SIMPLE_KEYS) {
+    if (!Array.isArray(draft[k])) continue;
+    wrap.appendChild(
+      section(
+        `${k}（${draft[k].length} 项）`,
+        k === 'clicks' ? '点击宠物时随机抽一个' : k === 'idle' ? '待机时循环的动画' : '对应动作的动画',
+        buildStringListEditor(draft[k], (v) => {
+          draft[k] = v;
+          emit();
+        }),
+      ),
+    );
+  }
+
+  // 2) events 三个池（每池非空 —— 宿主校验要求）
+  if (draft.events && typeof draft.events === 'object') {
+    for (const { key, label } of ANIM_EVENT_KEYS) {
+      const pool = draft.events[key];
+      if (!Array.isArray(pool)) continue;
+      wrap.appendChild(
+        section(
+          `${label}（${pool.length} 项）`,
+          '槽位可以是单个动画名，也可以是数组（同档位内随机抽一个）—— 本编辑器按单名处理，数组槽位原样保留不在这里改。',
+          buildStringListEditor(
+            pool.map((slot) => (Array.isArray(slot) ? slot.join(' | ') : slot)),
+            (v) => {
+              // 原样保留数组槽位：只有在项数不变时按位置回写，否则整体替换为字符串
+              const sameLen = v.length === pool.length;
+              draft.events[key] = sameLen
+                ? v.map((name, i) => (Array.isArray(pool[i]) && name.includes(' | ') ? name.split(' | ').map((s) => s.trim()) : name))
+                : v;
+              emit();
+            },
+            {
+              min: 1,
+              onReject: (msg) => notify(msg),
+            },
+          ),
+        ),
+      );
+    }
+  }
+
+  // 3) 分类权重（只读展示 + 权重可调）
+  if (Array.isArray(draft.categories)) {
+    const rows = draft.categories.map((cat, idx) => {
+      const wInput = el('input', { type: 'number', min: 0, max: 1000 });
+      wInput.value = String(cat.weight ?? 0);
+      wInput.addEventListener('input', () => {
+        const v = Number(wInput.value);
+        if (Number.isFinite(v) && v >= 0) {
+          draft.categories[idx].weight = v;
+          emit();
+        }
+      });
+      return el('div', { class: 'anim-cat' }, [
+        el('span', { class: 'anim-cat-id', text: String(cat.id ?? '(无 id)') }),
+        el('span', { class: 'desc', text: `${(cat.actions ?? []).length} 个动画${cat.noMirror ? ' · 不镜像' : ''}` }),
+        wInput,
+      ]);
+    });
+    wrap.appendChild(
+      section(
+        `分类权重（${draft.categories.length} 类）`,
+        '权重决定空闲时更常进入哪一类；动画清单本身请在 animations 里改（或直接编辑配置文件）。',
+        el('div', { class: 'anim-cats' }, rows),
+      ),
+    );
+  }
+
+  // 4) moves 只读提示
+  if (draft.moves) {
+    wrap.appendChild(
+      section(
+        '移动参数（只读）',
+        `default: minDist=${draft.moves.default?.minDist} maxDist=${draft.moves.default?.maxDist} ` +
+          `leadSec=${draft.moves.default?.leadSec} tailSec=${draft.moves.default?.tailSec} · ` +
+          `actions=${(draft.moves.actions ?? []).length} 个。` +
+          '这部分结构嵌套较深（每个动作可带自己的 params），本轮不在 GUI 里改。',
+        el('div', {}),
+      ),
+    );
+  }
+
+  return wrap;
+}
+
+// ---------------------------------------------------------------------------
 // 表情包池编辑（键 = assets/memes/<键>.png 的文件名，值 = 该图的内容描述）
 //
 // 为什么单独做一个编辑器而不是塞进 buildRow：
@@ -382,7 +564,21 @@ function render() {
     buildCard('动画随机链权重', '宠物空闲时按权重挑下一个动画；设为 0 即让该类别不再被挑中', awRows),
   );
 
-  // 3d) 表情包池（键值对集合，可增删）
+  // 3d) 动画池（在已有结构上改；宿主校验要求整个结构完整，所以只合并不重建）
+  const animEditor = buildAnimationsEditor(cfg.animations, (v) => {
+    patch.animations = v;
+    markDirty();
+  }, (msg) => setStatus(msg, 'err'));
+  root.appendChild(
+    buildCard(
+      '动画池',
+      '空闲时按分类权重挑动画；这里可增删各档位的动画名。' +
+        '⚠️ 动画名必须与已安装 dsh-pet 的 assets 里对应文件同名，写错只会在播放时静默跳过。',
+      [animEditor],
+    ),
+  );
+
+  // 3e) 表情包池（键值对集合，可增删）
   const memesCur = cfg.memes && typeof cfg.memes === 'object' && !Array.isArray(cfg.memes) ? cfg.memes : {};
   const memesEditor = buildMemesEditor(memesCur, (v) => {
     // ⚠️ 每次都整对象提交：宿主按对象校验（键不能含分隔符等）。

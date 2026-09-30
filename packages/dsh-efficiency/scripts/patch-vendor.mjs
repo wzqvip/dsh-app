@@ -422,8 +422,55 @@ patch(
       cleanMemes[k] = v;
     }
     extra.memes = cleanMemes;
+  }
+  // animations：动画池。
+  // ⚠️ animationsValid（topFieldValid 的分支）要求**整个结构都完整**：
+  //      idle/turn/drag/clicks 必须是数组、moves.default 与 moves.actions 必须在、
+  //      categories 必须是数组、events 每个池必须**非空**且成员非空串。
+  //    缺任何一项 → 判非法 → 退回内置默认（又是"磁盘写了、响应是默认值"）。
+  //    所以这里把请求体与用户层现有值合并，再逐项校验结构完整性；
+  //    设置 GUI 本来就是在完整结构上改，提交的就是完整对象。
+  const anims = o.animations;
+  if (anims !== undefined) {
+    if (!anims || typeof anims !== 'object' || Array.isArray(anims)) return null;
+    // ⚠️ 这里**不做部分合并** —— 必须是完整结构。
+    //    曾经的做法是"与 existing 浅合并再校验"，结果是：调用方只发
+    //    {idle,...} 而缺 moves 时，moves 被我的合并补上 → 通过校验 → 落盘。
+    //    而调用方那份对象里 clicks: [] 之类会把用户的既有清单**清空**，
+    //    接口返回的却是合并后的"看起来正常"的值 —— 又一次静默失真（本轮实测踩到：
+    //    磁盘上 animations.clicks 变成 0 项，而 curl 看到的却是默认 5 项）。
+    //    所以：要么给完整结构，要么别传这个字段。
+    for (const k of ['idle', 'turn', 'drag', 'clicks']) {
+      if (!Array.isArray(anims[k])) return null;
+    }
+    const mv = anims.moves;
+    if (!mv || typeof mv !== 'object' || Array.isArray(mv)) return null;
+    if (!mv.default || typeof mv.default !== 'object' || Array.isArray(mv.default)) return null;
+    if (!Array.isArray(mv.actions)) return null;
+    if (!Array.isArray(anims.categories)) return null;
+    const ev = anims.events;
+    if (!ev || typeof ev !== 'object' || Array.isArray(ev)) return null;
+    const evKeys = Object.keys(ev);
+    if (evKeys.length === 0) return null;
+    for (const ek of evKeys) {
+      const pool = ev[ek];
+      if (!Array.isArray(pool) || pool.length === 0) return null;
+      for (const slot of pool) {
+        if (typeof slot === 'string') {
+          if (slot.length === 0) return null;
+        } else if (Array.isArray(slot)) {
+          if (slot.length === 0) return null;
+          for (const nm of slot) {
+            if (typeof nm !== 'string' || nm.length === 0) return null;
+          }
+        } else {
+          return null;
+        }
+      }
+    }
+    extra.animations = anims;
   }`,
-  '配置写入白名单：新增 whisperPrompt / chatMemoryRounds / eventsRefreshSec / workStatusTexts / physics / animationWeights / memes（含校验）',
+  '配置写入白名单：新增 whisperPrompt / chatMemoryRounds / eventsRefreshSec / workStatusTexts / physics / animationWeights / memes / animations（含校验）',
 );
 
 patch(
