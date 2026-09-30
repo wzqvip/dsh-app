@@ -27,7 +27,10 @@
     "test:placement": "node scripts/test-placement.mjs",
     "test": "node scripts/smoke-client.mjs && node scripts/test-placement.mjs",
     "check": "node scripts/build.mjs && node scripts/smoke-client.mjs && node scripts/test-placement.mjs",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "build:vendor": "node scripts/build-vendor.mjs",
+    "build:host": "node scripts/build-host.mjs",
+    "build:all": "node scripts/build-vendor.mjs && node scripts/build-host.mjs && node scripts/build.mjs"
   },
   "dsh": {
     "bundle": {
