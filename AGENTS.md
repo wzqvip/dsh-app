@@ -163,10 +163,41 @@ $e.Trim()                       # ❌ You cannot call a method on a null-valued 
 ## 4. 许可与署名（**硬约束**）
 
 - 本项目代码 **MIT**
-- ⚠️ **依赖 `PC2005-cloud/dsh-pet`**：其**素材禁止商用**，且二创**必须在任何介绍/展示/分发处署名**
-- ⚠️ **不要把 `dsh-pet` 的素材文件复制进本仓库**（只依赖，不 vendor）
-- 因此：**本项目及其衍生作品不得用于商业用途**
+- ⚠️ **本项目完全免费开源，不做商业用途**（2026-09-29 维护者拍板）：
+  不设付费项、不做商业授权、不接商业分发
+- ⚠️ **依赖并 vendor 了 `PC2005-cloud/dsh-pet` 的代码**：
+  - **代码是 MIT** → 允许复制进本仓库并修改，但**必须原样保留其 `LICENSE` 与版权头**
+  - **素材（立绘/动画/提示词/表情包/字体）禁止商用** → **绝不复制进本仓库**，
+    运行时从已安装的 `dsh-pet` npm 包读取
+  - 二创**必须在任何介绍/展示/分发处署名**：<https://github.com/PC2005-cloud/dsh-pet>
 - 详见 [NOTICE.md](NOTICE.md) 与 [CONTRIBUTING.md](CONTRIBUTING.md)
+
+### 4.1 vendor 清单（内联复用第三方代码时在此登记）
+
+| 上游 | 许可 | vendor 范围 | 落位 | 日期 |
+|---|---|---|---|---|
+| [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) | MIT | **仅代码**（`src/` + `runtime/` + 构建脚本），**不含 `assets/`** | `packages/dsh-efficiency/vendor/dsh-pet/`（实施中） | 2026-09-29 |
+
+**规则**：
+- vendor 目录内必须带上游 `LICENSE` 原文
+- 记录上游版本号（便于日后对比升级）
+- 我们对其做的改动要能看出边界（保留原文件头注释 + 在改动处标明）
+
+### 4.2 包结构决策（2026-09-29）
+
+桌宠能力**并入** `packages/dsh-efficiency`，不再作为独立插件存在：
+
+```
+packages/dsh-efficiency/          一个包 = 桌宠 + 提问作答 + 设置 GUI
+├── vendor/dsh-pet/               上游代码（MIT，带 LICENSE）
+├── src/host/                     宿主半侧（含宠物宿主 + 提问捕获）
+├── src/client/                   浏览器半侧
+└── src/desktop/                  桌面半身（Electron 主进程 + 渲染层）
+```
+
+理由：维护者要求"做成一整个控件"；且合并后设置 GUI 可同时管宠物与效率功能。
+
+⚠️ 例外：**素材仍从已安装的 `dsh-pet` 读**（禁商用，不能进仓库）。
 
 ---
 
