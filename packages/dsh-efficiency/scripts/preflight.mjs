@@ -97,6 +97,74 @@ if (!existsSync(vendorDir)) {
 
   if (existsSync(join(vendorDir, 'README.dsh-app.md'))) ok('出处说明 README.dsh-app.md 在库');
   else warn('缺 vendor/dsh-pet/README.dsh-app.md（出处说明）');
+
+  // ---- 代码完整性 + 改动边界 + 来源可追溯（AGENTS.md §4.1 的三条规则）----
+  // ① 代码完整：src/ 与 runtime/ 的文件数必须与**已安装的上游包**一致。
+  //    只验"没有素材"是不够的 —— 漏 vendor 某个源文件要到运行时才炸。
+  const upPkg = join(home, '.dsh', 'profiles', 'web', 'node_modules', 'dsh-pet');
+  if (existsSync(upPkg)) {
+    for (const sub of ['src', 'runtime']) {
+      const a = join(upPkg, sub);
+      const b = join(vendorDir, sub);
+      if (!existsSync(a) || !existsSync(b)) continue;
+      const count = (dir) => {
+        let n = 0;
+        const w = (d) => {
+          for (const name of readdirSync(d)) {
+            const p = join(d, name);
+            if (statSync(p).isDirectory()) w(p);
+            else n += 1;
+          }
+        };
+        w(dir);
+        return n;
+      };
+      const nUp = count(a);
+      const nOurs = count(b);
+      if (nOurs === nUp) ok(`vendor/${sub} 代码完整`, `${nOurs}/${nUp} 文件`);
+      else bad(`vendor/${sub} 文件数不一致`, `上游 ${nUp} / 我们 ${nOurs}`);
+    }
+    // 版本一致性（记录 vs 实际安装的上游）
+    try {
+      const upVer = JSON.parse(readFileSync(join(upPkg, 'package.json'), 'utf8')).version;
+      const rd = join(vendorDir, 'README.dsh-app.md');
+      if (existsSync(rd)) {
+        const txt = readFileSync(rd, 'utf8');
+        if (txt.includes(`\`${upVer}\``)) ok('记录的上游版本与实际安装的一致', upVer);
+        else bad('记录的上游版本与实际安装的不一致', `实际 ${upVer}`);
+        if (/\b[0-9a-f]{40}\b/.test(txt)) ok('记录了上游 commit 哈希（可精确回溯）');
+        else warn('未记录上游 commit 哈希');
+      }
+    } catch {
+      warn('读上游 package.json 失败，跳过版本核对');
+    }
+  } else {
+    warn('找不到已安装的上游 dsh-pet，跳过代码完整性核对');
+  }
+
+  // ② 改动边界可辨：我们改过的每个文件都必须带 [dsh-app] 标记。
+  //    改动的文件清单从 patch-vendor.mjs 里抽（那是唯一真相来源）。
+  const patcher = join(pkgRoot, 'scripts', 'patch-vendor.mjs');
+  if (existsSync(patcher)) {
+    const src = readFileSync(patcher, 'utf8');
+    const rels = new Set();
+    for (const m of src.matchAll(/join\(\s*'([a-zA-Z0-9_.-]+)'\s*,\s*'([a-zA-Z0-9_.-]+)'\s*,\s*'([a-zA-Z0-9_.-]+)'\s*\)/g)) {
+      rels.add(join(m[1], m[2], m[3]));
+    }
+    let marked = 0;
+    const unmarked = [];
+    for (const rel of rels) {
+      const p = join(vendorDir, rel);
+      if (!existsSync(p)) {
+        unmarked.push(`${rel}(缺失)`);
+        continue;
+      }
+      if (readFileSync(p, 'utf8').includes('[dsh-app]')) marked += 1;
+      else unmarked.push(rel);
+    }
+    if (unmarked.length === 0) ok(`改动过的 ${marked} 个文件都带 [dsh-app] 标记（改动边界可辨）`);
+    else bad('有改动文件缺 [dsh-app] 标记（边界不可辨）', unmarked.join(', '));
+  }
 }
 
 // ---------------------------------------------------------------------------

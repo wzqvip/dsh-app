@@ -12,6 +12,8 @@
 | 上游仓库 | <https://github.com/PC2005-cloud/dsh-pet> |
 | npm 包 | `dsh-pet` |
 | **vendor 时的版本** | **`0.2.12`** |
+| 上游 commit | `6bb68c0f30abaf9e75330f55f639dff0817c9230` |
+| 素材清单（未 vendor，仅记录） | `assets/` **60.7 MB / 143 文件**（实测）——`webm/` 106（立绘与预览视频）、`memes/` 27（表情包）、`pic/` 8（图标+光标）、`fonts/` 1 |
 | vendor 日期 | 2026-09-29 |
 | 许可 | **MIT** · `Copyright (c) 2026 PC2005-cloud`（原文见本目录 `LICENSE`） |
 
@@ -23,7 +25,7 @@
 | `runtime/`（桌面 Electron helper，11 文件） | ✅ | 桌面端实际加载的就是这里 |
 | `scripts/`（构建脚本） | ✅ | |
 | `LICENSE` / `package.json` / `cordis.patch.yml` | ✅ | MIT 要求保留许可与版权声明 |
-| **`assets/`（60.7 MB / 141 文件）** | ❌ **绝不** | **素材禁止商用**，运行时从已安装的 `dsh-pet` 包读取 |
+| **`assets/`（60.7 MB / 143 文件）** | ❌ **绝不** | **素材禁止商用**，运行时从已安装的 `dsh-pet` 包读取 |
 | `lib/`（构建产物） | ❌ | 应自行重建，不 vendor 别人的产物 |
 
 **为什么必须分开对待**：上游对**代码**用 MIT（允许复制修改），
