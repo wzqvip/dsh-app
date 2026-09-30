@@ -35,7 +35,6 @@
     "build": "node scripts/build-host.mjs && node scripts/build-runtime.mjs && node scripts/build.mjs",
     "smoke": "node scripts/smoke-client.mjs",
     "test:placement": "node scripts/test-placement.mjs",
-    "test": "node scripts/smoke-client.mjs && node scripts/test-placement.mjs",
     "check": "node scripts/build.mjs && node scripts/smoke-client.mjs && node scripts/test-placement.mjs",
     "deploy": "node scripts/deploy.mjs",
     "build:vendor": "node scripts/build-vendor.mjs && node scripts/patch-vendor.mjs",
@@ -44,7 +43,9 @@
     "build:client-vendor": "node scripts/build-client-vendor.mjs",
     "build:all": "node scripts/build-vendor.mjs && node scripts/patch-vendor.mjs && node scripts/build-client-vendor.mjs && node scripts/build-host.mjs && node scripts/build-runtime.mjs && node scripts/build.mjs",
     "patch:vendor": "node scripts/patch-vendor.mjs",
-    "build:runtime": "node scripts/build-runtime.mjs"
+    "build:runtime": "node scripts/build-runtime.mjs",
+    "test:materialize": "node scripts/test-client-materialize.mjs",
+    "test": "node scripts/smoke-client.mjs && node scripts/test-placement.mjs && node scripts/test-client-materialize.mjs"
   },
   "dsh": {
     "bundle": {

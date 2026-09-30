@@ -56,7 +56,12 @@ if (!run('smoke-client（含 apply 无错误日志断言）', 'smoke-client.mjs'
 // 3) 定位单测
 if (!run('test-placement', 'test-placement.mjs')) process.exit(1);
 
-// 4) 复制到 release/（复制，不是链接）
+// 4) 客户端装载：模拟浏览器模块系统，确认 client.js 里两个插件都能实例化。
+//    本 bundle 含两个插件（效率助手 + 桌宠），一个 id 只能 load 一次 —— 这类
+//    合并后的「只装了一个/漏了一个」错误只会在浏览器里暴露，必须在这里拦住。
+if (!run('test-client-materialize（两个插件都能实例化）', 'test-client-materialize.mjs')) process.exit(1);
+
+// 5) 复制到 release/（复制，不是链接）
 console.log('[deploy] 全部通过 → 写入 release/');
 mkdirSync(releaseLib, { recursive: true });
 
