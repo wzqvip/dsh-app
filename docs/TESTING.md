@@ -21,11 +21,11 @@
 
 ## 1. 装上游 `dsh-pet`（素材来源）
 
-我们的宠物**立绘/表情包/字体**都从已安装的 `dsh-pet` 读（上游素材禁商用，不能进我们仓库）。
+我们的宠物**立绘/表情包/字体**都在**本包内自带**（`vendor/dsh-pet/assets/`，60.7 MB）。
 
 ```sh
 # 装到沙箱 profile 里（作为依赖，不启用为 bundle）
-DSH_HOME=~/dsh-sandbox dsh plugin --profile web add dsh-pet
+# 无需这一步：素材随本包分发（2026-09-30 起）
 ```
 
 > ⚠️ **`dsh-pet` 只当素材来源**。稍后要把它从 `bundles` 里移出（见 §3），

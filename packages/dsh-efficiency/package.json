@@ -29,7 +29,10 @@
     "cordis.patch.yml",
     "LICENSE",
     "THIRD-PARTY-NOTICES.md",
-    "docs"
+    "docs",
+    "vendor/dsh-pet/assets",
+    "vendor/dsh-pet/LICENSE",
+    "vendor/dsh-pet/README.dsh-app.md"
   ],
   "scripts": {
     "build": "node scripts/build-host.mjs && node scripts/build-runtime.mjs && node scripts/build.mjs",

@@ -120,7 +120,7 @@ mode: z.union(["legacy","timed"]).default("legacy")
 **做法（按成功率排序）**
 ```powershell
 # ① 先试 npm（最省事）
-dsh plugin --profile web add dsh-pet
+# 素材随本包分发，无需另装 dsh-pet
 
 # ② 被拒则授予精确版本豁免
 dsh plugin --profile web version-exemptions        # 先看运行时版本

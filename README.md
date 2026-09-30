@@ -205,10 +205,11 @@ dsh web                            # 2. 自己在终端敲
 │  ⚠️ 其中「桌宠本体」的代码 vendor 自 PC2005-cloud/dsh-pet   │
 │     （MIT），我们做了改造。详见下方「许可与致谢」。          │
 └──────────────────────────────────────────────────────────┘
-                          │ 素材（不随本仓库分发）
+                          │ 素材（**已随本包分发**）
 ┌──────────────────────────────────────────────────────────┐
-│  已安装的 dsh-pet 包（仅取其 assets/，禁商用）             │
+│  本包自带 vendor/dsh-pet/assets/                          │
 │    · 立绘动画 / 表情包 / 字体 / 内置默认配置               │
+│    · 上游声明：允许开源使用、禁止商用（详见 NOTICE.md）    │
 └──────────────────────────────────────────────────────────┘
                           │ 运行于
 ┌──────────────────────────────────────────────────────────┐
@@ -241,17 +242,17 @@ dsh web                            # 2. 自己在终端敲
 
 本项目**只发布在 GitHub，不发布 npm**。`lib/` 构建产物不入库，因此安装分两步：**先构建，再 `add file:`**。
 
-### ① 承载层：`dsh-pet`（第三方 —— 现在只作**素材来源**）
+### ① 依赖：已内置，无需另装
 
-`dsh-pet` 的**代码**已 vendor 进本仓库（见 [NOTICE.md](NOTICE.md)），
-但它的**素材禁商用、不能进我们仓库**，所以仍需装一份来提供立绘/表情包/字体：
+本包**自带 `dsh-pet` 的代码与素材**（`vendor/dsh-pet/`，含 60.7 MB 素材），
+所以**装本包一个命令就完整可用** —— 立绘、动画、表情包、字体都在包里。
 
-```sh
-dsh plugin --profile web add dsh-pet     # 只作依赖，不要放进 bundles
-```
-
-> ⚠️ 装好后**不要**把 `dsh-pet` 加进 `dsh.profile.bundles` ——
-> 它和我们打包的宠物都会注册 `/dsh-pet-7340/*`，会互相抢。详见 [TESTING.md](docs/TESTING.md) §3。
+> 上游素材的声明是「**允许开源使用、禁止商用**」，本项目开源且非商用，
+> 且已在 [NOTICE.md](NOTICE.md) 与 [THIRD-PARTY-NOTICES.md](packages/dsh-efficiency/THIRD-PARTY-NOTICES.md)
+> 完整署名与说明。
+>
+> 早先的版本要求另装一份 `dsh-pet` 取素材（因其"禁商用"被我理解为"不能进仓库"）；
+> 维护者 2026-09-30 决定改为**随包分发**以简化安装 —— 现**不再需要**这一步。
 
 ### ② 本项目
 
@@ -300,7 +301,7 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 | **局域网 / 手机适配** | **纯 Web 能力，与桌宠无关** | 手机/平板用浏览器访问响应式网页；桌宠面板只是放开关的地方 |
 | **与 `dsh-pet` 的关系** | **vendor 其代码并改造**（2026-09-29 拍板，取代早期的"只依赖不 fork"） | 需要加右键「设置…」入口与完整设置 GUI，必须改代码；上游为 MIT 明确允许 |
 | **代码引入方式** | **直接复制进仓库**（`packages/dsh-efficiency/vendor/dsh-pet/`），不用 submodule | 我们要深改而非轻补丁，submodule 的"干净 merge"价值丧失，反而多出「空目录陷阱」与「打包漏文件」两个风险 |
-| **素材** | **不 vendor**，运行时从**已安装的 `dsh-pet`** 读取 | 上游素材**禁商用**，不能进本仓库；仅代码可 vendor |
+| **素材** | **随包分发**（`vendor/dsh-pet/assets/`，60.7 MB） | 上游声明「允许开源使用、禁止商用」；本项目开源且非商用，已完整署名 |
 | 优先级 | **先做 R0（提问触达）**，进度先用零成本方式 | 痛点是"任务干等"，不是"看不懂状态" |
 | 分发 | **只发 GitHub**，用户自行构建 | 避免过早处理 npm 发布；构建流程见上 |
 | **启动器** | **做成 exe，Release 发布，解压即用** | 消除"装环境 + 敲命令"的摩擦；它不是 MVP 的一部分 |
@@ -317,7 +318,7 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 - ❌ 不做另一个 DSH 桌面客户端
 - ❌ 不做天气/监控/看板等与"让 agent 的问题触达你"无关的功能
 - ❌ 不 fork DSH，不修改其 `@deepseek-ai/*` 源码
-- ❌ **不 vendor `dsh-pet` 的素材** —— 只 vendor 它的**代码**（素材禁商用，运行时从已安装包读）
+- ✅ **素材随包分发** —— 用户装本包一个命令即可用，不必另装 `dsh-pet`（上游声明允许开源使用、禁止商用）
 - ❌ 不追求桌宠的"养成/收集"玩法 —— 桌宠是载体，不是目的
 - ❌ 不默认开启任何消耗额外 token 的功能
 - ❌ 暂不发布 npm 包
@@ -426,7 +427,7 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 | **上游版本** | `0.2.12` · commit `6bb68c0f30abaf9e75330f55f639dff0817c9230` |
 | **上游许可** | **MIT** · `Copyright (c) 2026 PC2005-cloud`（原文见 [`vendor/dsh-pet/LICENSE`](packages/dsh-efficiency/vendor/dsh-pet/LICENSE)） |
 | **我们 vendor 了什么** | **仅代码**：`src/`（TypeScript 源码）、`runtime/`（桌面 Electron helper）、构建脚本 |
-| **我们没 vendor 什么** | **素材一个都没带**（立绘 / 动画 / 表情包 / 字体）—— 上游素材**禁商用**，运行时从**已安装的 `dsh-pet` 包**读取 |
+| **我们带上了什么** | **素材也随包分发**（`vendor/dsh-pet/assets/`：立绘动画 / 表情包 / 字体 / 内置默认配置）—— 上游声明允许开源使用，本项目开源且非商用 |
 | **我们做的改动** | 合并为单一插件包、加"同一档位不打断动画"修复、素材路径改指已安装包、后续还将加设置 GUI 与右键「设置…」入口。改动由 [`scripts/patch-vendor.mjs`](packages/dsh-efficiency/scripts/patch-vendor.mjs) 幂等施加，代码中带 `[dsh-app]` 标记 |
 | **本仓库中的位置** | [`packages/dsh-efficiency/vendor/dsh-pet/`](packages/dsh-efficiency/vendor/dsh-pet/)（含 [出处说明](packages/dsh-efficiency/vendor/dsh-pet/README.dsh-app.md)） |
 
@@ -441,8 +442,24 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 #### 素材的额外限制
 
 上游**素材**（动画 / 提示词 / 源视频 / 表情包 / 字体）**允许开源使用、禁止商用**。
-因此本项目**不复制**其素材，而是在运行时从已安装的 `dsh-pet` 包读取；
-并且**本项目整体不用于任何商业用途**。
+
+本项目**随包分发**这些素材（`vendor/dsh-pet/assets/`，60.7 MB），以便用户装一个包即可用。
+依据是上游「允许开源使用」的声明 —— 而**本项目整体开源且明确不用于任何商业用途**
+（硬约束见 [NOTICE.md](NOTICE.md)）。上游的强制署名要求已在上文与
+[THIRD-PARTY-NOTICES.md](packages/dsh-efficiency/THIRD-PARTY-NOTICES.md) 中满足。
+
+> ⚠️ 如实说明一处**法律上的分寸**：上游声明写的是「允许**使用**」，
+> 而"复制进另一个仓库并随之分发"属**再分发**；MIT 明确授予再分发
+> （`sublicense, and/or sell`），但**素材不在 MIT 范围内**。
+> 维护者已知悉该区别并决定按此分发。
+> 若上游作者提出异议，**删掉 `vendor/dsh-pet/assets/` 即可回到"仅代码"形态**
+> —— 解析器保留了回退到已安装 `dsh-pet` 的路径（见 `scripts/patch-vendor.mjs`）。
+
+#### 字体
+
+`assets/fonts/上首软糖体.ttf` 是**第三方字体**，其著作权与许可**独立于上游项目**。
+本项目按上游的分发方式一并携带；**若要再分发，请自行核实该字体的授权范围**。
+
 
 ### 其他致谢
 

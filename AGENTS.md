@@ -165,18 +165,23 @@ $e.Trim()                       # ❌ You cannot call a method on a null-valued 
 - 本项目代码 **MIT**
 - ⚠️ **本项目完全免费开源，不做商业用途**（2026-09-29 维护者拍板）：
   不设付费项、不做商业授权、不接商业分发
-- ⚠️ **依赖并 vendor 了 `PC2005-cloud/dsh-pet` 的代码**：
+- ⚠️ **依赖并 vendor 了 `PC2005-cloud/dsh-pet` 的代码与素材**：
   - **代码是 MIT** → 允许复制进本仓库并修改，但**必须原样保留其 `LICENSE` 与版权头**
-  - **素材（立绘/动画/提示词/表情包/字体）禁止商用** → **绝不复制进本仓库**，
-    运行时从已安装的 `dsh-pet` npm 包读取
+  - **素材（立绘/动画/提示词/表情包/字体）**：上游声明「**允许开源使用、禁止商用**」。
+    自 **2026-09-30** 起**随本包分发**（`vendor/dsh-pet/assets/`），以便用户开箱即用。
+    ⚠️ 维护者已知悉「**允许使用 ≠ 授予再分发**」这一分寸（素材不在 MIT 范围内）
+    并决定按此分发；**若上游提出异议，删掉 `vendor/dsh-pet/assets/` 即回到"仅代码"形态**
+    —— 解析器保留了回退到已安装 `dsh-pet` 的路径。
+    ⚠️ `assets/fonts/上首软糖体.ttf` 是**第三方字体**，许可独立于上游，再分发前自行核实。
   - 二创**必须在任何介绍/展示/分发处署名**：<https://github.com/PC2005-cloud/dsh-pet>
+
 - 详见 [NOTICE.md](NOTICE.md) 与 [CONTRIBUTING.md](docs/CONTRIBUTING.md)
 
 ### 4.1 vendor 清单（内联复用第三方代码时在此登记）
 
 | 上游 | 许可 | vendor 范围 | 落位 | 日期 |
 |---|---|---|---|---|
-| [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) | MIT | **仅代码**（`src/` + `runtime/` + 构建脚本），**不含 `assets/`** | `packages/dsh-efficiency/vendor/dsh-pet/`（实施中） | 2026-09-29 |
+| [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) | 代码 **MIT**；素材「允许开源使用、禁止商用」 | **代码 + 素材**（`src/` + `runtime/` + 构建脚本 + `assets/` 60.7 MB / 143 文件） | `packages/dsh-efficiency/vendor/dsh-pet/` | 2026-09-29（素材 2026-09-30 加入） |
 
 **规则**：
 - vendor 目录内必须带上游 `LICENSE` 原文
@@ -189,7 +194,7 @@ $e.Trim()                       # ❌ You cannot call a method on a null-valued 
 
 ```
 packages/dsh-efficiency/          一个包 = 桌宠 + 提问作答 + 设置 GUI
-├── vendor/dsh-pet/               上游代码（MIT，带 LICENSE）
+├── vendor/dsh-pet/               上游代码 + 素材（代码 MIT；素材允许开源使用）
 ├── src/host/                     宿主半侧（含宠物宿主 + 提问捕获）
 ├── src/client/                   浏览器半侧
 └── src/desktop/                  桌面半身（Electron 主进程 + 渲染层）
@@ -197,7 +202,8 @@ packages/dsh-efficiency/          一个包 = 桌宠 + 提问作答 + 设置 GUI
 
 理由：维护者要求"做成一整个控件"；且合并后设置 GUI 可同时管宠物与效率功能。
 
-⚠️ 例外：**素材仍从已安装的 `dsh-pet` 读**（禁商用，不能进仓库）。
+素材自 **2026-09-30** 起**也随包分发**（`vendor/dsh-pet/assets/`）—— 上游声明允许开源使用，
+本项目开源且非商用（分寸见 §4）。解析器仍保留"回退到已安装 `dsh-pet`"的路径。
 
 ---
 

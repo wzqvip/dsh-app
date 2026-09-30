@@ -174,20 +174,34 @@ function resolveDshPetRoot(): string | undefined {
 const DSH_PET_ROOT = resolveDshPetRoot();
 
 /**
- * [dsh-app] 素材根：优先【已安装的 dsh-pet】，找不到才回落本包。
- * 素材不随本仓库分发（上游禁商用），所以"找不到"在一台没装 dsh-pet 的机器上
- * 是预期情况 —— 必须把原因说清楚，否则很难排查。
+ * [dsh-app] 素材根：**优先本包自带的素材**（vendor/dsh-pet/assets），
+ * 找不到才回落到已安装的 dsh-pet 包。
+ *
+ * 为什么改成"自带优先"（2026-09-30 维护者决定）：
+ *   素材此前不随仓库分发，用户必须另装一份 dsh-pet 才能有立绘 —— 多一步操作。
+ *   现在素材随包分发，用户装本包一个命令即可用。既然要自包含，
+ *   就该**用自己的那份**：否则同一台机器上装了不同版本的 dsh-pet 时，
+ *   实际播放的素材会取决于环境、难以复现。
+ *
+ * 回退链仍然保留：万一打包时漏了 assets（或有人裁剪了发布包），
+ * 还能退到已安装的 dsh-pet，不至于整个宠物不可用。
  */
-const ASSET_ROOT = join(DSH_PET_ROOT ?? PACKAGE_ROOT, 'assets');
-if (!DSH_PET_ROOT) {
-  console.error(
-    '[dsh-app] 找不到已安装的 dsh-pet 包，宠物素材不可用（无立绘/表情包/字体/内置默认配置）。\n' +
-      '          素材不随本仓库分发（上游素材禁商用）。请先安装：\n' +
-      '            dsh plugin --profile <你的 profile> add dsh-pet\n' +
-      '          或设置环境变量 DSH_HOME 指向你的 DSH 主目录。',
-  );
+const BUNDLED_ASSETS = join(PACKAGE_ROOT, 'vendor', 'dsh-pet', 'assets');
+const ASSET_ROOT = existsSync(BUNDLED_ASSETS)
+  ? BUNDLED_ASSETS
+  : join(DSH_PET_ROOT ?? PACKAGE_ROOT, 'assets');
+if (existsSync(BUNDLED_ASSETS)) {
+  console.log('[dsh-app] 素材根: ' + ASSET_ROOT + ' （自带）');
+} else if (DSH_PET_ROOT) {
+  console.log('[dsh-app] 素材根: ' + ASSET_ROOT + ' （回退到已安装的 dsh-pet）');
+  console.warn('[dsh-app] 本包未自带素材（vendor/dsh-pet/assets 缺失），已回退到已安装的 dsh-pet。');
 } else {
-  console.log('[dsh-app] 素材根: ' + ASSET_ROOT);
+  console.error(
+    '[dsh-app] 找不到宠物素材：本包未自带（vendor/dsh-pet/assets 缺失），' +
+      '且系统里也没有已安装的 dsh-pet（无立绘/表情包/字体/内置默认配置）。\n' +
+      '          正常情况下本包会自带素材，出现此提示说明发布包不完整；\n' +
+      '          临时可用：dsh plugin --profile <你的 profile> add dsh-pet',
+  );
 }
 
 /** 包内 assets 根（表情包池解析用：assets/memes/<名称>.png） */

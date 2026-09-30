@@ -43,7 +43,10 @@ commit-msg.tmp
 packages/*/lib/
 
 # 发布产物（由 npm run deploy 生成）
-packages/dsh-efficiency/release/lib/
+# ⚠️ release/ 整体不入库：它 = vendor/ 源码 + lib/ + 构建脚本的拷贝，全部可从仓库重建；
+#    入库会把这 60 MB 素材**再存一份**（vendor/dsh-pet/assets 已有一份）。
+#    与 packages/*/lib/ 同一原则：产物不入库，克隆后跑 `npm run deploy` 生成。
+packages/*/release/
 # vendored 上游代码：只带源码，不带其构建产物与依赖
 packages/*/vendor/*/node_modules/
 packages/*/vendor/*/lib/
@@ -80,3 +83,5 @@ msg65.tmp
 packages/*/release/DEPLOY.json
 
 msg66.tmp
+
+msg67.tmp

@@ -21,7 +21,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, existsSync, readFileSync, writeFileSync, statSync, cpSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, existsSync, readFileSync, writeFileSync, statSync, cpSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -98,6 +98,29 @@ if (!existsSync(patchSrc)) {
 }
 copyFileSync(patchSrc, join(releaseDir, 'cordis.patch.yml'));
 
+// ---- release/package.json：每次 deploy 都从主清单**重新生成** ----
+// ⚠️ 为什么必须重新生成（实测踩过）：
+//   `dsh plugin add file:<dir>` 会**按 package.json 的 files 白名单过滤**要拷的文件。
+//   这个文件此前是"一次写好就不再更新"，于是我在主 package.json 里加了
+//   `vendor/dsh-pet/assets` 之后，release 里那份仍是旧的 ——
+//   结果装到沙箱的包里**没有素材**（vendor/ 整个被过滤掉），
+//   而 release 目录里明明有 143 个素材文件。排查花了很久。
+//   现在每次 deploy 从 pkg 的 package.json 派生，只覆盖 release 专属字段。
+const srcPkg = JSON.parse(readFileSync(join(pkgRoot, 'package.json'), 'utf8'));
+const relPkgPath = join(releaseDir, 'package.json');
+const prevRel = existsSync(relPkgPath) ? JSON.parse(readFileSync(relPkgPath, 'utf8')) : {};
+const relPkg = {
+  ...srcPkg,
+  // 以下字段是 release 产物专属（或需要覆盖主清单的）
+  private: true,
+  main: 'lib/index.js',
+  exports: prevRel.exports ?? srcPkg.exports,
+  files: srcPkg.files, // ← 必须跟着主清单走，否则会漏拷文件
+};
+delete relPkg.scripts; // release 不需要构建脚本
+writeFileSync(relPkgPath, JSON.stringify(relPkg, null, 2), 'utf8');
+console.log(`[deploy] release/package.json 已同步（files: ${(relPkg.files ?? []).join(', ')}）`);
+
 // ---- 许可与第三方署名（发布门禁的一部分） ----
 // 本包内含 vendor 自 dsh-pet 的代码（MIT）。按 MIT 与上游二创约定，
 // 分发时必须带上版权声明、许可原文与署名。漏掉就等于违反许可，
@@ -124,6 +147,30 @@ for (const rel of [join('vendor', 'dsh-pet', 'LICENSE'), join('vendor', 'dsh-pet
   copyFileSync(src, dest);
 }
 void upstreamDir;
+
+// 素材：随包分发（维护者 2026-09-30 决定「接受再分发与体积」）。
+// 目的：用户装本包一个命令即可用，不必再单独装上游 dsh-pet 取素材。
+// ⚠️ 两个前提缺一不可：
+//   ① package.json 的 files 必须显式列出 vendor/dsh-pet/assets
+//      （否则 `dsh plugin add` 不会带上它 —— 实测踩过）
+//   ② 这里要把素材拷进 release/（否则部署装的是不含素材的版本）
+const assetsSrc = join(pkgRoot, 'vendor', 'dsh-pet', 'assets');
+if (!existsSync(assetsSrc)) {
+  console.error('[deploy] 缺少 vendor/dsh-pet/assets —— 自带素材缺失，用户将拿不到立绘/动画/字体');
+  process.exit(1);
+}
+const assetsDest = join(releaseDir, 'vendor', 'dsh-pet', 'assets');
+cpSync(assetsSrc, assetsDest, { recursive: true });
+const assetCount = (dir) => {
+  let n = 0;
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) n += assetCount(p);
+    else n += 1;
+  }
+  return n;
+};
+console.log(`[deploy] 自带素材已随包分发：${assetCount(assetsDest)} 个文件`);
 
 // 5) 写一份部署记录，便于回溯"生产上是哪次构建"
 const stamp = {
