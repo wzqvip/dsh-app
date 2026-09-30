@@ -76,3 +76,9 @@ packages/dsh-efficiency/release/lib/
 msg16.tmp
 
 msg17.tmp
+
+# vendored 上游代码：只带源码，不带其构建产物与依赖
+packages/*/vendor/*/node_modules/
+packages/*/vendor/*/lib/
+
+msg18.tmp
