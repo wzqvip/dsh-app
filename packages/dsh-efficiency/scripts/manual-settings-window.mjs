@@ -339,14 +339,47 @@ try {
       const diskOk = String(afterName ?? '').endsWith('·E2E2');
       console.log(`     磁盘上的 name: "${origName}" -> "${afterName}"${diskOk ? '' : '（等待窗口内未刷到，属已知的写入延迟）'}`);
 
-      // 清理测试痕迹（磁盘上的，若已落地）
-      if (diskOk) {
-        const cur = JSON.parse(readFileSync(cfgFile, 'utf8'));
-        // 去掉两种测试尾缀，别把痕迹留在沙箱配置里
-        cur.pets[0].name = String(cur.pets[0].name).replace(/·E2E2?$/, '');
-        writeFileSync(cfgFile, JSON.stringify(cur, null, 2), 'utf8');
-        console.log(`     已还原名字 -> "${readName()}"`);
-      }
+      // 清理测试痕迹 —— ⚠️ 必须走 **PUT 接口**，不要直接写文件。
+      //
+      // 为什么（踩过两次）：UI 保存会触发宿主 syncDesktop() 重启桌面助手，
+      // 而助手是 Electron 进程、持有配置文件；磁盘写入要等它释放，
+      // 可能延迟十几秒。直接 readFile→改→writeFile 会**被随后的宿主写入覆盖**，
+      // 于是测试痕迹（name 的 ·E2E2 尾缀、display 被改成 desktop）留在沙箱配置里，
+      // 而 display=desktop 又会让网页浮层"正确地"不渲染 —— 反过来污染后续验证。
+      // 走接口就没有这个竞态：宿主接受后响应体就是成品聚合。
+      const restored = await sWs.send('Runtime.evaluate', {
+        expression: [
+          '(async function(){',
+          '  var r = await window.settingsBridge.getConfig();',
+          '  var b = r.json[Object.keys(r.json)[0]];',
+          '  var pet = b.pets[0];',
+          '  var before = { name: pet.name, display: pet.display };',
+          '  pet.name = String(pet.name).replace(/·E2E2?$/, "");',
+          '  pet.display = "both";', // 沙箱的原值
+          '  var p = await window.settingsBridge.putConfig({ pets: [pet] });',
+          '  return JSON.stringify({ before: before, putStatus: p.status, err: p.json && p.json.error ? p.json.error : null });',
+          '})()',
+        ].join('\n'),
+        awaitPromise: true,
+        returnByValue: true,
+      });
+      console.log(`     清理: ${restored?.result?.value}`);
+
+      // 用接口复核（接口是权威的，不受磁盘写入延迟影响）
+      const verify = await sWs.send('Runtime.evaluate', {
+        expression: [
+          '(async function(){',
+          '  var r = await window.settingsBridge.getConfig();',
+          '  var b = r.json[Object.keys(r.json)[0]];',
+          '  return b.pets[0].name + " / " + b.pets[0].display;',
+          '})()',
+        ].join('\n'),
+        awaitPromise: true,
+        returnByValue: true,
+      });
+      const after2 = String(verify?.result?.value ?? '');
+      console.log(`     复核（经接口）: ${after2}`);
+      check('测试痕迹已清理（name 无尾缀、display 复原）', !/·E2E2?/.test(after2) && /both|desktop|web|none/.test(after2));
 
       sWs.close();
     }
