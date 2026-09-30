@@ -22,7 +22,7 @@
     "cordis.patch.yml"
   ],
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/build-host.mjs && node scripts/build.mjs",
     "smoke": "node scripts/smoke-client.mjs",
     "test:placement": "node scripts/test-placement.mjs",
     "test": "node scripts/smoke-client.mjs && node scripts/test-placement.mjs",
@@ -30,7 +30,9 @@
     "deploy": "node scripts/deploy.mjs",
     "build:vendor": "node scripts/build-vendor.mjs",
     "build:host": "node scripts/build-host.mjs",
-    "build:all": "node scripts/build-vendor.mjs && node scripts/build-host.mjs && node scripts/build.mjs"
+    "build:client": "node scripts/build.mjs",
+    "build:client-vendor": "node scripts/build-client-vendor.mjs",
+    "build:all": "node scripts/build-vendor.mjs && node scripts/build-client-vendor.mjs && node scripts/build-host.mjs && node scripts/build.mjs"
   },
   "dsh": {
     "bundle": {

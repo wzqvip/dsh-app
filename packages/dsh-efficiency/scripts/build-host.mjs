@@ -22,20 +22,68 @@
  * 用法：node scripts/build-host.mjs
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, statSync } from 'node:fs';
+import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { stripTypeScriptTypes } from 'node:module';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = join(here, '..');
 const buildVendor = join(pkgRoot, 'build', 'vendor');
-const entry = join(buildVendor, 'host', 'index.ts');
+const ourHostSrc = join(pkgRoot, 'src', 'host', 'index.js');
 const outFile = join(pkgRoot, 'lib', 'index.js');
 
-if (!existsSync(entry)) {
-  console.error(`[host] 找不到转译后的宿主入口: ${entry}`);
-  console.error('[host] 先跑 node scripts/build-vendor.mjs');
+// ---- 组合入口 ----
+// 本包要提供【一个】宿主插件，而它由两部分组成：
+//   · 宠物宿主 = vendor 自 dsh-pet（build/vendor/host/**）
+//   · 效率宿主 = 本仓库的 src/host/index.js（提问捕获 / HTTP 路由 / 客户端日志回流）
+//
+// 为什么用「合成入口」而不是让两边各自成为入口：
+//   dsh 以【单文件】加载宿主插件，而一个包只能有一个入口（package.json main）。
+//   所以必须合成成一个模块，导出一套 apply / inject / name。
+//
+// inject 取两边并集：宠物要 webServer/agentDefaultModel/credentials/llm/commands，
+// 我们要 webServer/userQuestions → 并集去重。
+//
+// 合成入口写到 build/ 下（生成物，不入库），路径与 vendor 一致（都在 build/ 内），
+// 这样打包器的相对解析规则不用改。
+const syntheticEntry = join(pkgRoot, 'build', 'host-entry.ts');
+const entry = syntheticEntry;
+
+/** 先把合成入口写出来（每次构建重写，保证与源一致） */
+function writeSyntheticEntry() {
+  mkdirSync(dirname(syntheticEntry), { recursive: true });
+  // 相对路径必须从【合成入口所在目录】起算，而不是从包根。
+  // ⚠️ 踩过：按"从 build/ 起算"去剥前缀，得出 `./src/host/index.js`，
+  //    实际解析成 build/src/host/index.js（不存在）→ import 变注释 → 变量未定义。
+  const relFromEntryDir = (abs) => {
+    const r = relative(dirname(syntheticEntry), abs).replace(/\\/g, '/');
+    return r.startsWith('.') ? r : `./${r}`;
+  };
+  writeFileSync(
+    syntheticEntry,
+    `// 由 scripts/build-host.mjs 生成 —— 请勿手改。
+// 组合两个宿主插件：宠物（vendor/dsh-pet）+ 效率助手（本仓库 src/host）。
+import * as pet from '${relFromEntryDir(join(buildVendor, 'host', 'index.ts'))}';
+import * as own from '${relFromEntryDir(ourHostSrc)}';
+
+export const name = 'dsh-efficiency';
+export const inject = [...new Set([...(pet.inject ?? []), ...(own.inject ?? [])])];
+
+export function apply(ctx) {
+  // 先跑宠物宿主：它注册 /dsh-pet-7340/* 与桌面 helper 拉起
+  pet.apply(ctx);
+  // 再跑我们的宿主：它注册 /dsh-efficiency/api/* 并监听提问
+  own.apply(ctx);
+}
+`,
+    'utf8',
+  );
+}
+writeSyntheticEntry();
+
+if (!existsSync(ourHostSrc)) {
+  console.error(`[host] 找不到本仓库宿主源码: ${ourHostSrc}`);
   process.exit(1);
 }
 
@@ -44,11 +92,24 @@ const warnings = [];
 /** 把绝对路径缩成相对 vendor 根的短名，便于看日志 */
 const relOf = (f) => f.replace(buildVendor, '').replace(/\\\\/g, '/');
 
-/** 把 import 说明符解析为磁盘上的 .ts 路径（只处理相对路径） */
+/**
+ * 把 import 说明符解析为磁盘路径。
+ * 支持 .ts（vendor 转译产物）与 .js（本仓库的宿主源码）两种，
+ * 也支持 TS 的「.js 说明符指向 .ts 文件」约定。
+ * ⚠️ 曾经的实现只认 .ts，导致 `../src/host/index.js` 解析失败，
+ *    而失败的表现是「import 变成注释 → 变量未定义」，很难一眼看出（踩过）。
+ */
 function resolveRel(fromFile, spec) {
   const base = resolve(dirname(fromFile), spec);
-  for (const cand of [base, `${base}.ts`, join(base, 'index.ts')]) {
-    if (existsSync(cand) && cand.endsWith('.ts')) return cand;
+  const cands = [base];
+  if (!/\.(ts|js|mjs|cjs)$/.test(base)) {
+    cands.push(`${base}.ts`, `${base}.js`, join(base, 'index.ts'), join(base, 'index.js'));
+  } else {
+    // `./x.js` 可能实际是 `./x.ts`（TS 的 NodeNext 约定）
+    cands.push(base.replace(/\.js$/, '.ts'));
+  }
+  for (const c of cands) {
+    if (existsSync(c) && !statSync(c).isDirectory()) return c;
   }
   return null;
 }

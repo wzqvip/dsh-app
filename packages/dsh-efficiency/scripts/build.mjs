@@ -19,7 +19,7 @@
  *   lib/client.js  客户端半（module-loader 外壳 + 拼接后的源码）
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -33,10 +33,13 @@ const PKG_ID = pkg.name;
 
 mkdirSync(outDir, { recursive: true });
 
-// ---------- 宿主半：原样复制（Node 直接跑 ESM） ----------
-const hostSrc = readFileSync(join(srcDir, 'host', 'index.js'), 'utf8');
-writeFileSync(join(outDir, 'index.js'), hostSrc, 'utf8');
-console.log(`[build] lib/index.js  <- src/host/index.js (${hostSrc.length} B)`);
+// ---------- 宿主半 ----------
+// ⚠️ 宿主产物【不再由本脚本写】。
+// 原因：宿主现在是「宠物宿主（vendor/dsh-pet）+ 效率宿主（本仓库）」的组合，
+// 必须打成自包含单文件，由 scripts/build-host.mjs 负责（它会把两边合成一个入口）。
+// 本脚本若也写 lib/index.js，就会覆盖掉那个组合产物（踩过：
+// 构建后 lib/index.js 又变回单文件 8 KB，宠物宿主丢失）。
+// 本脚本只负责客户端半。
 
 // ---------- 客户端半：拼接 ----------
 // 每个源文件包一层 IIFE，避免模块间的顶层标识符互相污染
@@ -85,6 +88,7 @@ const SETTINGS = moduleVar('settings.js'); // __m_settings_js
 const PLACEMENT = moduleVar('placement.js'); // __m_placement_js
 const PROBE = moduleVar('probe.js'); // __m_probe_js
 const ANSWERER = moduleVar('answerer.js'); // __m_answerer_js
+const PETV = moduleVar('pet-vendor.js'); // __m_pet_vendor_js
 const LOGGER = moduleVar('logger.js'); // __m_logger_js
 
 // 顺序：依赖在前。所有模块统一走 readClient（重写 import 后再 wrap）
@@ -102,6 +106,8 @@ const localModules = {
   './settings.js': SETTINGS,
   './probe.js': PROBE,
   './answerer.js': ANSWERER,
+  './pet-vendor.js': PETV,
+  '@dsh-app/pet': PETV,
   './logger.js': LOGGER,
 };
 
@@ -127,6 +133,17 @@ const rewriteLocalImports = (source) => {
 //                → panel（依赖 placement）→ settings（无依赖）→ app（依赖全部）
 const readClient = (f) => rewriteLocalImports(readFileSync(join(srcDir, 'client', f), 'utf8'));
 
+// vendor 的宠物客户端（由 scripts/build-client-vendor.mjs 生成，20 个模块打成一个）。
+// 它不是我们 src/client 下的文件，所以不参与 rewriteLocalImports；
+// 它导出 __petFactory(require)，由 app.js 在 factory 内调用。
+const petVendorPath = join(pkgRoot, 'build', 'client-vendor.js');
+if (!existsSync(petVendorPath)) {
+  console.error('[build] 缺少 build/client-vendor.js —— 先跑 node scripts/build-client-vendor.mjs');
+  process.exit(1);
+}
+const petVendorSource = readFileSync(petVendorPath, 'utf8');
+const petWrapped = wrap(petVendorSource, 'pet-vendor.js');
+
 const loggerWrapped = wrap(readClient('logger.js'), 'logger.js');
 const probeWrapped = wrap(readClient('probe.js'), 'probe.js');
 const placementWrapped = wrap(readClient('placement.js'), 'placement.js');
@@ -135,15 +152,36 @@ const panelWrapped = wrap(readClient('panel.js'), 'panel.js');
 const settingsWrapped = wrap(readClient('settings.js'), 'settings.js');
 const appWrapped = wrap(readClient('app.js'), 'app.js');
 
-const clientBody = [loggerWrapped, probeWrapped, placementWrapped, answererWrapped, panelWrapped, settingsWrapped, appWrapped].join('\n');
+// 宠物插件的 factory：vendor 产物导出 __petFactory(require)，
+// 而 load 需要的是 (require) => module，所以直接用它即可。
+const PETV_FACTORY = PETV + '.__petFactory';
 
+const clientBody = [loggerWrapped, petWrapped, probeWrapped, placementWrapped, answererWrapped, panelWrapped, settingsWrapped, appWrapped].join('\n');
+
+// 一个 id 只能 load 一次（契约见 dsh-client-modules 的文档注释：
+//   "executing a plugin bundle only REGISTERS its factory"）。
+// 本 bundle 含【两个】插件（桌宠 + 效率助手），所以对每个插件各 load 一次，
+// 用不同的 id。require 由【装载器】在 materialize 时传入，我们自己造不出来，
+// 因此这里只提交 factory，绝不自己调用它。
+//
+// 关于 id：桌宠本该是 'dsh-pet'，但那个 id 在过渡期要留给尚未卸载的
+// 上游插件；等上游被彻底替换后再改回，避免与它争同一个 id。
 const client = `// 由 packages/dsh-efficiency/scripts/build.mjs 生成 —— 请勿手改。
 // 契约：window.__ModuleLoader__.load({ id: '<npm 包名>', factory: (require) => module })
+//
+// ⚠️ 本 bundle 含两个插件：效率助手（本仓库）+ 桌宠（vendor 自 dsh-pet）。
+// 每个插件各提交一次 load —— 因为一次 load 只登记一个 factory，
+// 而 factory 的调用（materialize）由装载器负责，require 也由它传入。
 (function () {
 ${clientBody}
   window.__ModuleLoader__.load({
     id: ${JSON.stringify(PKG_ID)},
     factory: ${moduleVar('app.js')}.makeFactory(),
+  });
+
+  window.__ModuleLoader__.load({
+    id: 'dsh-efficiency-pet',
+    factory: ${PETV_FACTORY},
   });
 })();
 `;
