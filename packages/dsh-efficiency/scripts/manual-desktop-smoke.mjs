@@ -70,11 +70,35 @@ if (!token) {
 const origin = `http://127.0.0.1:${port}${token ? `/?token=${token}` : ''}`;
 const configUrl = `http://127.0.0.1:${port}/dsh-pet-7340/config${token ? `?token=${token}` : ''}`;
 
+// ---- 前置检查：宠物配置的 display 必须让桌面端可见 ----
+// ⚠️ 没有这一步的话会**假阳性**：若 display 是 web/none，宿主算出的桌面宠物列表为空
+//    → helper 开 0 个窗口 → 它照样打印"退出码 0"，harness 看起来跑完了却什么都没验。
+//    （反方向同理：web-overlay 在 display=desktop 时也不该渲染。）
+//    所以这里先把实际 display 打出来，明示本次验证的前提。
+let preflightDisplay = '(未知)';
+try {
+  const r = await fetch(configUrl);
+  const j = await r.json();
+  const bucket = j && typeof j === 'object' ? j[Object.keys(j)[0]] : null;
+  const pets = bucket && Array.isArray(bucket.pets) ? bucket.pets : [];
+  preflightDisplay = pets.map((p) => `${p.id}:${p.display}`).join(', ') || '(无宠物)';
+} catch (err) {
+  preflightDisplay = `(读取失败: ${String(err).split('\n')[0]})`;
+}
+
 console.log('[desktop-smoke] 启动参数');
 console.log(`  electron : ${electronPath}`);
 console.log(`  helper   : ${helperMain}`);
 console.log(`  configUrl: ${configUrl}`);
 console.log(`  截图     : ${out}`);
+console.log(`  宠物 display: ${preflightDisplay}`);
+if (!/:(desktop|both)\b/.test(preflightDisplay)) {
+  console.log('');
+  console.log('  ⚠️  没有任何宠物的 display 是 desktop/both → **桌面端不该出现窗口**，');
+  console.log('      本脚本随即只会看到 0 个窗口。这不是缺陷，是配置决定的行为。');
+  console.log('      要验桌面端请先把 display 设为 desktop 或 both 后重跑。');
+  console.log('');
+}
 console.log(`  延迟     : ${after}ms`);
 console.log('');
 
