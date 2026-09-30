@@ -18,6 +18,7 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,6 +32,8 @@ const arg = (n, d) => {
 const port = arg('port', '3097');
 const cdpPort = arg('cdp', '9333');
 const shot = join(pkgRoot, 'docs', 'screenshots', 'settings-window.png');
+// 逐分区截图输出目录（同一处，便于 README 引用）
+const shotDir = join(pkgRoot, 'docs', 'screenshots');
 
 const home = process.env.USERPROFILE ?? process.env.HOME ?? '';
 const electronPath = [
@@ -238,6 +241,146 @@ try {
       } else {
         check('截图已写盘', false, 'captureScreenshot 无数据');
       }
+
+      // ---- 5b) 逐分区截图 ----
+      // 为什么要逐节：设置窗口是固定尺寸的**滚动**面板，一张窗口截图只能看到开头
+      // （维护者就说过"想看全，比如自定义回复内容、物理参数"）。
+      // 做法：逐张卡片测量 → 滚动让它完整进入视口 → 按元素矩形裁剪截图。
+      // ⚠️ 注意菜单/滚动容器的 rect 会随滚动变化，所以**每张都重新测量**，不缓存。
+      console.log('[settings-e2e] 5b) 逐分区截图');
+      const cardsInfo = await sWs.send('Runtime.evaluate', {
+        expression: `(function(){
+          // 卡片标题就是各分区的第一行文字；用 body 的直接子节点里的卡片容器
+          var root = document.getElementById('sections') || document.body;
+          var cards = [].slice.call(root.children);
+          return cards.map(function(c, i){
+            var t = c.querySelector('h2,h3,h4,.card-title,.title');
+            return { i: i, title: (t ? t.textContent : (c.textContent||'')).trim().split('\\n')[0].slice(0, 24) };
+          });
+        })()`,
+        returnByValue: true,
+      });
+      const cards = cardsInfo?.result?.value ?? [];
+      console.log(`     待截分区: ${cards.map((c) => c.title).join(' / ')}`);
+
+      const shots = [];
+      for (let ci = 0; ci < cards.length; ci++) {
+        // ⚠️ 第一版分段失败：6 段拍出来**哈希完全相同** —— 滚动没生效，
+        //    因为我用的是 c.closest('[style*=overflow]')（找的是内联样式，
+        //    而滚动容器 #sections 的 overflow 在 CSS 类里）。于是每次都停在原位。
+        //    现在：直接拿 #sections 当滚动容器，**设完 scrollTop 再回读校验**，
+        //    滚动没动就明确报错，绝不产出重复图。
+        const vh = await sWs.send('Runtime.evaluate', { expression: 'window.innerHeight', returnByValue: true });
+        const innerH = Number(vh?.result?.value) || 700;
+        // ⚠️ #sections 顶部有一个 sticky 标题栏（`.topbar`/header），它**盖在内容上**。
+        //    第一版没扣它，分段图的顶部被遮住一行（实测看到 "错只会在播放时静默跳过" 这种残句）。
+        //    这里量出它 + 底部状态栏的高度，从可用高度里扣掉，并把裁剪起点下移。
+        const chrome = await sWs.send('Runtime.evaluate', {
+          expression: `(function(){
+            var top = 0, bot = 0;
+            var sc = document.getElementById('sections');
+            // sticky 元素：位置固定在视口顶部的那些
+            document.querySelectorAll('*').forEach(function(e){
+              var cs = getComputedStyle(e);
+              if (cs.position !== 'sticky' && cs.position !== 'fixed') return;
+              var r = e.getBoundingClientRect();
+              if (r.height < 8 || r.width < 100) return;
+              if (r.top < 40) top = Math.max(top, r.bottom);
+              if (r.bottom > window.innerHeight - 40) bot = Math.max(bot, window.innerHeight - r.top);
+            });
+            return { top: Math.ceil(top), bot: Math.ceil(bot), innerH: window.innerHeight };
+          })()`,
+          returnByValue: true,
+        });
+        const ch = chrome?.result?.value ?? { top: 0, bot: 0 };
+        const usable = Math.max(120, innerH - ch.top - ch.bot - 12);
+        const maxH = usable;
+        void innerH;
+
+        const measure = await sWs.send('Runtime.evaluate', {
+          expression: `(function(){
+            var sc = document.getElementById('sections') || document.scrollingElement;
+            var c = sc.children[${ci}] || (document.getElementById('sections')||document.body).children[${ci}];
+            if (!c) return { err: 'card not found' };
+            return { scrollH: sc.scrollHeight, clientH: sc.clientHeight, cardH: c.getBoundingClientRect().height,
+                     top: c.offsetTop, title: ${JSON.stringify(cards[ci].title)} };
+          })()`,
+          returnByValue: true,
+        });
+        const m = measure?.result?.value;
+        if (!m || m.err) continue;
+        const parts = Math.max(1, Math.ceil(m.cardH / maxH));
+
+        for (let p = 0; p < parts; p++) {
+          const target = m.top + p * maxH;
+          // 设滚动位置并回读校验；随后按**视口坐标**裁剪当前可见的那一段
+          const seg = await sWs.send('Runtime.evaluate', {
+            expression: `(function(){
+              var sc = document.getElementById('sections') || document.scrollingElement;
+              sc.scrollTop = ${target};
+              var now = sc.scrollTop;
+              var c = sc.children[${ci}] || (document.getElementById('sections')||document.body).children[${ci}];
+              var r = c.getBoundingClientRect();
+              var top = Math.max(0, r.top);
+              var bottom = Math.min(window.innerHeight, r.bottom);
+              return { scrolled: now, want: ${target}, x: r.left, y: top,
+                       width: r.width, height: Math.max(0, bottom - top) };
+            })()`,
+            returnByValue: true,
+          });
+          const g = seg?.result?.value;
+          if (!g) continue;
+          // 滚动没到目标（到底了）且不是最后一段 → 跳过，避免重复图
+          if (Math.abs(g.scrolled - g.want) > 2 && p < parts - 1) continue;
+          if (g.height < 20 || g.width < 40) continue;
+
+          const cap = await sWs.send('Page.captureScreenshot', {
+            format: 'png',
+            clip: { x: Math.max(0, g.x), y: Math.max(0, g.y), width: g.width, height: g.height, scale: 2 },
+            captureBeyondViewport: true,
+          });
+          if (!cap?.data) continue;
+          // ⚠️ 文件名用 ASCII slug，**不用中文**：
+          //    中文名在 markdown 链接里会被百分号编码，且实测有工具（CDP 传参、
+          //    旧脚本的固定中文路径）会在中文路径上失败。分区的中文标题仍保留在
+          //    页面里，README 的说明文字负责对应关系。
+          const SLUGS = {
+            宠物: 'pet',
+            提醒与对话: 'chat',
+            工作状态文案: 'workstatus',
+            物理引擎: 'physics',
+            动画随机链权重: 'weights',
+            动画池: 'animations',
+            诊断信息: 'diagnostics',
+          };
+          const rawTitle = String(cards[ci].title);
+          const slug =
+            SLUGS[rawTitle] ??
+            (rawTitle.startsWith('表情包池')
+              ? 'memes'
+              : rawTitle.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || `sec${ci + 1}`);
+          const name = `settings-${String(ci + 1).padStart(2, '0')}-${slug}${parts > 1 ? `-p${p + 1}` : ''}.png`;
+          const dst = join(shotDir, name);
+          writeFileSync(dst, Buffer.from(cap.data, 'base64'));
+          shots.push(name);
+        }
+      }
+      // 收尾：把滚动位置复位，别影响后续断言
+      await sWs.send('Runtime.evaluate', {
+        expression: `(function(){ var sc=document.getElementById('sections'); if(sc) sc.scrollTop=0; return 'ok' })()`,
+        returnByValue: true,
+      });
+      // 去重校验：逐分区截图不应该有内容完全相同的两张（第一版就栽在这）
+      const hashes = new Map();
+      for (const n of shots) {
+        const h = createHash('sha256').update(readFileSync(join(shotDir, n))).digest('hex');
+        if (hashes.has(h)) {
+          check('逐分区截图无重复', false, `${n} 与 ${hashes.get(h)} 内容相同`);
+        }
+        hashes.set(h, n);
+      }
+      if (hashes.size === shots.length) check('逐分区截图无重复', true, `${shots.length} 张各自不同`);
+      check('逐分区截图已写盘', shots.length > 0, `${shots.length} 张: ${shots.join(', ')}`);
 
       // ---- 6) 走【真实的保存链路】写盘，并核查配置文件 ----
       // 这是最容易出问题的一环：界面渲染对了、但保存静默不生效（上游白名单太窄时

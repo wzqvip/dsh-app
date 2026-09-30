@@ -57,6 +57,45 @@ DSH 的 agent 本身很强，问题在于**提问的触达方式**：
 
 ![设置窗口](packages/dsh-efficiency/docs/screenshots/settings-window.png)
 
+### 设置窗口里到底能改什么（逐分区截图）
+
+> 设置窗口是**可滚动**的，一张图看不全。下面是**逐分区**截的（由
+> `scripts/manual-settings-window.mjs` 自动产出，脚本还会校验各图内容不重复）。
+
+**宠物** —— 名字、大小、显示方式（web/desktop/both）、停靠角落、水平/垂直边距、三个开关
+
+![宠物](packages/dsh-efficiency/docs/screenshots/settings-01-pet.png)
+
+**提醒与对话** —— 系统通知、碎碎念/对话配表情包、**人设提示词（自定义回复内容）**、
+对话记忆轮数、按事件分别设置的刷新间隔
+
+![提醒与对话](packages/dsh-efficiency/docs/screenshots/settings-02-chat.png)
+
+**物理引擎** —— 重力、弹性、地面摩擦、抛掷力度、顶部反弹、宠物互撞
+
+![物理引擎](packages/dsh-efficiency/docs/screenshots/settings-04-physics.png)
+
+**工作状态文案** —— 「思考中 / 执行中 / 出结果 / 等你回复 / 成功 / 出错」六档气泡文案，可自己改
+
+![工作状态文案](packages/dsh-efficiency/docs/screenshots/settings-03-workstatus.png)
+
+**动画随机链权重** —— 待机 / 转向 / 移动 各自被挑中的权重（设 0 即不再挑）
+
+![动画随机链权重](packages/dsh-efficiency/docs/screenshots/settings-05-weights.png)
+
+**动画池** —— `idle`/`turn`/`drag`/`clicks`、事件三池、分类（id/权重/不镜像/动作清单）、
+移动参数（默认值 + 每动作可选覆盖）。内容很多，脚本会自动分段：
+
+![动画池 p1](packages/dsh-efficiency/docs/screenshots/settings-06-animations-p1.png)
+
+**表情包池** —— 27 组「键 = 图片文件名 / 值 = 给模型看的描述」，可增删改
+
+![表情包池](packages/dsh-efficiency/docs/screenshots/settings-07-memes.png)
+
+**诊断信息** —— 排障时把这些贴出来即可定位问题
+
+![诊断信息](packages/dsh-efficiency/docs/screenshots/settings-08-diagnostics.png)
+
 **④ 网页浮层** —— 同一只宠物也能直接活在 DSH 网页里（`display` 设为 `web`/`both`）
 
 ![网页浮层](packages/dsh-efficiency/docs/screenshots/web-overlay.png)
