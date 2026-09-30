@@ -188,6 +188,45 @@ for (const f of ['LICENSE', 'THIRD-PARTY-NOTICES.md']) {
   }
 }
 
+// ---- 署名义务覆盖（AGENTS.md §4 硬约束）----
+// 逐条核对"必须在任何介绍/展示/分发处署名"这条要求是否真的落到文件上。
+// ⚠️ LICENSE 本身不参与：那是**本包自己的** MIT（Copyright (c) 2026 wzqvip）。
+//    第三方署名义务在 NOTICE / THIRD-PARTY-NOTICES 里 —— 一开始我误把 LICENSE
+//    也当成"该有上游 URL"的地方，那是判据搞错了。
+const ATTRIB = /PC2005-cloud\/dsh-pet/;
+// ⚠️ 这里用 join(pkgRoot,'release') 而不是 releaseDir —— 后者在第 5 节才声明，
+//    在它之前引用会抛 TDZ 错（`Cannot access 'releaseDir' before initialization`）。
+const relDirEarly = join(pkgRoot, 'release');
+for (const [rel, what] of [
+  [join(repoRoot, 'README.md'), '仓库 README（介绍）'],
+  [join(repoRoot, 'NOTICE.md'), '仓库 NOTICE（署名义务）'],
+  [join(repoRoot, 'CONTRIBUTING.md'), '贡献指南'],
+  [join(pkgRoot, 'THIRD-PARTY-NOTICES.md'), '包内第三方声明'],
+  [join(pkgRoot, 'package.json'), '包清单 contributors'],
+  [join(pkgRoot, 'vendor', 'dsh-pet', 'README.dsh-app.md'), 'vendor 出处说明'],
+  [join(relDirEarly, 'THIRD-PARTY-NOTICES.md'), '分发包内第三方声明'],
+  [join(relDirEarly, 'vendor', 'dsh-pet', 'README.dsh-app.md'), '分发包内出处说明'],
+  // ⚠️ **不要**把 vendor/dsh-pet/LICENSE 列进这张表：那是**上游自己的** MIT 原文，
+  //    MIT 要求我们"原样保留" —— 它当然不含 GitHub URL，往里加 URL 反而破坏原文。
+  //    一开始我把它也列了进来，于是报"缺上游署名 URL"，是判据错了。
+  //    它由下面的专门检查覆盖（MIT 字样 + 版权行）。
+]) {
+  if (!existsSync(rel)) {
+    bad(`署名材料缺失：${what}`, rel.replace(repoRoot, '').replace(pkgRoot, ''));
+    continue;
+  }
+  const txt = readFileSync(rel, 'utf8');
+  if (ATTRIB.test(txt)) ok(`署名就位：${what}`);
+  else bad(`缺上游署名 URL：${what}`, rel.replace(repoRoot, '').replace(pkgRoot, ''));
+}
+// 分发包必须带上游 MIT 原文（MIT 的硬性要求：保留版权与许可声明）
+const relUpLicense = join(relDirEarly, 'vendor', 'dsh-pet', 'LICENSE');
+if (existsSync(relUpLicense)) {
+  const t = readFileSync(relUpLicense, 'utf8');
+  if (/MIT License/i.test(t) && /PC2005-cloud/.test(t)) ok('分发包带上游 MIT 原文（含版权行）');
+  else bad('分发包里的上游 LICENSE 内容异常');
+}
+
 // ---------------------------------------------------------------------------
 console.log('');
 console.log('[preflight] 4) deploy 五道门禁');
