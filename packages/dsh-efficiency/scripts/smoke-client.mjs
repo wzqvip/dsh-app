@@ -33,21 +33,40 @@ const check = (label, cond, extra = '') => {
 };
 
 // ---- 1) 捕获 load() ----
-let loaded = null;
-globalThis.window = { __ModuleLoader__: { load: (o) => { loaded = o; } } };
+// ⚠️ 本 bundle 含【两个】插件（效率助手 + 桌宠），所以会有两次 load。
+//    早期版本只记最后一个 loaded，导致断言拿到的是桌宠那个（id 不符）。
+//    这里按契约收集全部注册，并分别校验。
+const loads = [];
+globalThis.window = {
+  __ModuleLoader__: {
+    load: (o) => {
+      loads.push(o);
+    },
+  },
+};
 
 // client.js 是 CJS 风格的副作用脚本（用 require 由 factory 取依赖）
 const require_ = createRequire(import.meta.url);
 require_(clientPath);
 
 console.log('[smoke] 1) 模块加载');
-check('调用了 __ModuleLoader__.load', loaded !== null);
-if (!loaded) {
+check('调用了 __ModuleLoader__.load', loads.length > 0);
+if (loads.length === 0) {
   console.error('\nFAIL: lib/client.js 没有调用 window.__ModuleLoader__.load');
   process.exit(1);
 }
-check('id 等于包的 npm 名', loaded.id === pkg.name, `${loaded.id} === ${pkg.name}`);
-check('factory 是函数', typeof loaded.factory === 'function');
+check('注册了两个插件', loads.length === 2, `实际 ${loads.length} 个`);
+for (const l of loads) {
+  check(`注册 ${l.id}: factory 是函数`, typeof l.factory === 'function');
+}
+
+// 找到效率助手那一个（其余是桌宠）
+const loaded = loads.find((l) => l.id === pkg.name);
+check('id 等于包的 npm 名（效率助手）', !!loaded, loaded ? loaded.id : `候选: ${loads.map((l) => l.id).join(', ')}`);
+if (!loaded) {
+  console.error('\nFAIL: 没有找到 id 为包名的插件注册');
+  process.exit(1);
+}
 
 // ---- 2) 调用 factory ----
 console.log('[smoke] 2) factory(require)');
@@ -57,10 +76,11 @@ const mockRequire = (m) => {
       useEffect() {},
       useState() { return [null, () => {}]; },
       useCallback(f) { return f; },
+      useMemo(f) { return f(); },
       useRef() { return { current: null }; },
     };
   }
-  if (m === 'react/jsx-runtime') return { jsx: (...args) => ({ args }) };
+  if (m === 'react/jsx-runtime') return { jsx: (...args) => ({ args }), jsxs: (...args) => ({ args }), Fragment: 'F' };
   throw new Error(`unexpected require: ${m}`);
 };
 
@@ -74,6 +94,19 @@ if (mod) {
   check('返回 apply 函数', typeof mod.apply === 'function');
   check('返回 inject 数组', Array.isArray(mod.inject), JSON.stringify(mod.inject));
   check('返回 name 字符串', typeof mod.name === 'string', String(mod.name));
+}
+
+// 桌宠插件也必须能实例化（否则桌宠功能实际不可用）
+console.log('[smoke] 2b) 桌宠插件 factory(require)');
+const petLoad = loads.find((l) => l.id !== pkg.name);
+if (petLoad) {
+  try {
+    const petMod = petLoad.factory(mockRequire);
+    check('桌宠插件返回 apply 函数', typeof petMod?.apply === 'function', `name=${petMod?.name}`);
+    check('桌宠插件 inject 是数组', Array.isArray(petMod?.inject), JSON.stringify(petMod?.inject));
+  } catch (err) {
+    check('桌宠插件 factory 不抛错', false, String(err));
+  }
 }
 
 // ---- 3) 在 mock ctx 上跑 apply ----

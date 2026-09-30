@@ -56,6 +56,11 @@
 | 日期 | 改动 | 文件 | 为什么 |
 |---|---|---|---|
 | 2026-09-29 | 同一工作状态档位内不打断正在播的动画 | `src/client/pet.ts`（浏览器端）<br>`runtime/electron-helper/events.js`（桌面端） | work-status 每次 tick（每个 `tool/result`）都重新抽动画并切过去，导致档位动画（如"搞定一步，继续看看"）**永远播不完**、一直被打断重开。改为档位未变且当前动画仍属本档位时直接返回。 |
+| 2026-09-29 | **素材根改为「已安装的 dsh-pet 包」** | `src/host/index.ts`（7 处） | 上游用 `PACKAGE_ROOT/assets` 找素材，而本仓库**不带素材**（上游素材禁商用）。合并后 `PACKAGE_ROOT` 指向我们自己的包根，那里没有 assets。新增 `resolveDshPetRoot()`（5 级回退）并定义 `ASSET_ROOT`；把**全部 5 处**素材引用统一改指向它。<br>⚠️ 实测教训：只改 `PACKAGE_ROOT_ASSETS` **不够** —— 漏改会导致 `readAllConfig` 拿不到内置默认 `config.jsonc`，运行时报「内置默认配置缺失或解析失败（安装损坏）」。 |
+
+> **PACKAGE_ASSETS 与 ASSET_ROOT 的区别**（容易混）：
+> - `ASSET_ROOT` = **已安装的 dsh-pet** 的 `assets/`（立绘 / 表情包 / 字体 / 内置默认配置）—— 不随本仓库分发
+> - `PACKAGE_ROOT` / `runtime/` = **本包**自己的目录（桌面 Electron helper 在其中）—— 随本仓库分发
 
 ### 升级流程（更新版）
 

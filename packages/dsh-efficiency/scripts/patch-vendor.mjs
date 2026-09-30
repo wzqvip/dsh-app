@@ -49,10 +49,18 @@ function patch(rel, find, replace, what, nth) {
     failures.push(`${rel}: 文件不存在`);
     return;
   }
-  const src = readFileSync(abs, 'utf8');
+  const raw = readFileSync(abs, 'utf8');
+
+  // 换行符规范化：本仓库检出的 Windows 副本是 CRLF，而补丁里的多行锚点用 \n 写。
+  // 不处理的话「多行锚点」永远匹配不上（单行锚点不受影响，所以症状很迷惑：
+  // 同一批补丁里有的成功有的"找不到目标原文"）。写完再还原原来的换行风格。
+  const crlf = raw.includes('\r\n');
+  const src = crlf ? raw.replace(/\r\n/g, '\n') : raw;
+  const findLf = find.replace(/\r\n/g, '\n');
+  const replaceLf = replace.replace(/\r\n/g, '\n');
 
   // 幂等：替换内容里的标记句已存在 → 视为已打过
-  const markerLine = replace.split('\n').find((l) => l.includes(MARK));
+  const markerLine = replaceLf.split('\n').find((l) => l.includes(MARK));
   if (markerLine && src.includes(markerLine.trim())) {
     skipped += 1;
     console.log(`  = ${rel}: 已打过（${what}）`);
@@ -63,10 +71,10 @@ function patch(rel, find, replace, what, nth) {
   const positions = [];
   let from = 0;
   for (;;) {
-    const i = src.indexOf(find, from);
+    const i = src.indexOf(findLf, from);
     if (i < 0) break;
     positions.push(i);
-    from = i + find.length;
+    from = i + findLf.length;
   }
   const hits = positions.length;
   if (hits === 0) {
@@ -84,13 +92,185 @@ function patch(rel, find, replace, what, nth) {
   }
 
   const at = positions[idx];
-  const out = src.slice(0, at) + replace + src.slice(at + find.length);
+  let out = src.slice(0, at) + replaceLf + src.slice(at + findLf.length);
+  if (crlf) out = out.replace(/\n/g, '\r\n');
   writeFileSync(abs, out, 'utf8');
   applied += 1;
   console.log(`  + ${rel}: ${what}${hits > 1 ? `（第 ${nth} 处 / 共 ${hits} 处）` : ''}`);
 }
 
 console.log('[patch-vendor] 施加我们对上游代码的改动');
+
+// ---------------------------------------------------------------------------
+// 改动 2：素材根从「本包」改为「已安装的 dsh-pet 包」
+//
+// 问题：上游按 `PACKAGE_ROOT/assets` 找素材（PACKAGE_ROOT = 本包根）。
+//   本仓库按合规要求【不带素材】（dsh-pet 素材禁商用，不能 vendor 进我们仓库），
+//   所以合并后 PACKAGE_ROOT 会指向我们包的根，那里没有 assets → 宠物无立绘、
+//   无表情包、无字体。
+//
+// 修法：新增 resolveDshPetAssetRoot()，按**多级回退**定位已安装的 dsh-pet：
+//   ① require.resolve('dsh-pet/package.json') —— 最可靠，但依赖宿主模块解析
+//   ② 从起点逐级向上找 node_modules/dsh-pet
+//   ③ DSH_HOME/profiles/<任一 profile>/node_modules/dsh-pet
+//   ④ ~/.dsh/profiles/...
+//   ⑤ 从本文件所在目录向上找 dsh-pet 包（兜底）
+//   找不到时【大声报错】并继续（宠物缺素材仍能跑，但要让人知道为什么）
+// ---------------------------------------------------------------------------
+patch(
+  join('src', 'host', 'index.ts'),
+  `/** 包内 assets 根（表情包池解析用：assets/memes/<名称>.png） */
+const PACKAGE_ROOT_ASSETS = join(PACKAGE_ROOT, 'assets');`,
+  `/**
+ * [dsh-app] 定位已安装的 dsh-pet 包根目录。
+ *
+ * 为什么需要：上游按 \`PACKAGE_ROOT/assets\` 找素材，而本仓库**不带素材**
+ * （dsh-pet 素材禁商用，不能 vendor 进本仓库）。合并后 PACKAGE_ROOT 指向我们
+ * 自己的包根，那里没有 assets。所以素材必须从【已安装的 dsh-pet】读取。
+ *
+ * 多级回退，尽量在不依赖宿主模块解析的前提下也能找到；全失败时大声报错。
+ */
+function resolveDshPetRoot(): string | undefined {
+  // 动态取 Node 内建模块：避免改动 vendor 文件顶部的 import 区
+  // （那里是上游的行，多动一行就多一处冲突面）。
+  const nodeRequire = createRequire(import.meta.url);
+  const fsSync = nodeRequire('node:fs') as typeof import('node:fs');
+  const pathMod = nodeRequire('node:path') as typeof import('node:path');
+  const osMod = nodeRequire('node:os') as typeof import('node:os');
+
+  const looksRight = (dir: string): boolean =>
+    fsSync.existsSync(pathMod.join(dir, 'assets')) && fsSync.existsSync(pathMod.join(dir, 'package.json'));
+
+  // ① 交给 Node 模块解析（最可靠，但需 dsh-pet 出现在解析链上）
+  try {
+    const pkgJson = nodeRequire.resolve('dsh-pet/package.json');
+    const dir = pathMod.dirname(pkgJson);
+    if (looksRight(dir)) return dir;
+  } catch {
+    /* 继续回退 */
+  }
+
+  // ② 从起点逐级向上找 node_modules/dsh-pet
+  const start = pathMod.dirname(fileURLToPath(import.meta.url));
+  for (let d = start, i = 0; i < 12 && d; d = pathMod.dirname(d), i++) {
+    const cand = pathMod.join(d, 'node_modules', 'dsh-pet');
+    if (looksRight(cand)) return cand;
+  }
+
+  // ③ DSH_HOME/profiles/<任一 profile>/node_modules/dsh-pet
+  const scanProfiles = (dshHome: string): string | undefined => {
+    const profilesDir = pathMod.join(dshHome, 'profiles');
+    if (!fsSync.existsSync(profilesDir)) return undefined;
+    try {
+      for (const name of fsSync.readdirSync(profilesDir)) {
+        const cand = join(profilesDir, name, 'node_modules', 'dsh-pet');
+        if (looksRight(cand)) return cand;
+      }
+    } catch {
+      /* 读不了就跳过 */
+    }
+    return undefined;
+  };
+
+  const envHome = process.env.DSH_HOME;
+  if (envHome) {
+    const viaProfiles = scanProfiles(envHome);
+    if (viaProfiles) return viaProfiles;
+    // DSH_HOME 也可能就是 .dsh 本身
+    const viaProfiles2 = scanProfiles(pathMod.join(envHome, '.dsh'));
+    if (viaProfiles2) return viaProfiles2;
+  }
+
+  // ④ ~/.dsh/profiles/...
+  try {
+    const viaDefault = scanProfiles(pathMod.join(osMod.homedir(), '.dsh'));
+    if (viaDefault) return viaDefault;
+  } catch {
+    /* ignore */
+  }
+
+  // ⑤ 兜底：从本文件位置向上找 dsh-pet 包（本包恰好被嵌在它里面时的情形）
+  for (let d = start, i = 0; i < 12 && d; d = pathMod.dirname(d), i++) {
+    if (looksRight(d)) return d;
+  }
+  return undefined;
+}
+
+const DSH_PET_ROOT = resolveDshPetRoot();
+
+/**
+ * [dsh-app] 素材根：优先【已安装的 dsh-pet】，找不到才回落本包。
+ * 素材不随本仓库分发（上游禁商用），所以"找不到"在一台没装 dsh-pet 的机器上
+ * 是预期情况 —— 必须把原因说清楚，否则很难排查。
+ */
+const ASSET_ROOT = join(DSH_PET_ROOT ?? PACKAGE_ROOT, 'assets');
+if (!DSH_PET_ROOT) {
+  console.error(
+    '[dsh-app] 找不到已安装的 dsh-pet 包，宠物素材不可用（无立绘/表情包/字体/内置默认配置）。\\n' +
+      '          素材不随本仓库分发（上游素材禁商用）。请先安装：\\n' +
+      '            dsh plugin --profile <你的 profile> add dsh-pet\\n' +
+      '          或设置环境变量 DSH_HOME 指向你的 DSH 主目录。',
+  );
+} else {
+  console.log('[dsh-app] 素材根: ' + ASSET_ROOT);
+}
+
+/** 包内 assets 根（表情包池解析用：assets/memes/<名称>.png） */
+const PACKAGE_ROOT_ASSETS = ASSET_ROOT;`,
+  '定义素材根（多级回退定位已安装的 dsh-pet）',
+);
+
+// ---- 其余素材引用点统一改指向 ASSET_ROOT ----
+// ⚠️ 实测教训：只改 PACKAGE_ROOT_ASSETS 一处【不够】。
+//    素材路径在源文件里有 5 处独立引用，漏一处就会在运行时报
+//    「内置默认配置缺失或解析失败（安装损坏）」——因为 readAllConfig 拿不到
+//    内置默认的 assets/config.jsonc。
+//    逐条列出而不是一次全局替换：每处改动在日志里都可见，
+//    上游若改了哪一行也能立刻从"找不到锚点"看出来。
+//
+// ⚠️ 每条替换都带 [dsh-app] 行尾注释 —— patch() 的幂等判定靠"替换内容里的
+//    标记句是否已存在"。这 5 处替换若不带标记，第二次运行会找不到旧锚点而报错
+//    （踩过）。行尾注释对 JS 语义无影响，但让幂等判定成立。
+patch(
+  join('src', 'host', 'index.ts'),
+  `defaultFile: join(PACKAGE_ROOT, 'assets', 'config.jsonc'),`,
+  `defaultFile: join(ASSET_ROOT, 'config.jsonc'), // ${MARK} 素材在已安装的 dsh-pet 里`,
+  '素材路径 → ASSET_ROOT：内置默认配置 defaultFile',
+);
+patch(
+  join('src', 'host', 'index.ts'),
+  `    default: join(PACKAGE_ROOT, 'assets', 'config.jsonc'),`,
+  `    default: join(ASSET_ROOT, 'config.jsonc'), // [dsh-app] 素材在已安装的 dsh-pet 里`,
+  '素材路径 → ASSET_ROOT：config/meta 的 default 路径',
+);
+patch(
+  join('src', 'host', 'index.ts'),
+  `const assetRootFor = (ext: string): string => join(PACKAGE_ROOT, 'assets', animSubdirFor(ext));`,
+  `const assetRootFor = (ext: string): string => join(ASSET_ROOT, animSubdirFor(ext)); // [dsh-app]`,
+  '素材路径 → ASSET_ROOT：动画素材根 assetRootFor',
+);
+patch(
+  join('src', 'host', 'index.ts'),
+  `const fontRoot = join(PACKAGE_ROOT, 'assets', 'fonts');`,
+  `const fontRoot = join(ASSET_ROOT, 'fonts'); // [dsh-app]`,
+  '素材路径 → ASSET_ROOT：字体根 fontRoot',
+);
+patch(
+  join('src', 'host', 'index.ts'),
+  `const picRoot = join(PACKAGE_ROOT, 'assets', isMeme ? 'memes' : 'pic');`,
+  `const picRoot = join(ASSET_ROOT, isMeme ? 'memes' : 'pic'); // [dsh-app]`,
+  '素材路径 → ASSET_ROOT：图片根 picRoot',
+);
+
+// 素材根缺失时报警（紧跟定义之后，保证一定会打印）
+patch(
+  join('src', 'host', 'index.ts'),
+  `import { fileURLToPath } from 'node:url';`,
+  `import { fileURLToPath } from 'node:url';
+// [dsh-app] 用于定位已安装的 dsh-pet 包（素材根，见下方 resolveDshPetRoot）
+import { createRequire } from 'node:module';`,
+  '补 createRequire 导入（供素材根解析使用）',
+);
 
 // ---------------------------------------------------------------------------
 // 改动 1：同一工作状态档位内，不要反复打断正在播的动画
