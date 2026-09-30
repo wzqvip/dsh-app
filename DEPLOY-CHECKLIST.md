@@ -61,7 +61,7 @@ Get-Process electron -ErrorAction SilentlyContinue | Stop-Process -Force
 curl -H "Authorization: Bearer <token>" http://127.0.0.1:3080/dsh-efficiency/api/health
 # 宠物配置 + 素材（确认素材仍来自 dsh-pet）
 curl ... http://127.0.0.1:3080/dsh-pet-7340/config
-curl ... http://127.0.0.1:3080/dsh-pet-7340/pic/pic/cursor-grab.png
+curl ... http://127.0.0.1:3080/dsh-pet-7340/pic/cursor-grab.png
 ```
 
 网页里应能看到：桌宠浮层（`dsh-pet-root`/`dsh-pet-stage`/`dsh-pet-video`）、
