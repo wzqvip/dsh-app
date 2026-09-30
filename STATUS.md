@@ -30,7 +30,8 @@
 | 桌宠桌面小窗 | ✅ | 实机 smoke：`sprites=1 configOk=true menuOpen=true`；截图 `build/desktop-smoke.png` |
 | **按生产配置** 复验（`display=desktop`） | ✅ | 桌面端正常；网页端**正确抑制**；恢复 `both` 后网页端重新渲染 |
 | 通知 | ✅ | `scripts/manual-notify-flow.mjs` **13 项全绿**（见 §3）：引擎把帧映射成通知并弹出、正文/图标正确、`/notify` 轮询在跑、聚焦门两个方向都对 |
-| 状态联动 | ✅ | `/balance` 返回 76.34 与桌面气泡 `余额（谷）¥76.34` 一致；`/work-status` 门控正确 |
+| 状态联动 · 余额 | ✅ | `/balance` 返回 76.34 与桌面气泡 `余额（谷）¥76.34` 一致 |
+| 状态联动 · **工作状态（6 档）** | ✅ | `scripts/manual-workstatus-flow.mjs` **6/6 档位精确命中**（见 §3.1）：逐档喂受控快照，核对"该档位播的动画名 == 该索引池里的名字" |
 | 设置 GUI + 右键「设置…」 | ✅ | 8 分区 / 33 行 / 241 控件；**内置配置全部字段可编辑、无只读项**；截图 `build/settings-window.png`；保存链路实测成功 |
 | 提问链路（核心价值） | ✅ | 注入合成提问 → 面板渲染出选项 + Submit/Skip + 输入框；截图 `build/question-panel.png` |
 | deploy 五道门禁 | ✅ | build / smoke / placement / materialize / config-write 全绿 |
@@ -76,6 +77,44 @@
 1. 设置页里的**「测试通知」按钮**（`settings.ts:368` 直接 `new Notification(...)`）
    —— 验的是浏览器通知权限与弹出能力，**不经过宿主队列**；
 2. 跑一次真实 agent 会话（回合结束即触发 `turn/end`）→ 应弹「对话完成」。
+
+---
+
+## 3.1 工作状态联动（**6/6 档位精确命中**）
+
+**为什么单独验**：目标里的「状态联动」此前**只验了一半** ——
+验过的是 `balance`（余额，属独立的 `events.balance` 池），
+而 `events.workStatus` 的档位联动从没验过。
+
+**链路**：
+`host WorkStatusStore`（监听 DSH `session/event`）→ `{state,task,ts}`
+→ `GET /dsh-pet-7340/work-status` → 客户端 `fetchWorkStatus`
+（枚举外的 `state` 归 `null`，**绝不伪造**）→ 递增 `workStatusTick`
+→ 播 `events.workStatus[WORK_STATUS_INDEX[state]]` + 弹气泡。
+
+**档位（顺序即索引，勿在中间插入新档）**：
+
+| 索引 | 档位 | 触发事件 | 沙箱池里的动画 | 实测 |
+|---|---|---|---|---|
+| 0 | `thinking` | `turn/start` | 工作状态-思考冒泡 | ✅ |
+| 1 | `working` | `tool/call` | 工作状态-忙碌点按 | ✅ |
+| 2 | `result` | `tool/result` | 工作状态-清点归档 | ✅ |
+| 3 | `waiting` | `approval/asked` | 工作状态-原地踱步张望 | ✅ |
+| 4 | `success` | `turn/end` completed | 工作状态-雀跃庆祝 | ✅ |
+| 5 | `error` | `turn/end` error/max-tokens | 工作状态-垂头叹气冒汗 | ✅ |
+
+**语义**：进行中档位**循环**播且气泡常驻；终态（`success`/`error`）播一遍且 10s 自动收起；
+`state=null`（空闲）收起回待机。
+
+**验证方式**：`scripts/manual-workstatus-flow.mjs`（不进 deploy 门禁）。
+不改 vendor、不跑模型 —— 拦截页面 `fetch` 让 `/work-status` 返回**受控快照**，
+跑起来的仍是真实客户端组件；逐档喂入并核对"该档位播的动画名 == 该索引池里的名字"。
+
+⚠️ 这里又踩了一次"判据没验证"：第一版把 `events.workStatus` 的元素按**数组**处理，
+于是把**字符串**元素读成空，得到"池是空的、0/6 命中"，看起来像联动坏了 ——
+其实它实际是**扁平字符串数组**（索引即档位；元素也可能是数组，是同档内随机抽的写法）。
+修正读取后立刻 6/6。**拿到"失败"时先验判据，别先怀疑产品。**
+
 
 ---
 
