@@ -56,10 +56,11 @@ if (!run('smoke-client（含 apply 无错误日志断言）', 'smoke-client.mjs'
 // 3) 定位单测
 if (!run('test-placement', 'test-placement.mjs')) process.exit(1);
 
-// 4) 客户端装载：模拟浏览器模块系统，确认 client.js 里两个插件都能实例化。
-//    本 bundle 含两个插件（效率助手 + 桌宠），一个 id 只能 load 一次 —— 这类
-//    合并后的「只装了一个/漏了一个」错误只会在浏览器里暴露，必须在这里拦住。
-if (!run('test-client-materialize（两个插件都能实例化）', 'test-client-materialize.mjs')) process.exit(1);
+// 4) 客户端装载：模拟浏览器模块系统，确认 client.js 的模块能实例化出插件。
+//    本 bundle 只提交一次 load（一个客户端模块只能出一个插件；桌宠作为库由
+//    app.js 一并 apply）。"只装一个/漏一个"这类错误只会在浏览器里暴露，
+//    必须在这里拦住。
+if (!run('test-client-materialize（客户端模块能实例化出插件）', 'test-client-materialize.mjs')) process.exit(1);
 
 // 5) 配置写入契约：把“保存成功但值没变”这种最坏的失败方式拦在门外
 //    （上游原本只白名单 pets + 三个开关，PUT 别的字段返回 200 却静默丢弃，实测踩过）
