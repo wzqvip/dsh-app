@@ -68,8 +68,37 @@ const TOP_FIELDS = {
     desc: '碎碎念与对话共用的人设。留空则用内置默认',
   },
   chatMemoryRounds: { label: '对话记忆轮数', kind: 'number', min: 0, max: 50, desc: '每次请求带多少轮历史（1 轮 = 1 问 1 答）' },
-  eventsRefreshSec: { label: '事件刷新间隔', kind: 'number', min: 1, max: 3600, unit: '秒', desc: '余额等事件轮询周期' },
+  // ⚠️ eventsRefreshSec 是**按事件键的对象**（{balance, whisper}），不是单个秒数。
+  //    我最初按整数做成一个输入框，结果被宿主合并器静默丢弃、退回内置默认
+  //    （实测：写了 30，磁盘上没有该字段，接口仍返回 {balance:1800,whisper:300}）——
+  //    典型的"保存成功但值没变"。所以改成按事件键逐项渲染。
+  eventsRefreshSec: {
+    label: '事件刷新间隔',
+    kind: 'keyed',
+    keys: [
+      { key: 'balance', label: '余额', min: 1, max: 86400, desc: '余额轮询周期（秒）' },
+      { key: 'whisper', label: '碎碎念', min: 1, max: 86400, desc: '碎碎念轮询周期（秒）' },
+    ],
+    desc: '按事件分别设置轮询周期（秒）',
+  },
 };
+
+/** 物理引擎参数（与内置默认同形的 6 个键） */
+const PHYSICS_FIELDS = [
+  { key: 'gravity', label: '重力', kind: 'number', min: 0, max: 100000, desc: '越大掉落越快' },
+  { key: 'restitution', label: '弹性', kind: 'number', min: 0, max: 1, step: 0.01, desc: '0 = 不弹，1 = 完全弹性' },
+  { key: 'groundFriction', label: '地面摩擦', kind: 'number', min: 0, max: 100, step: 0.1, desc: '落地后减速快慢' },
+  { key: 'throwPower', label: '抛掷力度', kind: 'number', min: 0, max: 10, step: 0.1, desc: '拖拽甩出的力度倍率' },
+  { key: 'ceilingBounce', label: '顶部反弹', kind: 'bool', desc: '撞到屏幕顶部是否反弹' },
+  { key: 'petCollision', label: '宠物互撞', kind: 'bool', desc: '多只宠物之间是否发生碰撞' },
+];
+
+/** 动画随机链权重（三个非负整数） */
+const WEIGHT_FIELDS = [
+  { key: 'idle', label: '待机', kind: 'number', min: 0, max: 1000, desc: '权重越大越常进入待机' },
+  { key: 'turn', label: '转向', kind: 'number', min: 0, max: 1000, desc: '随机链里转向的权重' },
+  { key: 'move', label: '移动', kind: 'number', min: 0, max: 1000, desc: '随机链里移动的权重' },
+];
 
 // workStatusTexts 是 6 档文案数组，单独处理（要按档位名展示）
 const WORK_STATES = ['thinking', 'working', 'result', 'waiting', 'success', 'error'];
@@ -130,6 +159,32 @@ function buildControl(meta, current, onInput) {
       onInput(Number(input.value));
     });
     return el('div', { class: 'value-line' }, [input, num]);
+  }
+  if (kind === 'keyed') {
+    // 按对象子键逐项渲染（用于 eventsRefreshSec 这种 {balance, whisper} 形态）。
+    // 任一子键变化都回传**整个对象**（宿主按对象校验）。
+    const wrap = el('div', { class: 'keyed' });
+    const curObj = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
+    const draftObj = { ...curObj };
+    for (const sub of meta.keys) {
+      const input = el('input', { type: 'number' });
+      if (sub.min !== undefined) input.min = String(sub.min);
+      if (sub.max !== undefined) input.max = String(sub.max);
+      input.value = curObj[sub.key] === undefined || curObj[sub.key] === null ? '' : String(curObj[sub.key]);
+      input.addEventListener('input', () => {
+        const v = input.value.trim();
+        if (v === '') delete draftObj[sub.key];
+        else draftObj[sub.key] = Number(v);
+        onInput({ ...draftObj });
+      });
+      wrap.appendChild(
+        el('div', { class: 'keyed-row' }, [
+          el('label', {}, [el('span', { text: sub.label }), sub.desc ? el('span', { class: 'desc', text: sub.desc }) : null]),
+          input,
+        ]),
+      );
+    }
+    return wrap;
   }
   if (kind === 'number') {
     const input = el('input', { type: 'number' });
@@ -233,6 +288,30 @@ function render() {
     );
   }
   root.appendChild(buildCard('工作状态文案', '对应「思考中 / 执行中 / 出结果 / 等你回复 / 成功 / 出错」六档', wsRows));
+
+  // 3b) 物理引擎（6 个键；任何一项改动都整对象提交）
+  const phyCur = cfg.physics && typeof cfg.physics === 'object' ? cfg.physics : {};
+  const phyRows = PHYSICS_FIELDS.map((f) =>
+    buildRow(f, phyCur[f.key], (v) => {
+      patch.physics = { ...(patch.physics ?? phyCur), [f.key]: v };
+      markDirty();
+    }),
+  );
+  root.appendChild(
+    buildCard('物理引擎', '拖拽甩出、落地弹跳等手感；改完保存即生效（桌面端下次拉起时套用）', phyRows),
+  );
+
+  // 3c) 动画随机链权重（3 个非负整数）
+  const awCur = cfg.animationWeights && typeof cfg.animationWeights === 'object' ? cfg.animationWeights : {};
+  const awRows = WEIGHT_FIELDS.map((f) =>
+    buildRow(f, awCur[f.key], (v) => {
+      patch.animationWeights = { ...(patch.animationWeights ?? awCur), [f.key]: v };
+      markDirty();
+    }),
+  );
+  root.appendChild(
+    buildCard('动画随机链权重', '宠物空闲时按权重挑下一个动画；设为 0 即让该类别不再被挑中', awRows),
+  );
 
   // 4) 只读诊断信息（帮助排障，不做成可改）
   //    注意：GET /config 不返回"配置文件路径/素材根"这类元信息

@@ -184,12 +184,23 @@ try {
   for (const [field, bad] of [
     ['chatMemoryRounds', 999],
     ['chatMemoryRounds', -1],
+    // ⚠️ eventsRefreshSec 是**对象**（{balance,whisper}），不是整数。
+    //    整数与未知键都必须被拒 —— 我最初按整数实现，被宿主合并器静默丢弃过。
     ['eventsRefreshSec', 0],
+    ['eventsRefreshSec', { balance: 0 }],
+    ['eventsRefreshSec', { 未知键: 100 }],
     ['whisperPrompt', 'x'.repeat(2001)],
     ['workStatusTexts', ['只有一个']],
+    // 新增可写字段的非法值
+    ['physics', { gravity: -5 }],
+    ['physics', { 未知键: 1 }],
+    ['animationWeights', { idle: -1 }],
+    ['animationWeights', { 未知键: 1 }],
+    // 对象的子键必须在范围内（restitution 只能 0..1）
+    ['physics', { restitution: 2 }],
   ]) {
     const r = await call('PUT', { pets: [PET], [field]: bad });
-    check(`${field} 非法值被拒`, r.statusCode === 400, `实际 ${r.statusCode}`);
+    check(`${field} 非法值被拒`, r.statusCode === 400, `实际 ${r.statusCode} ← ${JSON.stringify(bad)}`);
   }
 
   console.log('[config-write] 5) 缺 pets 必须拒绝（宿主契约要求必填）');
@@ -197,18 +208,38 @@ try {
   check('缺 pets 被拒', r5.statusCode === 400, `实际 ${r5.statusCode}`);
 
   console.log('[config-write] 6) 未携带的顶层字段应被透传保留（不能抹掉用户手改）');
-  const w6 = await call('PUT', { pets: [PET], eventsRefreshSec: 30 });
-  check('eventsRefreshSec 写入成功', w6.statusCode === 200, `实际 ${w6.statusCode}`);
+  const w6 = await call('PUT', {
+    pets: [PET],
+    eventsRefreshSec: { balance: 900 },
+    // ⚠️ 必须提交**完整对象**：physics 的校验要求全 6 键、animationWeights 要求 3 键，
+    //    部分对象会被判非法并退回内置默认（磁盘写了、响应却是默认值）。
+    //    设置 GUI 正是从当前配置构造完整对象提交的，所以这里也照做。
+    physics: { gravity: 1500, restitution: 0.78, groundFriction: 2.5, ceilingBounce: true, throwPower: 1, petCollision: false },
+    animationWeights: { idle: 12, turn: 5, move: 5 },
+  });
+  check('新字段写入成功（eventsRefreshSec 对象 / physics / animationWeights）', w6.statusCode === 200, `实际 ${w6.statusCode}`);
   const b6 = w6.json();
   const bb = b6 && typeof b6 === 'object' ? b6[Object.keys(b6)[0]] : null;
   check('whisperPrompt 被保留（未在本次请求里）', bb?.whisperPrompt === 'CONTRACT-TEST', `实际 ${JSON.stringify(bb?.whisperPrompt)}`);
+  check('eventsRefreshSec.balance 生效', bb?.eventsRefreshSec?.balance === 900, JSON.stringify(bb?.eventsRefreshSec));
+  check('physics.gravity 生效', bb?.physics?.gravity === 1500, JSON.stringify(bb?.physics));
+  check('animationWeights.idle 生效', bb?.animationWeights?.idle === 12, JSON.stringify(bb?.animationWeights));
+  // 未携带的子键应保留内置默认（不因为我们只写了 balance 就把 whisper 抹掉）
+  check('eventsRefreshSec.whisper 保留默认', typeof bb?.eventsRefreshSec?.whisper === 'number', JSON.stringify(bb?.eventsRefreshSec));
 
   console.log('[config-write] 7) 写盘确实落到 DSH_HOME 下（隔离确认）');
   const cfgFile = join(home, 'dsh-pet', 'main-config.json');
   check('配置文件写在临时 DSH_HOME 内', existsSync(cfgFile), cfgFile);
   if (existsSync(cfgFile)) {
     const raw = JSON.parse(readFileSync(cfgFile, 'utf8'));
-    check('磁盘上的值正确', raw.whisperPrompt === 'CONTRACT-TEST' && raw.eventsRefreshSec === 30);
+    check(
+      '磁盘上的值正确',
+      raw.whisperPrompt === 'CONTRACT-TEST' &&
+        raw.eventsRefreshSec?.balance === 900 &&
+        raw.physics?.gravity === 1500 &&
+        raw.animationWeights?.idle === 12,
+      JSON.stringify({ er: raw.eventsRefreshSec, ph: raw.physics, aw: raw.animationWeights }),
+    );
   }
 } finally {
   rmSync(home, { recursive: true, force: true });

@@ -27,21 +27,30 @@ let applied = 0;
 let skipped = 0;
 const failures = [];
 
+// ---------------------------------------------------------------------------
+console.log('[patch-vendor] 施加我们对上游代码的改动');
+
 /**
  * 在文件里做一次「标记 + 替换」。
  *
- * ⚠️ 实现要点（踩过）：**不能用 split/join**。
- *    最初写成 `src.split(find)` … `parts.join(find)`，而替换文本自身就包含
- *    `find` 那段原文（我们是在它前面加护栏），join 会把 find 又插回去，
- *    结果是文件被写坏：标记跑到文件开头、目标行重复了一段。
- *    正确做法是按【匹配位置】切片，只替换匹配到的那一段，其余原样保留。
+ * ⚠️ 实现要点（踩过多次，都写在这）：
+ *  1) **不能用 split/join**：替换文本自身包含 `find` 那段原文（我们在它前面加护栏），
+ *     join 会把原文又插回去 → 文件被写坏（标记跑到开头、目标行重复）。必须按位置切片。
+ *  2) **幂等靠"替换内容里的标记行是否已存在"**。由此推出两条硬规则：
+ *     · 每条替换都必须带 `[dsh-app]` 标记，否则第二次运行会找不到旧锚点而报错；
+ *     · **改动替换内容时必须同时改标记行**，否则被判为"已打过"而静默跳过，
+ *       新内容永远写不进去（把 4 个可写字段扩成 7 个时踩过）。
+ *  3) **绝对不要在补丁前删除已有的标记行**（曾试过"先清标记再重放"想提高可重复性，
+ *     结果幂等判定失效 → 代码块被重复插入，`const extra` 出现两次、编译失败）。
+ *     正确做法：补丁只在**干净源码**上跑；要重放时先把 vendor 重置到上游原样
+ *     （`git checkout <vendor 入库那次提交> -- packages/dsh-efficiency/vendor`）再跑本脚本。
+ *  4) 换行符要规范化：Windows 检出是 CRLF 而锚点用 \n 写，不处理则多行锚点永不匹配。
  *
  * @param {string} rel      相对 vendor/dsh-pet 的路径
  * @param {string} find     要替换的原文
  * @param {string} replace  替换后的内容（应含 MARK）
  * @param {string} what     这次改动是什么（用于日志）
- * @param {number} [nth]    目标原文若出现多次，指定要替换第几处（1-based）。
- *                          不传且出现多次 → 报错（迫使调用方明确指定，避免改错地方）
+ * @param {number} [nth]    目标原文若出现多次，指定第几处（1-based）
  */
 function patch(rel, find, replace, what, nth) {
   const abs = join(vendorSrc, rel);
@@ -50,10 +59,6 @@ function patch(rel, find, replace, what, nth) {
     return;
   }
   const raw = readFileSync(abs, 'utf8');
-
-  // 换行符规范化：本仓库检出的 Windows 副本是 CRLF，而补丁里的多行锚点用 \n 写。
-  // 不处理的话「多行锚点」永远匹配不上（单行锚点不受影响，所以症状很迷惑：
-  // 同一批补丁里有的成功有的"找不到目标原文"）。写完再还原原来的换行风格。
   const crlf = raw.includes('\r\n');
   const src = crlf ? raw.replace(/\r\n/g, '\n') : raw;
   const findLf = find.replace(/\r\n/g, '\n');
@@ -67,7 +72,6 @@ function patch(rel, find, replace, what, nth) {
     return;
   }
 
-  // 找出所有匹配位置（不切分字符串，避免污染）
   const positions = [];
   let from = 0;
   for (;;) {
@@ -99,7 +103,7 @@ function patch(rel, find, replace, what, nth) {
   console.log(`  + ${rel}: ${what}${hits > 1 ? `（第 ${nth} 处 / 共 ${hits} 处）` : ''}`);
 }
 
-console.log('[patch-vendor] 施加我们对上游代码的改动');
+
 
 // ---------------------------------------------------------------------------
 // 改动 2：素材根从「本包」改为「已安装的 dsh-pet 包」
@@ -284,7 +288,12 @@ patch(
   if (ne !== undefined && typeof ne !== 'boolean') return null;`,
   `  const ne = o.notificationsEnabled;
   if (ne !== undefined && typeof ne !== 'boolean') return null;
-  // [dsh-app] 以下 4 个字段新增为可写：本仓库的设置 GUI 需要它们。
+  // [dsh-app] 以下 7 个字段新增为可写：本仓库的设置 GUI 需要它们。
+  //   （whisperPrompt / chatMemoryRounds / eventsRefreshSec / workStatusTexts /
+  //     physics / animationWeights —— 前 4 个 + 后 2 个）
+  // ⚠️ 幂等陷阱：改动这段替换内容时**必须同时改这行标记**，
+  //    否则该补丁的幂等判定（按标记行判断"是否已打过"）会认为已应用而直接跳过，
+  //    新内容永远写不进去（本轮就踩了：把 4 个字段扩到 7 个，标记没改，patch 报"已打过"）。
   // 每个都显式校验；非法一律 return null（宿主回 400 并给出原因），
   // 绝不静默丢弃 —— "保存成功但值没变"是最难排查的失败方式（实测过）。
   const extra = {};
@@ -298,10 +307,81 @@ patch(
     if (typeof cmr !== 'number' || !Number.isInteger(cmr) || cmr < 0 || cmr > 50) return null;
     extra.chatMemoryRounds = cmr;
   }
+  // ⚠️ eventsRefreshSec 是【按事件键的对象】（{balance, whisper}），不是单个整数。
+  //    我最初按整数写，结果它被合并器静默丢弃、退回内置默认
+  //    （实测：写了 30，磁盘上根本没有这个字段，接口仍返回 {balance:1800,whisper:300}）。
+  //    这正是"保存成功但值没变"那类最难发现的失败，所以这里改成对象并逐键校验。
   const ers = o.eventsRefreshSec;
   if (ers !== undefined) {
-    if (typeof ers !== 'number' || !Number.isInteger(ers) || ers < 1 || ers > 3600) return null;
-    extra.eventsRefreshSec = ers;
+    if (!ers || typeof ers !== 'object' || Array.isArray(ers)) return null;
+    const allowed = ['balance', 'whisper'];
+    const cleanErs = {};
+    for (const key of Object.keys(ers)) {
+      if (!allowed.includes(key)) return null; // 未知键：显式拒绝，不静默丢
+      const v = ers[key];
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 86400) return null;
+      cleanErs[key] = v;
+    }
+    if (Object.keys(cleanErs).length === 0) return null;
+    extra.eventsRefreshSec = cleanErs;
+  }
+  // physics：与内置默认同形的 6 个键，逐个做范围校验
+  const phy = o.physics;
+  if (phy !== undefined) {
+    if (!phy || typeof phy !== 'object' || Array.isArray(phy)) return null;
+    const ranges = {
+      gravity: [0, 100000],
+      restitution: [0, 1],
+      groundFriction: [0, 100],
+      throwPower: [0, 10],
+    };
+    const bools = ['ceilingBounce', 'petCollision'];
+    const cleanPhy = {};
+    for (const key of Object.keys(phy)) {
+      const v = phy[key];
+      if (ranges[key]) {
+        const [lo, hi] = ranges[key];
+        if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) return null;
+        cleanPhy[key] = v;
+      } else if (bools.includes(key)) {
+        if (typeof v !== 'boolean') return null;
+        cleanPhy[key] = v;
+      } else {
+        return null; // 未知键：显式拒绝
+      }
+    }
+    if (Object.keys(cleanPhy).length === 0) return null;
+    // ⚠️ physics 的校验（topFieldValid → physicsValid）要求**全部 6 个键**都在，
+    //    只传一部分会被判非法、退回内置默认 —— 表现为"PUT 返回 200 但值没变"
+    //    （而且磁盘上明明写进去了，PUT 响应体却是默认值；设置窗口随后用响应体
+    //     刷新界面，用户就看到"保存没生效"）。实测踩过。
+    //    所以这里把请求体里的部分对象**与用户层现有值合并**，写成完整对象。
+    const existPhy = existing && typeof existing === 'object' ? existing.physics : undefined;
+    extra.physics = {
+      ...(existPhy && typeof existPhy === 'object' ? existPhy : {}),
+      ...cleanPhy,
+    };
+  }
+  // animationWeights：idle/turn/move 三个非负整数权重
+  const aw = o.animationWeights;
+  if (aw !== undefined) {
+    if (!aw || typeof aw !== 'object' || Array.isArray(aw)) return null;
+    const allowedAw = ['idle', 'turn', 'move'];
+    const cleanAw = {};
+    for (const key of Object.keys(aw)) {
+      if (!allowedAw.includes(key)) return null;
+      const v = aw[key];
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 1000) return null;
+      cleanAw[key] = v;
+    }
+    if (Object.keys(cleanAw).length === 0) return null;
+    // 同 physics：weightsValid 要求 idle/turn/move **三个键都在**，部分对象会被
+    // 判非法并退回默认。与用户层现有值合并成完整对象再写。
+    const existAw = existing && typeof existing === 'object' ? existing.animationWeights : undefined;
+    extra.animationWeights = {
+      ...(existAw && typeof existAw === 'object' ? existAw : {}),
+      ...cleanAw,
+    };
   }
   const wst = o.workStatusTexts;
   if (wst !== undefined) {

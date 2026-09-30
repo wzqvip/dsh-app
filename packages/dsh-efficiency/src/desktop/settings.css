@@ -216,3 +216,25 @@ input[type='range'] {
   color: var(--dim);
   font-size: 11px;
 }
+
+/* [dsh-app] keyed 控件：一个设置项里有多个子键输入（如 eventsRefreshSec 的按事件周期） */
+.keyed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.keyed-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.keyed-row > label {
+  font-size: 12px;
+}
+.keyed-row .desc {
+  display: block;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.4;
+}

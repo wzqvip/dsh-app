@@ -12,12 +12,8 @@
 | 上游仓库 | <https://github.com/PC2005-cloud/dsh-pet> |
 | npm 包 | `dsh-pet` |
 | **vendor 时的版本** | **`0.2.12`** |
-| **上游 commit SHA** | **`6bb68c0f30abaf9e75330f55f639dff0817c9230`**（main 分支，2026-09-29 查得） |
 | vendor 日期 | 2026-09-29 |
 | 许可 | **MIT** · `Copyright (c) 2026 PC2005-cloud`（原文见本目录 `LICENSE`） |
-
-> 记下 commit SHA 是为了日后精确对比上游改了什么：
-> `git clone https://github.com/PC2005-cloud/dsh-pet && git diff 6bb68c0 -- src/`
 
 ## 2. vendor 了什么 / 没 vendor 什么
 
@@ -43,39 +39,29 @@
 
 ## 4. 我们做的改动
 
-改动由 **[`scripts/patch-vendor.mjs`](../../scripts/patch-vendor.mjs) 幂等施加**，
-而不是手改 —— 这样升级上游时可以「覆盖 → 重跑补丁」，不必回忆改了哪些地方。
-
+改动会**就地修改**本目录内的文件（而不是在别处包装），以便整体成为一个独立插件。
 规则：
-- 每处改动在代码里留 `[dsh-app]` 标记，与上游 diff 时一眼可辨
-- 补丁脚本幂等：重复运行只会跳过，不会重复插入
-- 补丁找不到锚点时会**报错退出**（而不是静默跳过）—— 上游改了那段代码时必须人工核对
 
-**改动记录**：
+- 保留上游原有的文件头注释，不抹掉出处
+- 我们新增/修改的地方用注释标明 `[dsh-app]`，便于日后与上游对比
+- 升级上游时：先把新版本源码放进本目录，再重放我们的改动
 
-| 日期 | 改动 | 文件 | 为什么 |
-|---|---|---|---|
-| 2026-09-29 | 同一工作状态档位内不打断正在播的动画 | `src/client/pet.ts`（浏览器端）<br>`runtime/electron-helper/events.js`（桌面端） | work-status 每次 tick（每个 `tool/result`）都重新抽动画并切过去，导致档位动画（如"搞定一步，继续看看"）**永远播不完**、一直被打断重开。改为档位未变且当前动画仍属本档位时直接返回。 |
-| 2026-09-29 | **素材根改为「已安装的 dsh-pet 包」** | `src/host/index.ts`（7 处） | 上游用 `PACKAGE_ROOT/assets` 找素材，而本仓库**不带素材**（上游素材禁商用）。合并后 `PACKAGE_ROOT` 指向我们自己的包根，那里没有 assets。新增 `resolveDshPetRoot()`（5 级回退）并定义 `ASSET_ROOT`；把**全部 5 处**素材引用统一改指向它。<br>⚠️ 实测教训：只改 `PACKAGE_ROOT_ASSETS` **不够** —— 漏改会导致 `readAllConfig` 拿不到内置默认 `config.jsonc`，运行时报「内置默认配置缺失或解析失败（安装损坏）」。 |
+**改动记录**（随实施追加）：
 
-> **PACKAGE_ASSETS 与 ASSET_ROOT 的区别**（容易混）：
-> - `ASSET_ROOT` = **已安装的 dsh-pet** 的 `assets/`（立绘 / 表情包 / 字体 / 内置默认配置）—— 不随本仓库分发
-> - `PACKAGE_ROOT` / `runtime/` = **本包**自己的目录（桌面 Electron helper 在其中）—— 随本仓库分发
+| 日期 | 改动 | 涉及文件 |
+|---|---|---|
+| — | （待实施）整体重命名标识、合并进 `dsh-efficiency`、新增设置 GUI | — |
 
-### 升级流程（更新版）
+## 5. 升级流程
 
 ```powershell
-# 1) 取新版本源码
-npm pack dsh-pet@<新版本>          # 或 git clone + checkout 目标 commit
+# 1) 取新版本源码到临时目录
+npm pack dsh-pet@<新版本>   # 或 git clone
 
-# 2) 覆盖 vendor 目录（src/ runtime/ scripts/ LICENSE package.json cordis.patch.yml）
+# 2) 覆盖 vendor 目录内的 src/ runtime/ scripts/ LICENSE
 #    ⚠️ 不要带 assets/
 
-# 3) 重新施加我们的改动 —— 若某处锚点已变，脚本会明确报出，人工核对后更新锚点
-node scripts/patch-vendor.mjs
+# 3) 重新应用我们的改动（见 §4 的改动记录）
 
-# 4) 重新构建
-node scripts/build-vendor.mjs && node scripts/build-client-vendor.mjs && node scripts/build-host.mjs && node scripts/build.mjs
-
-# 5) 更新本文件的版本号、commit SHA 与改动记录
+# 4) 更新本文件里的版本号与日期
 ```

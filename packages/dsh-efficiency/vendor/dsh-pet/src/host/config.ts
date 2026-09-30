@@ -487,7 +487,12 @@ export function saveUserConfig(
   }
   const ne = o.notificationsEnabled;
   if (ne !== undefined && typeof ne !== 'boolean') return null;
-  // [dsh-app] 以下 4 个字段新增为可写：本仓库的设置 GUI 需要它们。
+  // [dsh-app] 以下 7 个字段新增为可写：本仓库的设置 GUI 需要它们。
+  //   （whisperPrompt / chatMemoryRounds / eventsRefreshSec / workStatusTexts /
+  //     physics / animationWeights —— 前 4 个 + 后 2 个）
+  // ⚠️ 幂等陷阱：改动这段替换内容时**必须同时改这行标记**，
+  //    否则该补丁的幂等判定（按标记行判断"是否已打过"）会认为已应用而直接跳过，
+  //    新内容永远写不进去（本轮就踩了：把 4 个字段扩到 7 个，标记没改，patch 报"已打过"）。
   // 每个都显式校验；非法一律 return null（宿主回 400 并给出原因），
   // 绝不静默丢弃 —— "保存成功但值没变"是最难排查的失败方式（实测过）。
   const extra = {};
@@ -501,10 +506,81 @@ export function saveUserConfig(
     if (typeof cmr !== 'number' || !Number.isInteger(cmr) || cmr < 0 || cmr > 50) return null;
     extra.chatMemoryRounds = cmr;
   }
+  // ⚠️ eventsRefreshSec 是【按事件键的对象】（{balance, whisper}），不是单个整数。
+  //    我最初按整数写，结果它被合并器静默丢弃、退回内置默认
+  //    （实测：写了 30，磁盘上根本没有这个字段，接口仍返回 {balance:1800,whisper:300}）。
+  //    这正是"保存成功但值没变"那类最难发现的失败，所以这里改成对象并逐键校验。
   const ers = o.eventsRefreshSec;
   if (ers !== undefined) {
-    if (typeof ers !== 'number' || !Number.isInteger(ers) || ers < 1 || ers > 3600) return null;
-    extra.eventsRefreshSec = ers;
+    if (!ers || typeof ers !== 'object' || Array.isArray(ers)) return null;
+    const allowed = ['balance', 'whisper'];
+    const cleanErs = {};
+    for (const key of Object.keys(ers)) {
+      if (!allowed.includes(key)) return null; // 未知键：显式拒绝，不静默丢
+      const v = ers[key];
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 86400) return null;
+      cleanErs[key] = v;
+    }
+    if (Object.keys(cleanErs).length === 0) return null;
+    extra.eventsRefreshSec = cleanErs;
+  }
+  // physics：与内置默认同形的 6 个键，逐个做范围校验
+  const phy = o.physics;
+  if (phy !== undefined) {
+    if (!phy || typeof phy !== 'object' || Array.isArray(phy)) return null;
+    const ranges = {
+      gravity: [0, 100000],
+      restitution: [0, 1],
+      groundFriction: [0, 100],
+      throwPower: [0, 10],
+    };
+    const bools = ['ceilingBounce', 'petCollision'];
+    const cleanPhy = {};
+    for (const key of Object.keys(phy)) {
+      const v = phy[key];
+      if (ranges[key]) {
+        const [lo, hi] = ranges[key];
+        if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) return null;
+        cleanPhy[key] = v;
+      } else if (bools.includes(key)) {
+        if (typeof v !== 'boolean') return null;
+        cleanPhy[key] = v;
+      } else {
+        return null; // 未知键：显式拒绝
+      }
+    }
+    if (Object.keys(cleanPhy).length === 0) return null;
+    // ⚠️ physics 的校验（topFieldValid → physicsValid）要求**全部 6 个键**都在，
+    //    只传一部分会被判非法、退回内置默认 —— 表现为"PUT 返回 200 但值没变"
+    //    （而且磁盘上明明写进去了，PUT 响应体却是默认值；设置窗口随后用响应体
+    //     刷新界面，用户就看到"保存没生效"）。实测踩过。
+    //    所以这里把请求体里的部分对象**与用户层现有值合并**，写成完整对象。
+    const existPhy = existing && typeof existing === 'object' ? existing.physics : undefined;
+    extra.physics = {
+      ...(existPhy && typeof existPhy === 'object' ? existPhy : {}),
+      ...cleanPhy,
+    };
+  }
+  // animationWeights：idle/turn/move 三个非负整数权重
+  const aw = o.animationWeights;
+  if (aw !== undefined) {
+    if (!aw || typeof aw !== 'object' || Array.isArray(aw)) return null;
+    const allowedAw = ['idle', 'turn', 'move'];
+    const cleanAw = {};
+    for (const key of Object.keys(aw)) {
+      if (!allowedAw.includes(key)) return null;
+      const v = aw[key];
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 1000) return null;
+      cleanAw[key] = v;
+    }
+    if (Object.keys(cleanAw).length === 0) return null;
+    // 同 physics：weightsValid 要求 idle/turn/move **三个键都在**，部分对象会被
+    // 判非法并退回默认。与用户层现有值合并成完整对象再写。
+    const existAw = existing && typeof existing === 'object' ? existing.animationWeights : undefined;
+    extra.animationWeights = {
+      ...(existAw && typeof existAw === 'object' ? existAw : {}),
+      ...cleanAw,
+    };
   }
   const wst = o.workStatusTexts;
   if (wst !== undefined) {
