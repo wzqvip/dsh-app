@@ -238,3 +238,30 @@ input[type='range'] {
   font-size: 11px;
   line-height: 1.4;
 }
+
+/* [dsh-app] 表情包池编辑器：键值对行，可增删 */
+.memes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+.memes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 2px;
+}
+.memes-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.9fr) minmax(180px, 2fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.memes-del {
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--danger);
+}

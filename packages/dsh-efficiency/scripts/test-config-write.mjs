@@ -198,6 +198,11 @@ try {
     ['animationWeights', { 未知键: 1 }],
     // 对象的子键必须在范围内（restitution 只能 0..1）
     ['physics', { restitution: 2 }],
+    // memes：键会被拼进文件路径，含分隔符必须拒绝；键/值类型也要校验
+    ['memes', ['not-an-object']],
+    ['memes', { 'a/b': 'x' }],
+    ['memes', { '': 'x' }],
+    ['memes', { ok: 123 }],
   ]) {
     const r = await call('PUT', { pets: [PET], [field]: bad });
     check(`${field} 非法值被拒`, r.statusCode === 400, `实际 ${r.statusCode} ← ${JSON.stringify(bad)}`);
@@ -216,6 +221,7 @@ try {
     //    设置 GUI 正是从当前配置构造完整对象提交的，所以这里也照做。
     physics: { gravity: 1500, restitution: 0.78, groundFriction: 2.5, ceilingBounce: true, throwPower: 1, petCollision: false },
     animationWeights: { idle: 12, turn: 5, move: 5 },
+    memes: { 'CONTRACT-A': '第一条', 'CONTRACT-B': '第二条' },
   });
   check('新字段写入成功（eventsRefreshSec 对象 / physics / animationWeights）', w6.statusCode === 200, `实际 ${w6.statusCode}`);
   const b6 = w6.json();
@@ -224,6 +230,11 @@ try {
   check('eventsRefreshSec.balance 生效', bb?.eventsRefreshSec?.balance === 900, JSON.stringify(bb?.eventsRefreshSec));
   check('physics.gravity 生效', bb?.physics?.gravity === 1500, JSON.stringify(bb?.physics));
   check('animationWeights.idle 生效', bb?.animationWeights?.idle === 12, JSON.stringify(bb?.animationWeights));
+  check(
+    'memes 生效（键值对集合可写入）',
+    bb?.memes?.['CONTRACT-A'] === '第一条' && bb?.memes?.['CONTRACT-B'] === '第二条',
+    JSON.stringify(bb?.memes),
+  );
   // 未携带的子键应保留内置默认（不因为我们只写了 balance 就把 whisper 抹掉）
   check('eventsRefreshSec.whisper 保留默认', typeof bb?.eventsRefreshSec?.whisper === 'number', JSON.stringify(bb?.eventsRefreshSec));
 
@@ -237,7 +248,8 @@ try {
       raw.whisperPrompt === 'CONTRACT-TEST' &&
         raw.eventsRefreshSec?.balance === 900 &&
         raw.physics?.gravity === 1500 &&
-        raw.animationWeights?.idle === 12,
+        raw.animationWeights?.idle === 12 &&
+        raw.memes?.['CONTRACT-A'] === '第一条',
       JSON.stringify({ er: raw.eventsRefreshSec, ph: raw.physics, aw: raw.animationWeights }),
     );
   }

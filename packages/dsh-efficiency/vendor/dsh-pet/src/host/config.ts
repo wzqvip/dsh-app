@@ -593,6 +593,34 @@ export function saveUserConfig(
     }
     extra.workStatusTexts = wst;
   }
+  // memes：表情包池（键 = assets/memes/<键>.png 的文件名，值 = 该图的内容描述）。
+  // ⚠️ 与 physics/animationWeights 不同：memes **不在** topFieldValid 里
+  //    （走 default: return true），所以写入不会被退回默认；
+  //    非法值由 readMemePool 兜底成空池（不会崩）。但"静默变空池"同样难发现，
+  //    所以这里自己做严格校验：
+  //      · 键/值都必须是字符串；键不能含路径分隔符（它会被拼进文件路径）
+  //      · 键长度 ≤64、值长度 ≤300；条数 ≤200（防配置爆炸）
+  //      · 允许传空对象（= 清空表情包池），但不允许非对象
+  const memes = o.memes;
+  if (memes !== undefined) {
+    if (!memes || typeof memes !== 'object' || Array.isArray(memes)) return null;
+    const keys = Object.keys(memes);
+    if (keys.length > 200) return null;
+    const cleanMemes = {};
+    for (const k of keys) {
+      if (typeof k !== 'string' || k.length === 0 || k.length > 64) return null;
+      // 键会被拼进文件路径（assets/memes/<键>.png），所以禁止分隔符与 . / ..
+      // ⚠️ 这里【不用正则】：该代码要经过本脚本的模板字符串，
+      //    正则里的反斜杠转义极易被处理坏（实测报 Unterminated regexp literal）。
+      //    用 includes 判断更稳。
+      const BACKSLASH = String.fromCharCode(92);
+      if (k.includes('/') || k.includes(BACKSLASH) || k === '.' || k === '..') return null;
+      const v = memes[k];
+      if (typeof v !== 'string' || v.length > 300) return null;
+      cleanMemes[k] = v;
+    }
+    extra.memes = cleanMemes;
+  }
   const wie = o.whisperImageEnabled;
   if (wie !== undefined && typeof wie !== 'boolean') return null;
   const cie = o.chatImageEnabled;

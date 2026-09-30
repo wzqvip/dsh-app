@@ -227,6 +227,75 @@ function buildCard(title, hint, rows) {
 }
 
 // ---------------------------------------------------------------------------
+// 表情包池编辑（键 = assets/memes/<键>.png 的文件名，值 = 该图的内容描述）
+//
+// 为什么单独做一个编辑器而不是塞进 buildRow：
+//   这是**键值对集合**，不是单个字段 —— 需要增/删行。
+//   键必须与已安装 dsh-pet 的 assets/memes/ 下的文件名一致，所以这里
+//   明确提示"键要照抄文件名"，并列出当前池里已有的键（无法读到文件名列表，
+//   因为素材不在本仓库，浏览器端也没有目录浏览接口）。
+// ---------------------------------------------------------------------------
+function buildMemesEditor(memes, onInput) {
+  // memes 可能是空对象（= 清空池）；此时从零开始
+  let draft = { ...(memes && typeof memes === 'object' && !Array.isArray(memes) ? memes : {}) };
+  const wrap = el('div', { class: 'memes' });
+
+  const rerender = () => {
+    wrap.textContent = '';
+    const keys = Object.keys(draft);
+    const list = el('div', { class: 'memes-list' });
+    if (keys.length === 0) {
+      list.appendChild(el('p', { class: 'loading', text: '当前表情包池为空。添加一条后，碎碎念/对话配图就会从中挑选。' }));
+    }
+    for (const k of keys) {
+      const keyInput = el('input', { type: 'text', class: 'memes-key' });
+      keyInput.value = k;
+      keyInput.placeholder = '键（照抄 assets/memes 下的文件名，不含 .png）';
+      const valInput = el('input', { type: 'text', class: 'memes-val' });
+      valInput.value = draft[k];
+      valInput.placeholder = '描述（给模型看的：这张图适合什么语境）';
+      const del = el('button', { type: 'button', class: 'btn memes-del', text: '删除' });
+      const row = el('div', { class: 'memes-row' }, [keyInput, valInput, del]);
+
+      keyInput.addEventListener('input', () => {
+        const nk = keyInput.value.trim();
+        if (!nk || nk === k) return;
+        // 重命名：保持插入顺序不被破坏（用新对象重建）
+        const next = {};
+        for (const kk of Object.keys(draft)) next[kk === k ? nk : kk] = draft[kk];
+        draft = next;
+        onInput({ ...draft });
+        rerender(); // 因键变了需要重画
+      });
+      valInput.addEventListener('input', () => {
+        draft[k] = valInput.value;
+        onInput({ ...draft });
+      });
+      del.addEventListener('click', () => {
+        delete draft[k];
+        onInput({ ...draft });
+        rerender();
+      });
+      list.appendChild(row);
+    }
+    wrap.appendChild(list);
+
+    const add = el('button', { type: 'button', class: 'btn', text: '＋ 添加一条' });
+    add.addEventListener('click', () => {
+      let n = 1;
+      while (Object.prototype.hasOwnProperty.call(draft, `新表情${n}`)) n += 1;
+      draft[`新表情${n}`] = '';
+      onInput({ ...draft });
+      rerender();
+    });
+    wrap.appendChild(add);
+  };
+
+  rerender();
+  return wrap;
+}
+
+// ---------------------------------------------------------------------------
 // 渲染
 // ---------------------------------------------------------------------------
 function render() {
@@ -311,6 +380,23 @@ function render() {
   );
   root.appendChild(
     buildCard('动画随机链权重', '宠物空闲时按权重挑下一个动画；设为 0 即让该类别不再被挑中', awRows),
+  );
+
+  // 3d) 表情包池（键值对集合，可增删）
+  const memesCur = cfg.memes && typeof cfg.memes === 'object' && !Array.isArray(cfg.memes) ? cfg.memes : {};
+  const memesEditor = buildMemesEditor(memesCur, (v) => {
+    // ⚠️ 每次都整对象提交：宿主按对象校验（键不能含分隔符等）。
+    patch.memes = v;
+    markDirty();
+  });
+  const memesCount = Object.keys(memesCur).length;
+  root.appendChild(
+    buildCard(
+      `表情包池（${memesCount} 条）`,
+      '键必须与已安装 dsh-pet 的 assets/memes/<键>.png 文件名一致；' +
+        '值是给模型看的描述，碎碎念与对话配图都从这里挑。改完保存即生效。',
+      [memesEditor],
+    ),
   );
 
   // 4) 只读诊断信息（帮助排障，不做成可改）
