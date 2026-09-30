@@ -196,7 +196,11 @@ if (clip && clip.width > 40 && clip.height > 40) {
     captureBeyondViewport: true,
   });
   if (png2?.data) {
-    const o2 = out.replace(/\.png$/, '-crop.png');
+    // ⚠️ 裁剪版直接写成 out（README 引用的就是它）；全窗版另存 -window.png。
+    //    一开始裁剪版叫 -crop.png，与 README 引用的 desktop-menu.png 对不上。
+    const o2 = out;
+    const oWin = out.replace(/\.png$/, '-window.png');
+    try { writeFileSync(oWin, Buffer.from(png.data, 'base64')); } catch {}
     writeFileSync(o2, Buffer.from(png2.data, 'base64'));
     console.log(`[menu-shot] 裁剪版已写盘 ${o2}  clip=${JSON.stringify(clip)}`);
   }
