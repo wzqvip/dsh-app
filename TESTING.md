@@ -136,6 +136,49 @@ dsh web: http://127.0.0.1:3097/?token=XXXXXXXX
 
 ---
 
+### 4.1 改完代码后：**必须重新 deploy + 重装**，否则沙箱还是旧的
+
+这一条很容易漏，我自己就踩过 —— 维护者一眼看出"沙箱不是最新的"。
+
+**根因**：`dsh plugin add file:…` 会把包**硬拷贝**进
+`<沙箱>/profiles/web/node_modules/dsh-efficiency/`
+（实测 `LinkType` 为空 = **不是软链**）。
+所以你在仓库里重新 `build` 之后，**沙箱里的副本不会跟着变**。
+
+```sh
+cd packages/dsh-efficiency
+
+# 1) 重新构建（门禁全绿才写 release/）
+npm run deploy
+
+# 2) 重装 —— 这一步才会把新产物拷进沙箱的 node_modules
+DSH_HOME=~/dsh-sandbox dsh plugin --profile web add \
+  file:/绝对路径/dsh-app/packages/dsh-efficiency
+
+# 3) 重启沙箱（§4 的命令）
+```
+
+### 怎么确认沙箱装的是不是最新
+
+比对**仓库 `lib/`** 与 **沙箱 `node_modules/.../lib/`** 的文件哈希：
+
+```sh
+cd packages/dsh-efficiency
+for f in index.js client.js runtime/electron-helper/settings.js; do
+  echo "$f: $(sha256sum "lib/$f" | cut -c1-12) vs \
+$(sha256sum ~/dsh-sandbox/profiles/web/node_modules/dsh-efficiency/lib/$f | cut -c1-12)"
+done
+```
+
+两边不一致 → 忘了第 2 步。
+
+> 💡 只改**客户端**（`src/client/`）时，因为客户端 bundle 由宿主按需读取，
+> 重启沙箱通常就够；但 **`src/desktop/`（设置窗口）与宿主半侧**改完
+> **必须重装**，否则你看到的还是旧文件。
+> 拿不准就一律走上面三步 —— 代价只有几秒。
+
+---
+
 ## 5. 应该看到什么（逐一核对）
 
 | # | 看什么 | 期望 |
@@ -233,6 +276,8 @@ node scripts/manual-workstatus-flow.mjs  # 工作状态 6 档位联动
 | 提问面板不出现 | 确认提问真的到了宿主：`curl ".../dsh-efficiency/api/pending?token=$TOKEN"`。面板只在有提问时挂载 |
 | 通知不弹 | 需要浏览器**通知权限**（设置窗口「提醒与对话」里有申请按钮）。且页面必须在**失焦**状态 |
 | 想彻底重来 | 删掉 `~/dsh-sandbox` 重做 §1–§4。它和生产 `~/.dsh` 完全隔离 |
+| **改动没生效 / 沙箱像是旧的** | dsh plugin add file:… 是**硬拷贝**不是软链 —— 重新构建后必须**重装**（见 §4.1）。比对 lib/ 与沙箱 
+ode_modules/.../lib/ 的哈希即可确认 |
 | 想确认 dev 端点是否启用 | **看 `api/health` 里的 `devTools` 字段**（`true`/`false`），或看注入后 `pending.count` 有没有变。**不要看状态码**：未启用时 GET 是 404，启用后 GET 仍是 405（该路由只收 POST），而 POST 一个瞎编的路由**也是 405** —— 405 区分不了这两种情况 |
 
 **看日志**：宿主侧日志在终端里；桌面助手的日志前缀是 `[dsh-pet]`；
