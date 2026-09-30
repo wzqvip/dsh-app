@@ -82,3 +82,8 @@ packages/*/vendor/*/node_modules/
 packages/*/vendor/*/lib/
 
 msg18.tmp
+
+# vendor 转译产物（由 scripts/build-vendor.mjs 生成）
+packages/*/build/
+
+msg19.tmp
