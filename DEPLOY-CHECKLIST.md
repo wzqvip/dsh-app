@@ -22,6 +22,12 @@
 
 ## 步骤
 
+> **实测补充**：装 `dsh-pet` / 反复 `plugin add` 时，pnpm 收尾可能报
+> `cannot access the file because it is being used by another process. (os error 32)`。
+> 这通常是**文件被运行中的进程占用**（服务还没停干净）。
+> 判断装没装成功**别看这条报错**，看结果：目标目录里有没有
+> `package.json` 与 `lib/`。若 `node_modules/dsh-efficiency` 只剩空壳 → 删掉重装。
+
 ```powershell
 # 0) 预检（只读，应 PASS）
 node packages/dsh-efficiency/scripts/preflight.mjs
@@ -33,10 +39,20 @@ dsh plugin --profile web add file:C:/Users/WANGZ/Documents/GitHub/dsh-app/packag
 # 2) 把上游 dsh-pet 移出 bundles，但**保留在 dependencies**（素材来源）
 #    编辑 %USERPROFILE%\.dsh\profiles\web\package.json 的 dsh.profile.bundles，
 #    去掉 "dsh-pet"，保留 dependencies 里的 "dsh-pet": "^0.2.12"
+#    ⚠️ 实测：`dsh plugin add dsh-pet` 会**自动把它加进 bundles**，必须手工移出。
 
-# 3) 重启生产（**会白屏一次**）—— 必须维护者明确同意后才做
+# 3) 关掉旧的桌面宠物进程（否则会有两只宠物同时挂在屏幕上！
+#    实测踩过：沙箱与生产各开一只，维护者右键到了没有设置菜单的那只）
+Get-Process electron -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# 4) 重启生产（**会白屏一次**）—— 必须维护者明确同意后才做
 .\scripts\restart-dsh.ps1     # 需在独立终端跑（它拒绝从监听进程的后代调用）
 ```
+
+> ⚠️ **装完务必核对文件是最新的**（`plugin add` 是硬拷贝不是软链）：
+> 比对 `packages/dsh-efficiency/release/lib/` 与
+> `~/.dsh/profiles/web/node_modules/dsh-efficiency/lib/` 的哈希。
+> 详见 [TESTING.md](TESTING.md) §4.1。
 
 ## 部署后要立刻验的
 
