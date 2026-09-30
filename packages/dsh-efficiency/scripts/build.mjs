@@ -181,7 +181,23 @@ ${clientBody}
 
   window.__ModuleLoader__.load({
     id: 'dsh-efficiency-pet',
-    factory: ${PETV_FACTORY},
+    // ⚠️ 包一层诊断：宠物插件上游没有任何 apply 期日志，
+    //    于是"它到底有没有被物化/apply"在浏览器里完全看不见 ——
+    //    排查网页浮层时因此卡了很久。包一层后至少能看到物化与失败。
+    //    用具名函数（而非箭头）保留 factory.name 语义。
+    factory: function petFactory(require) {
+      console.log('[dsh-efficiency-pet] factory 被调用（开始物化）');
+      try {
+        const m = ${PETV_FACTORY}(require);
+        console.log(
+          '[dsh-efficiency-pet] 物化完成: name=' + (m && m.name) + ' inject=' + JSON.stringify(m && m.inject),
+        );
+        return m;
+      } catch (e) {
+        console.error('[dsh-efficiency-pet] 物化抛错:', e && e.stack ? e.stack : e);
+        throw e;
+      }
+    },
   });
 })();
 `;
