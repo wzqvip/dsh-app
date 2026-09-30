@@ -15,6 +15,10 @@ import { makeQuestionPanel } from './panel.js';
 import { makeSettingsSection } from './settings.js';
 import { createAnswerBridge, installAnswerer } from './answerer.js';
 import { clog, installClientLogging, flush } from './logger.js';
+// vendor 的桌宠客户端（由 build.mjs 从虚拟模块 '@dsh-app/pet' 注入）。
+// ⚠️ 它是【库】而不是独立插件 —— 见下方 inject 处的取证说明：
+//    一个客户端模块只能出一个 cordis 插件，所以宠物不能再单独 load 一个 id。
+import { __petFactory } from '@dsh-app/pet';
 
 const NS = 'dsh-efficiency';
 
@@ -93,9 +97,30 @@ export function makeFactory() {
     const QuestionPanel = makeQuestionPanel({ h, useState, useEffect, useCallback, useRef });
     const SettingsSection = makeSettingsSection({ h, useState, useEffect, useCallback });
 
+    // ---- 桌宠插件：当作【库】而不是独立插件（见下方 inject 说明）----
+    // 由 build.mjs 从虚拟模块注入（vendor 的客户端产物，导出 __petFactory(require)）。
+    let petPlugin = null;
+    try {
+      petPlugin = __petFactory(require);
+      clog('info', `桌宠插件已实例化: name=${petPlugin?.name}`);
+    } catch (err) {
+      clog('error', `桌宠插件实例化失败: ${String(err)}`, { stack: err?.stack });
+    }
+
     const name = 'efficiency';
-    // remote 提供 Remote 层（$on / userQuestions.attachWait）—— answerer 必需
-    const inject = ['slots', 'locale', 'remote'];
+    // remote 提供 Remote 层（$on / userQuestions.attachWait）—— answerer 必需。
+    //
+    // ⚠️ 为什么把宠物要求的服务也并进来（而不是让宠物自己作为一个 entry）：
+    //    取证结论（读 @deepseek-ai/dsh-client-modules 与 cordis-plugin-loader）：
+    //    客户端 boot 清单里【每个包只对应一个客户端模块 id】，
+    //    loader.create({name}) 会为该模块建【一个】cordis entry，并取它的导出
+    //    当作【一个】插件（unwrapExports 只接受单对象/函数，没有数组或多插件字段）。
+    //    所以"同一份 client.js 里 load 两个 id"是行不通的 —— 第二个 id 没有清单条目
+    //    引用，永远不会被物化（实测：它的 factory 一次都没被调用，且不报错）。
+    //    因此改为：宠物作为库，由我们这一条 entry 一并 apply。
+    const ownInject = ['slots', 'locale', 'remote'];
+    const petInject = Array.isArray(petPlugin?.inject) ? petPlugin.inject : [];
+    const inject = [...new Set([...ownInject, ...petInject])];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function apply(ctx) {
@@ -116,6 +141,24 @@ export function makeFactory() {
       // 所以这里自己兜一层并回流，保证异常一定可见。
       // （这个兜底立刻抓到过一个真实 ReferenceError，见提交说明。）
       try {
+        // 桌宠先 apply：它注册 shell.overlay 的宠物浮层、系统通知轮询、
+        // 状态联动等。放在前面是为了让宠物的插槽注册先落地（overlay 里
+        // 宠物与我们的提问面板是并列的两个注册项，互不依赖）。
+        // 失败不阻断我们的功能：桌宠是载体，核心（提问触达）必须仍可用
+        // —— 这条与 AGENTS.md「核心层不得依赖承载层」一致。
+        if (petPlugin && typeof petPlugin.apply === 'function') {
+          try {
+            petPlugin.apply(ctx);
+            clog('info', '桌宠插件 apply 完成');
+          } catch (err) {
+            clog('error', `桌宠插件 apply 抛错（不影响本插件功能）: ${String(err)}`, {
+              stack: err?.stack ? String(err.stack).slice(0, 1200) : undefined,
+            });
+          }
+        } else {
+          clog('warn', '桌宠插件不可用，跳过（本插件功能不受影响）');
+        }
+
         applyBody(ctx, { clog, bridge, QuestionPanel, SettingsSection });
       } catch (err) {
         clog('error', `apply 主体抛出: ${String(err)}`, {

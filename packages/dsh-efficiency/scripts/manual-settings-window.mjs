@@ -342,7 +342,8 @@ try {
       // 清理测试痕迹（磁盘上的，若已落地）
       if (diskOk) {
         const cur = JSON.parse(readFileSync(cfgFile, 'utf8'));
-        cur.pets[0].name = origName;
+        // 去掉两种测试尾缀，别把痕迹留在沙箱配置里
+        cur.pets[0].name = String(cur.pets[0].name).replace(/·E2E2?$/, '');
         writeFileSync(cfgFile, JSON.stringify(cur, null, 2), 'utf8');
         console.log(`     已还原名字 -> "${readName()}"`);
       }

@@ -179,26 +179,14 @@ ${clientBody}
     factory: ${moduleVar('app.js')}.makeFactory(),
   });
 
-  window.__ModuleLoader__.load({
-    id: 'dsh-efficiency-pet',
-    // ⚠️ 包一层诊断：宠物插件上游没有任何 apply 期日志，
-    //    于是"它到底有没有被物化/apply"在浏览器里完全看不见 ——
-    //    排查网页浮层时因此卡了很久。包一层后至少能看到物化与失败。
-    //    用具名函数（而非箭头）保留 factory.name 语义。
-    factory: function petFactory(require) {
-      console.log('[dsh-efficiency-pet] factory 被调用（开始物化）');
-      try {
-        const m = ${PETV_FACTORY}(require);
-        console.log(
-          '[dsh-efficiency-pet] 物化完成: name=' + (m && m.name) + ' inject=' + JSON.stringify(m && m.inject),
-        );
-        return m;
-      } catch (e) {
-        console.error('[dsh-efficiency-pet] 物化抛错:', e && e.stack ? e.stack : e);
-        throw e;
-      }
-    },
-  });
+  // ⚠️ 这里**不能**再为桌宠单独 load 一个 id。
+  //    取证结论（读 @deepseek-ai/dsh-client-modules 与 cordis-plugin-loader）：
+  //      客户端 boot 清单里每个包只对应【一个】客户端模块 id；
+  //      loader.create({name}) 为该模块建【一个】cordis entry，取它的导出当
+  //      【一个】插件（unwrapExports 只接受单对象/函数，无数组与多插件字段）。
+  //    所以第二个 id 没有清单条目引用，永远不会被物化 —— 实测它的 factory
+  //    一次都没被调用，而且**不报错**（极难排查）。
+  //    现在桌宠由 app.js 作为【库】引入，并在这一个插件里一并 apply。
 })();
 `;
 

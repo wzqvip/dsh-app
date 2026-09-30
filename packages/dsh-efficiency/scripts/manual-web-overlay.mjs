@@ -220,14 +220,18 @@ try {
           var g = window.__DSH_EFFICIENCY__ || null;
           return {
             ready: document.readyState,
-            petSprites: document.querySelectorAll('.pet-sprite').length,
-            petHits: document.querySelectorAll('.pet-hit').length,
-            petBubbles: document.querySelectorAll('.pet-bubble').length,
-            petStage: document.querySelectorAll('.pet-stage').length,
+            // ⚠️ 类名别搞混：**网页端**浮层用 dsh-pet-* 前缀
+            //    （dsh-pet-root / dsh-pet-stage / dsh-pet-video / dsh-pet-bubble），
+            //    而 .pet-sprite / .pet-hit 是**桌面端**渲染层（index.html）的类。
+            //    我一开始查 .pet-sprite，于是把"已经渲染好了"误判成"没渲染"（踩过）。
+            petRoot: document.querySelectorAll('.dsh-pet-root').length,
+            petStage: document.querySelectorAll('.dsh-pet-stage').length,
+            petVideo: document.querySelectorAll('.dsh-pet-video').length,
+            petBubble: document.querySelectorAll('.dsh-pet-bubble').length,
+            petAny: Array.from(document.querySelectorAll('[class*=pet]')).length,
             ourOverlay: document.querySelectorAll('[data-dsh-efficiency], .dsh-efficiency-overlay').length,
             moduleLoader: typeof window.__ModuleLoader__ !== 'undefined',
             dshEffDiag: g ? { seen: g.seenRequests, pending: g.pending, answered: g.answered, errors: (g.errors||[]).length } : null,
-            // 插槽注册过的证据：我们的面板组件挂上去后，overlay 层里应有它的容器
             overlayLayers: document.querySelectorAll('body > div').length,
             fixedLayers: Array.from(document.querySelectorAll('body > div > div')).slice(0, 10).map(function(d){
               var s = getComputedStyle(d);
@@ -251,16 +255,22 @@ try {
     //    判据，得出"插件没 apply"的错误结论（踩过，记下来）。
     check('我们的客户端插件已 apply（捕获到 panel 挂载日志）', sawPanelMounted, `logs=${ws.events.length}`);
 
-    // 宠物网页浮层：本次**未能确认**。
-    // 已知事实：桌面端宠物已实机验证（截图 + 菜单 dump 含「设置…」）；
-    //   但网页端在 headless 浏览器里没渲染出 .pet-sprite。
-    // 宠物客户端 inject 了 6 个服务（含 commandUi / remote.commands），
-    //   cordis 要等它们全部就绪才 apply —— 是否因此延后/未 apply 尚无定论。
-    // 所以**不做失败断言**，只记录，避免给出假信号。
-    if ((diag?.petSprites ?? 0) > 0) {
-      check('桌宠网页浮层已渲染', true, `sprites=${diag?.petSprites} stage=${diag?.petStage}`);
+    // 宠物网页浮层：用**网页端**的类名判定（见上面的注释）。
+    // 注意 `display` 必须是 web/both 才会渲染 —— 若沙箱配置是 desktop，
+    // 这里不渲染是**正确行为**，不是缺陷。所以只做信息性判定，
+    // 并把实际 display 值一并打出来，便于一眼分辨。
+    const petRendered = (diag?.petRoot ?? 0) > 0;
+    if (petRendered) {
+      check(
+        '桌宠网页浮层已渲染',
+        true,
+        `root=${diag?.petRoot} stage=${diag?.petStage} video=${diag?.petVideo} bubble=${diag?.petBubble}`,
+      );
     } else {
-      console.log('  ⚠️  桌宠网页浮层未渲染 —— 未决项（疑与 commandUi/remote.commands 未就绪有关）');
+      console.log(
+        '  ⚠️  桌宠网页浮层未渲染 —— 请先确认沙箱配置里该宠物的 display 是 web/both；' +
+          '若是 desktop/none，不渲染属正确行为',
+      );
     }
 
     console.log('[web-overlay] 3) 控制台错误');

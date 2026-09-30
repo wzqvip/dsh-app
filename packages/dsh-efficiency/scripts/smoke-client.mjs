@@ -33,9 +33,11 @@ const check = (label, cond, extra = '') => {
 };
 
 // ---- 1) 捕获 load() ----
-// ⚠️ 本 bundle 含【两个】插件（效率助手 + 桌宠），所以会有两次 load。
-//    早期版本只记最后一个 loaded，导致断言拿到的是桌宠那个（id 不符）。
-//    这里按契约收集全部注册，并分别校验。
+// ⚠️ 现在**只有一次** load。曾经是两个（效率助手 + 桌宠各一次），但那行不通：
+//    客户端 boot 清单里每个包只对应一个客户端模块 id，第二个 id 永远不会被物化
+//    （实测：它的 factory 一次都没被调用，而且不报错）。
+//    现在桌宠作为【库】由 app.js 引入，在这一个插件里一并 apply。
+//    所以这里同时断言"只有一个 load"，防止有人又走回多 id 那条死路。
 const loads = [];
 globalThis.window = {
   __ModuleLoader__: {
@@ -55,14 +57,14 @@ if (loads.length === 0) {
   console.error('\nFAIL: lib/client.js 没有调用 window.__ModuleLoader__.load');
   process.exit(1);
 }
-check('注册了两个插件', loads.length === 2, `实际 ${loads.length} 个`);
+check('只注册一个插件（一个客户端模块只能出一个）', loads.length === 1, `实际 ${loads.length} 个`);
 for (const l of loads) {
   check(`注册 ${l.id}: factory 是函数`, typeof l.factory === 'function');
 }
 
-// 找到效率助手那一个（其余是桌宠）
+// 取那唯一的一个
 const loaded = loads.find((l) => l.id === pkg.name);
-check('id 等于包的 npm 名（效率助手）', !!loaded, loaded ? loaded.id : `候选: ${loads.map((l) => l.id).join(', ')}`);
+check('id 等于包的 npm 名', !!loaded, loaded ? loaded.id : `候选: ${loads.map((l) => l.id).join(', ')}`);
 if (!loaded) {
   console.error('\nFAIL: 没有找到 id 为包名的插件注册');
   process.exit(1);
@@ -96,18 +98,9 @@ if (mod) {
   check('返回 name 字符串', typeof mod.name === 'string', String(mod.name));
 }
 
-// 桌宠插件也必须能实例化（否则桌宠功能实际不可用）
-console.log('[smoke] 2b) 桌宠插件 factory(require)');
-const petLoad = loads.find((l) => l.id !== pkg.name);
-if (petLoad) {
-  try {
-    const petMod = petLoad.factory(mockRequire);
-    check('桌宠插件返回 apply 函数', typeof petMod?.apply === 'function', `name=${petMod?.name}`);
-    check('桌宠插件 inject 是数组', Array.isArray(petMod?.inject), JSON.stringify(petMod?.inject));
-  } catch (err) {
-    check('桌宠插件 factory 不抛错', false, String(err));
-  }
-}
+// 桌宠现在作为【库】被 app.js 引入并一并 apply，
+// 所以它的可用性由下面第 3 步的"注册了 4 个槽位"来验证（宠物 2 + 本插件 2），
+// 不再有独立的 factory 可调。
 
 // ---- 3) 在 mock ctx 上跑 apply ----
 // 注意：本文件是 CJS（用 require 加载产物），不能用顶层 await，
