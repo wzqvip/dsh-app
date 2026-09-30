@@ -51,6 +51,13 @@ PetSprite.prototype.onWorkTick = function onWorkTick(snapshot, tick) {
     console.error('[dsh-pet] work-status 档位索引越界：state=' + state + ' idx=' + idx);
     return;
   }
+  // [dsh-app] 同一档位内不打断正在播的动画（与浏览器端 pet.ts 同一处修复）。
+  // 原实现每次 tick 都重新抽并切换，导致每个 tool/result 都把正在播的档位动画打断重开。
+  // 档位未变且当前动画仍属本档位 → 直接返回，让当前这段播完（气泡文本随后仍会更新）。
+  if (!stateChanged && S.poolIncludes(pool, this.anim)) {
+    this.renderBubble();
+    return;
+  }
   const name = S.pickSlot(slot, this.anim); // 数组槽位档内随机抽 1，且避开当前正播动画（避免连续重复，与浏览器一致）
   console.log(
     '[dsh-pet] ' +

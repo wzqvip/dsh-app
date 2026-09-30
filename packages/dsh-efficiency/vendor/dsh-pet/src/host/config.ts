@@ -487,6 +487,188 @@ export function saveUserConfig(
   }
   const ne = o.notificationsEnabled;
   if (ne !== undefined && typeof ne !== 'boolean') return null;
+  // [dsh-app] 以下 7 个字段新增为可写：本仓库的设置 GUI 需要它们。
+  //   （whisperPrompt / chatMemoryRounds / eventsRefreshSec / workStatusTexts /
+  //     physics / animationWeights —— 前 4 个 + 后 2 个）
+  // ⚠️ 幂等陷阱：改动这段替换内容时**必须同时改这行标记**，
+  //    否则该补丁的幂等判定（按标记行判断"是否已打过"）会认为已应用而直接跳过，
+  //    新内容永远写不进去（本轮就踩了：把 4 个字段扩到 7 个，标记没改，patch 报"已打过"）。
+  // 每个都显式校验；非法一律 return null（宿主回 400 并给出原因），
+  // 绝不静默丢弃 —— "保存成功但值没变"是最难排查的失败方式（实测过）。
+  const extra = {};
+  const wp = o.whisperPrompt;
+  if (wp !== undefined) {
+    if (typeof wp !== 'string' || wp.length > 2000) return null;
+    extra.whisperPrompt = wp;
+  }
+  const cmr = o.chatMemoryRounds;
+  if (cmr !== undefined) {
+    if (typeof cmr !== 'number' || !Number.isInteger(cmr) || cmr < 0 || cmr > 50) return null;
+    extra.chatMemoryRounds = cmr;
+  }
+  // ⚠️ eventsRefreshSec 是【按事件键的对象】（{balance, whisper}），不是单个整数。
+  //    我最初按整数写，结果它被合并器静默丢弃、退回内置默认
+  //    （实测：写了 30，磁盘上根本没有这个字段，接口仍返回 {balance:1800,whisper:300}）。
+  //    这正是"保存成功但值没变"那类最难发现的失败，所以这里改成对象并逐键校验。
+  const ers = o.eventsRefreshSec;
+  if (ers !== undefined) {
+    if (!ers || typeof ers !== 'object' || Array.isArray(ers)) return null;
+    const allowed = ['balance', 'whisper'];
+    const cleanErs = {};
+    for (const key of Object.keys(ers)) {
+      if (!allowed.includes(key)) return null; // 未知键：显式拒绝，不静默丢
+      const v = ers[key];
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 86400) return null;
+      cleanErs[key] = v;
+    }
+    if (Object.keys(cleanErs).length === 0) return null;
+    extra.eventsRefreshSec = cleanErs;
+  }
+  // physics：与内置默认同形的 6 个键，逐个做范围校验
+  const phy = o.physics;
+  if (phy !== undefined) {
+    if (!phy || typeof phy !== 'object' || Array.isArray(phy)) return null;
+    const ranges = {
+      gravity: [0, 100000],
+      restitution: [0, 1],
+      groundFriction: [0, 100],
+      throwPower: [0, 10],
+    };
+    const bools = ['ceilingBounce', 'petCollision'];
+    const cleanPhy = {};
+    for (const key of Object.keys(phy)) {
+      const v = phy[key];
+      if (ranges[key]) {
+        const [lo, hi] = ranges[key];
+        if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) return null;
+        cleanPhy[key] = v;
+      } else if (bools.includes(key)) {
+        if (typeof v !== 'boolean') return null;
+        cleanPhy[key] = v;
+      } else {
+        return null; // 未知键：显式拒绝
+      }
+    }
+    if (Object.keys(cleanPhy).length === 0) return null;
+    // ⚠️ physics 的校验（topFieldValid → physicsValid）要求**全部 6 个键**都在，
+    //    只传一部分会被判非法、退回内置默认 —— 表现为"PUT 返回 200 但值没变"
+    //    （而且磁盘上明明写进去了，PUT 响应体却是默认值；设置窗口随后用响应体
+    //     刷新界面，用户就看到"保存没生效"）。实测踩过。
+    //    所以这里把请求体里的部分对象**与用户层现有值合并**，写成完整对象。
+    const existPhy = existing && typeof existing === 'object' ? existing.physics : undefined;
+    extra.physics = {
+      ...(existPhy && typeof existPhy === 'object' ? existPhy : {}),
+      ...cleanPhy,
+    };
+  }
+  // animationWeights：idle/turn/move 三个非负整数权重
+  const aw = o.animationWeights;
+  if (aw !== undefined) {
+    if (!aw || typeof aw !== 'object' || Array.isArray(aw)) return null;
+    const allowedAw = ['idle', 'turn', 'move'];
+    const cleanAw = {};
+    for (const key of Object.keys(aw)) {
+      if (!allowedAw.includes(key)) return null;
+      const v = aw[key];
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 1000) return null;
+      cleanAw[key] = v;
+    }
+    if (Object.keys(cleanAw).length === 0) return null;
+    // 同 physics：weightsValid 要求 idle/turn/move **三个键都在**，部分对象会被
+    // 判非法并退回默认。与用户层现有值合并成完整对象再写。
+    const existAw = existing && typeof existing === 'object' ? existing.animationWeights : undefined;
+    extra.animationWeights = {
+      ...(existAw && typeof existAw === 'object' ? existAw : {}),
+      ...cleanAw,
+    };
+  }
+  const wst = o.workStatusTexts;
+  if (wst !== undefined) {
+    if (!Array.isArray(wst) || wst.length !== 6) return null;
+    for (const group of wst) {
+      if (!Array.isArray(group) || group.length > 20) return null;
+      for (const line of group) {
+        if (typeof line !== 'string' || line.length > 200) return null;
+      }
+    }
+    extra.workStatusTexts = wst;
+  }
+  // memes：表情包池（键 = assets/memes/<键>.png 的文件名，值 = 该图的内容描述）。
+  // ⚠️ 与 physics/animationWeights 不同：memes **不在** topFieldValid 里
+  //    （走 default: return true），所以写入不会被退回默认；
+  //    非法值由 readMemePool 兜底成空池（不会崩）。但"静默变空池"同样难发现，
+  //    所以这里自己做严格校验：
+  //      · 键/值都必须是字符串；键不能含路径分隔符（它会被拼进文件路径）
+  //      · 键长度 ≤64、值长度 ≤300；条数 ≤200（防配置爆炸）
+  //      · 允许传空对象（= 清空表情包池），但不允许非对象
+  const memes = o.memes;
+  if (memes !== undefined) {
+    if (!memes || typeof memes !== 'object' || Array.isArray(memes)) return null;
+    const keys = Object.keys(memes);
+    if (keys.length > 200) return null;
+    const cleanMemes = {};
+    for (const k of keys) {
+      if (typeof k !== 'string' || k.length === 0 || k.length > 64) return null;
+      // 键会被拼进文件路径（assets/memes/<键>.png），所以禁止分隔符与 . / ..
+      // ⚠️ 这里【既不用正则、也不写字面反斜杠】：这段代码要经过本脚本的模板字符串，
+      //    正则 /[/\]/ 会被处理成非法正则（实测 Unterminated regexp literal）；
+      //    写四个反斜杠又会折叠成单个、变成非法字符串（实测 Expected ident）。
+      //    用 charCode 最稳。
+      const BACKSLASH = String.fromCharCode(92);
+      if (k.includes('/') || k.includes(BACKSLASH) || k === '.' || k === '..') return null;
+      const v = memes[k];
+      if (typeof v !== 'string' || v.length > 300) return null;
+      cleanMemes[k] = v;
+    }
+    extra.memes = cleanMemes;
+  }
+  // animations：动画池。
+  // ⚠️ animationsValid（topFieldValid 的分支）要求**整个结构都完整**：
+  //      idle/turn/drag/clicks 必须是数组、moves.default 与 moves.actions 必须在、
+  //      categories 必须是数组、events 每个池必须**非空**且成员非空串。
+  //    缺任何一项 → 判非法 → 退回内置默认（又是"磁盘写了、响应是默认值"）。
+  //    所以这里把请求体与用户层现有值合并，再逐项校验结构完整性；
+  //    设置 GUI 本来就是在完整结构上改，提交的就是完整对象。
+  const anims = o.animations;
+  if (anims !== undefined) {
+    if (!anims || typeof anims !== 'object' || Array.isArray(anims)) return null;
+    // ⚠️ 这里**不做部分合并** —— 必须是完整结构。
+    //    曾经的做法是"与 existing 浅合并再校验"，结果是：调用方只发
+    //    {idle,...} 而缺 moves 时，moves 被我的合并补上 → 通过校验 → 落盘。
+    //    而调用方那份对象里 clicks: [] 之类会把用户的既有清单**清空**，
+    //    接口返回的却是合并后的"看起来正常"的值 —— 又一次静默失真（本轮实测踩到：
+    //    磁盘上 animations.clicks 变成 0 项，而 curl 看到的却是默认 5 项）。
+    //    所以：要么给完整结构，要么别传这个字段。
+    for (const k of ['idle', 'turn', 'drag', 'clicks']) {
+      if (!Array.isArray(anims[k])) return null;
+    }
+    const mv = anims.moves;
+    if (!mv || typeof mv !== 'object' || Array.isArray(mv)) return null;
+    if (!mv.default || typeof mv.default !== 'object' || Array.isArray(mv.default)) return null;
+    if (!Array.isArray(mv.actions)) return null;
+    if (!Array.isArray(anims.categories)) return null;
+    const ev = anims.events;
+    if (!ev || typeof ev !== 'object' || Array.isArray(ev)) return null;
+    const evKeys = Object.keys(ev);
+    if (evKeys.length === 0) return null;
+    for (const ek of evKeys) {
+      const pool = ev[ek];
+      if (!Array.isArray(pool) || pool.length === 0) return null;
+      for (const slot of pool) {
+        if (typeof slot === 'string') {
+          if (slot.length === 0) return null;
+        } else if (Array.isArray(slot)) {
+          if (slot.length === 0) return null;
+          for (const nm of slot) {
+            if (typeof nm !== 'string' || nm.length === 0) return null;
+          }
+        } else {
+          return null;
+        }
+      }
+    }
+    extra.animations = anims;
+  }
   const wie = o.whisperImageEnabled;
   if (wie !== undefined && typeof wie !== 'boolean') return null;
   const cie = o.chatImageEnabled;
@@ -496,6 +678,10 @@ export function saveUserConfig(
   if (ne !== undefined) outConfig.notificationsEnabled = ne;
   if (wie !== undefined) outConfig.whisperImageEnabled = wie;
   if (cie !== undefined) outConfig.chatImageEnabled = cie;
+  // [dsh-app] 新增可写字段：只在请求体携带时写入（未携带则走下方透传保留磁盘旧值）
+  for (const k of Object.keys(extra)) {
+    outConfig[k] = extra[k];
+  }
   // 透传保留：请求体未携带的顶层字段，从 existing（磁盘现有用户文件）原样带回——
   // 设置页只提交 pets(+全局开关)，手改的 physics/whisperPrompt/memes/... 借此保住。
   // 全局开关只在「请求体传了」时才算白名单（已由上方写入）；未传时走这里透传磁盘旧值——
@@ -504,6 +690,10 @@ export function saveUserConfig(
   if (ne !== undefined) bodyOwned.add('notificationsEnabled');
   if (wie !== undefined) bodyOwned.add('whisperImageEnabled');
   if (cie !== undefined) bodyOwned.add('chatImageEnabled');
+  // [dsh-app] 新增可写字段同样标记为"由请求体拥有"，否则会被下方透传逻辑用磁盘旧值覆盖
+  for (const k of Object.keys(extra)) {
+    bodyOwned.add(k);
+  }
   if (existing && typeof existing === 'object') {
     for (const key of Object.keys(existing)) {
       if (bodyOwned.has(key)) continue; // 白名单字段由请求体决定
