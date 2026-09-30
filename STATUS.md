@@ -31,7 +31,7 @@
 | **按生产配置** 复验（`display=desktop`） | ✅ | 桌面端正常；网页端**正确抑制**；恢复 `both` 后网页端重新渲染 |
 | 通知 | ⚠️ 部分 | 接线已核对完整（见 §3）；**帧→toast 的展示段未验** |
 | 状态联动 | ✅ | `/balance` 返回 79.16 与桌面气泡 `余额（谷）¥79.16` 一致；`/work-status` 门控正确 |
-| 设置 GUI + 右键「设置…」 | ✅ | 截图 `build/settings-window.png`；DOM：4 分区 / 24 行 / 21 控件；保存链路实测成功 |
+| 设置 GUI + 右键「设置…」 | ✅ | 8 分区 / 33 行 / 241 控件；**内置配置全部字段可编辑、无只读项**；截图 `build/settings-window.png`；保存链路实测成功 |
 | 提问链路（核心价值） | ✅ | 注入合成提问 → 面板渲染出选项 + Submit/Skip + 输入框；截图 `build/question-panel.png` |
 | deploy 五道门禁 | ✅ | build / smoke / placement / materialize / config-write 全绿 |
 | 生产未被影响 | ✅ | 3080 至今跑 `base / web-app / dshmarket / dsh-pet`，**未加载本插件** |
