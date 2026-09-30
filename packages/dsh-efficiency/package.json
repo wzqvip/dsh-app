@@ -2,7 +2,6 @@
   "name": "dsh-efficiency",
   "version": "0.0.1",
   "private": true,
-  "description": "效率导向的 DeepSeek Harness 增强：不打开浏览器也能收到 agent 提问并一键回答，随时看到进度。桌宠本体 vendor 自 PC2005-cloud/dsh-pet（MIT）。",
   "type": "module",
   "license": "MIT",
   "author": "wzqvip",
@@ -65,5 +64,8 @@
     "@deepseek-ai/dsh-host-webserver": {
       "optional": true
     }
-  }
+  },
+  "description": "效率导向的 DeepSeek Harness 增强：不打开浏览器也能收到 agent 提问并一键回答，随时看到进度。桌宠本体 vendor 自 PC2005-cloud/dsh-pet（MIT）。",
+  "implementedBy": "DeepSeek-V4.1-Flash (in DSH / DeepSeek Harness)",
+  "maintainer": "wzqvip"
 }

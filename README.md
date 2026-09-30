@@ -337,20 +337,70 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 
 ## 文档
 
+**放在仓库根目录的**（门面与主计划）：
+
 | 文档 | 内容 |
 |---|---|
-| [**TESTING.md**](docs/TESTING.md) | **沙箱实测指南**：前置、构建安装、启动、该看到什么、排查 —— 照着做就能跑通 |
+| [README.md](README.md) | 就是你正在读的这份：是什么、能干什么、怎么装 |
+| [plan.md](plan.md) | 完整规划：需求拆解、调研结论、架构、分阶段路线图、风险登记 |
+| [todo.md](todo.md) | 可执行任务清单（含工时、门禁、待验证项） |
 | [STATUS.md](STATUS.md) | **交付状态**：逐项验证证据、已知取舍、部署前核对表 |
+| [NOTICE.md](NOTICE.md) | 第三方许可与**强制署名**义务 |
+| [AGENTS.md](AGENTS.md) | 给协作者/AI 的跨会话约定（工作流、代码约定、许可硬约束） |
+
+**放在 [`docs/`](docs/) 的**（专题与流程）：
+
+| 文档 | 内容 |
+|---|---|
+| [TESTING.md](docs/TESTING.md) | **沙箱实测指南**：前置、构建安装、启动、该看到什么、排查 —— 照着做就能跑通 |
 | [DEPLOY-CHECKLIST.md](docs/DEPLOY-CHECKLIST.md) | 部署到生产的步骤与注意事项（含最容易搞错的一点） |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术设计：提问-回答管线、进度数据来源、token 成本控制 |
 | [LAUNCHER.md](docs/LAUNCHER.md) | 启动器设计：启动时序、环境检测、跨平台要点、失败处理 |
-| [plan.md](plan.md) | 完整规划：需求拆解、调研结论、架构、分阶段路线图、风险登记 |
-| [todo.md](todo.md) | 可执行任务清单（84 项，含工时、门禁、A/V/L 待验证清单） |
-| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | 贡献指南与**许可/署名必读** |
 | [SECURITY.md](docs/SECURITY.md) | 安全说明：**局域网暴露 = RCE 风险** |
-| [NOTICE.md](NOTICE.md) | 第三方许可与**强制署名**义务 |
+| [COMMIT-IDENTITY.md](docs/COMMIT-IDENTITY.md) | 提交署名与头像的来龙去脉（含历史重写记录） |
+| [EXECUTION.md](docs/EXECUTION.md) | 实施顺序与阶段拆分 |
+| [CHANGELOG.md](docs/CHANGELOG.md) | 面向发布的变化记录 |
+| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | 贡献指南与**许可/署名必读** |
+| [`research/`](research/) | 源码级调研报告：插件架构、嵌入方案、局域网安全、响应式、显示模式 |
 | [`.github/REPO-METADATA.md`](.github/REPO-METADATA.md) | 仓库 Description / Topics / Social preview 文案（需手动填到 GitHub 设置） |
-| [`research/`](research/) | 源码级调研报告 5 份：插件架构、嵌入方案、局域网安全、响应式、显示模式 |
+
+> 相对链接由
+> [`scripts/check-doc-links.mjs`](scripts/check-doc-links.mjs) 校验（当前 148 个链接全绿）——
+> 搬动文档后跑一次，避免 404。
+
+
+---
+
+## 开发过程与成本
+
+本项目**由 AI（DeepSeek-V4.1-Flash）在 DSH（DeepSeek Harness）里实现**，
+维护者负责方向决策、验收与部署。这里如实记录产出与消耗，便于评估这类工作方式。
+
+### 提交历史
+
+![提交历史](docs/commit-history.png)
+
+> 图由 [`scripts/make-commit-history-svg.mjs`](scripts/make-commit-history-svg.mjs)
+> **从真实 `git log` 渲染**（不是截图），可随时重跑核对。
+
+### Token 消耗（本会话实测）
+
+数据来源：DSH 的会话用量快照（`~/.dsh/storages/session_projcache/`），
+按该会话的 goal id 核对确认。
+
+| 指标 | 数值 |
+|---|---|
+| 未缓存输入 | **2,961,374** |
+| 输出 | **1,263,103** |
+| **缓存读取** | **887,106,688** |
+| 缓存写入 | 0 |
+| 上下文水位（快照时） | 304,814 / 1,000,000（约 30%） |
+| 快照位置 | turn 76 · step 19 |
+
+> ⚠️ **缓存读取近 8.87 亿**是这类长会话的典型特征：每一步都要重新提交整段上下文，
+> 大部分由 prompt cache 命中（单价远低于未缓存输入）。**不要把它当"新增消耗"看** ——
+> 真正的"新读入"是那 2.96M 未缓存输入。
+> 表中数字是**实测值**；费用请按你自己的账单与当期价目计算，这里不猜价格。
 
 ---
 
@@ -361,6 +411,8 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 - **代码：MIT**（见 [LICENSE](LICENSE)）
 - **完全免费开源，不做任何商业用途** —— 不设付费项、不做商业授权、不接商业分发
 - 第三方依赖与内联复用的代码各自遵循其条款，**详见 [NOTICE.md](NOTICE.md)**
+- **实现方**：**DeepSeek-V4.1-Flash**（在 DSH / DeepSeek Harness 中完成编码与验证）；
+  方向决策、验收与部署由维护者负责
 
 ### ⚠️ 我们使用了 `dsh-pet` 的代码（请务必阅读）
 

@@ -2,7 +2,6 @@
   "name": "dsh-efficiency",
   "version": "0.0.1",
   "private": true,
-  "description": "效率导向的 DeepSeek Harness 增强：不打开浏览器也能收到 agent 提问并一键回答，随时看到进度。桌宠本体 vendor 自 PC2005-cloud/dsh-pet（MIT）。",
   "type": "module",
   "license": "MIT",
   "author": "wzqvip",
@@ -26,15 +25,38 @@
   },
   "files": [
     "lib",
+    "src",
     "cordis.patch.yml",
     "LICENSE",
-    "THIRD-PARTY-NOTICES.md"
+    "THIRD-PARTY-NOTICES.md",
+    "docs"
   ],
+  "scripts": {
+    "build": "node scripts/build-host.mjs && node scripts/build-runtime.mjs && node scripts/build.mjs",
+    "smoke": "node scripts/smoke-client.mjs",
+    "test:placement": "node scripts/test-placement.mjs",
+    "check": "node scripts/build.mjs && node scripts/smoke-client.mjs && node scripts/test-placement.mjs",
+    "deploy": "node scripts/deploy.mjs",
+    "build:vendor": "node scripts/build-vendor.mjs && node scripts/patch-vendor.mjs",
+    "build:host": "node scripts/build-host.mjs",
+    "build:client": "node scripts/build.mjs",
+    "build:client-vendor": "node scripts/build-client-vendor.mjs",
+    "build:all": "node scripts/build-vendor.mjs && node scripts/patch-vendor.mjs && node scripts/build-client-vendor.mjs && node scripts/build-host.mjs && node scripts/build-runtime.mjs && node scripts/build.mjs",
+    "patch:vendor": "node scripts/patch-vendor.mjs",
+    "build:runtime": "node scripts/build-runtime.mjs",
+    "test:materialize": "node scripts/test-client-materialize.mjs",
+    "test:config": "node scripts/test-config-write.mjs",
+    "test": "node scripts/smoke-client.mjs && node scripts/test-placement.mjs && node scripts/test-client-materialize.mjs && node scripts/test-config-write.mjs"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
     "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-connection"
+      ],
       "platform": "web"
     }
   },
@@ -42,5 +64,8 @@
     "@deepseek-ai/dsh-host-webserver": {
       "optional": true
     }
-  }
+  },
+  "description": "效率导向的 DeepSeek Harness 增强：不打开浏览器也能收到 agent 提问并一键回答，随时看到进度。桌宠本体 vendor 自 PC2005-cloud/dsh-pet（MIT）。",
+  "implementedBy": "DeepSeek-V4.1-Flash (in DSH / DeepSeek Harness)",
+  "maintainer": "wzqvip"
 }
