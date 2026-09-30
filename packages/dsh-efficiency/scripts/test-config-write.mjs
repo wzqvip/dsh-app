@@ -276,6 +276,41 @@ try {
   );
   check('分类 actions 清单生效', JSON.stringify(cats[0]?.actions) === JSON.stringify(['CONTRACT-T1', 'CONTRACT-T2']), JSON.stringify(cats[0]?.actions));
 
+  console.log('[config-write] 4d) 移动参数（default + 每动作可选覆盖）可写入');
+  const wMv = await call('PUT', {
+    pets: [PET],
+    animations: {
+      idle: ['CONTRACT-IDLE'],
+      turn: ['CONTRACT-TURN'],
+      drag: ['CONTRACT-DRAG'],
+      clicks: ['CONTRACT-CLICK-A'],
+      moves: {
+        default: { minDist: 80, maxDist: 300, margin: 24, leadSec: 1.5, tailSec: 2.5 },
+        actions: [
+          { name: 'CONTRACT-M1' },
+          { name: 'CONTRACT-M2', params: { minDist: 40, maxDist: 120 } },
+        ],
+      },
+      categories: [{ id: 'CONTRACT-CAT', weight: 20, actions: ['CONTRACT-ACT'] }],
+      events: { balance: ['CONTRACT-BAL'], whisper: ['CONTRACT-WHI'], workStatus: ['CONTRACT-WS'] },
+    },
+  });
+  check('移动参数写入成功', wMv.statusCode === 200, `实际 ${wMv.statusCode}`);
+  const bm = wMv.json();
+  const bbM = bm && typeof bm === 'object' ? bm[Object.keys(bm)[0]] : null;
+  const mv = bbM?.animations?.moves;
+  check(
+    'moves.default 生效',
+    mv?.default?.minDist === 80 && mv?.default?.maxDist === 300 && mv?.default?.leadSec === 1.5 && mv?.default?.tailSec === 2.5,
+    JSON.stringify(mv?.default),
+  );
+  check('moves.actions 数量生效（2 个）', (mv?.actions ?? []).length === 2, `实际 ${(mv?.actions ?? []).length}`);
+  check(
+    '第一个动作无覆盖 / 第二个动作有覆盖',
+    mv?.actions?.[0]?.params === undefined && mv?.actions?.[1]?.params?.minDist === 40,
+    JSON.stringify(mv?.actions),
+  );
+
   console.log('[config-write] 5) 缺 pets 必须拒绝（宿主契约要求必填）');
   const r5 = await call('PUT', { whisperPrompt: 'no-pets' });
   check('缺 pets 被拒', r5.statusCode === 400, `实际 ${r5.statusCode}`);

@@ -344,3 +344,48 @@ input[type='range'] {
   margin: 4px 0 0 12px;
   max-height: 200px;
 }
+
+/* [dsh-app] 移动参数编辑器 */
+.moves-sec > h4 {
+  margin: 8px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.moves-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 12px;
+}
+.moves-cell,
+.moves-ov-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.moves-cell > span {
+  min-width: 78px;
+  color: var(--dim);
+}
+.moves-act {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 1.6fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 6px 0;
+  border-top: 1px solid #f0f2f5;
+}
+.moves-acts > .moves-act:first-child {
+  border-top: none;
+}
+.moves-ov {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px 10px;
+}
+.moves-ov-cell input[type='number'] {
+  width: 78px;
+}
+.moves-ov-cell input[type='number']:disabled {
+  opacity: 0.45;
+}

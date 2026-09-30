@@ -443,16 +443,117 @@ function buildAnimationsEditor(animations, onInput, notify) {
     );
   }
 
-  // 4) moves 只读提示
-  if (draft.moves) {
+  // 4) moves：默认移动参数 + 每个动作（可选覆盖参数）
+  //    消费点：motion.ts 用 minDist/maxDist 抽移动距离、leadSec/tailSec 是前后段时长；
+  //    客户端 `Object.assign({}, moves.default, chosen.params || {})` —— 每个动作的
+  //    params 是**可选覆盖**，未写的键取 default。
+  if (draft.moves && typeof draft.moves === 'object') {
+    const MV_KEYS = [
+      { key: 'minDist', label: '最小距离', min: 0, max: 5000 },
+      { key: 'maxDist', label: '最大距离', min: 0, max: 5000 },
+      { key: 'margin', label: '边距', min: 0, max: 1000 },
+      { key: 'leadSec', label: '前段时长(秒)', min: 0, max: 60, step: 0.05 },
+      { key: 'tailSec', label: '后段时长(秒)', min: 0, max: 60, step: 0.05 },
+    ];
+    const mvWrap = el('div', { class: 'moves' });
+
+    const rerenderMoves = () => {
+      mvWrap.textContent = '';
+
+      // 4a) default
+      const def = draft.moves.default && typeof draft.moves.default === 'object' ? draft.moves.default : {};
+      draft.moves.default = def;
+      const defGrid = el('div', { class: 'moves-grid' });
+      for (const k of MV_KEYS) {
+        const input = el('input', { type: 'number', min: k.min, max: k.max, step: k.step ?? 1 });
+        input.value = def[k.key] === undefined || def[k.key] === null ? '' : String(def[k.key]);
+        input.addEventListener('input', () => {
+          const v = input.value.trim();
+          if (v === '') delete def[k.key];
+          else {
+            const n = Number(v);
+            if (Number.isFinite(n) && n >= 0) def[k.key] = n;
+          }
+          emit();
+        });
+        defGrid.appendChild(
+          el('label', { class: 'moves-cell' }, [el('span', { text: k.label }), input]),
+        );
+      }
+      mvWrap.appendChild(el('div', { class: 'moves-sec' }, [el('h4', { text: '默认参数（所有移动动画共用）' }), defGrid]));
+
+      // 4b) actions（每个动作名 + 可选覆盖）
+      if (!Array.isArray(draft.moves.actions)) draft.moves.actions = [];
+      const acts = draft.moves.actions;
+      const actBox = el('div', { class: 'moves-acts' });
+      acts.forEach((act, i) => {
+        const nameInput = el('input', { type: 'text', class: 'moves-name' });
+        nameInput.value = String(act.name ?? '');
+        nameInput.placeholder = '移动动画名（照抄 assets 文件名）';
+        nameInput.addEventListener('input', () => {
+          acts[i].name = nameInput.value.trim();
+          emit();
+        });
+
+        const ovBox = el('div', { class: 'moves-ov' });
+        for (const k of MV_KEYS) {
+          const has = act.params && Object.prototype.hasOwnProperty.call(act.params, k.key);
+          const cb = el('input', { type: 'checkbox', title: `覆盖 ${k.label}` });
+          cb.checked = !!has;
+          const input = el('input', { type: 'number', min: k.min, max: k.max, step: k.step ?? 1 });
+          input.value = has ? String(act.params[k.key]) : '';
+          input.disabled = !has;
+          input.placeholder = '默认';
+          cb.addEventListener('change', () => {
+            if (cb.checked) {
+              acts[i].params = { ...(acts[i].params ?? {}), [k.key]: acts[i].params?.[k.key] ?? draft.moves.default?.[k.key] ?? 0 };
+            } else if (acts[i].params) {
+              delete acts[i].params[k.key];
+              // 覆盖全空则删掉 params 字段本身，保持与内置默认同形
+              if (Object.keys(acts[i].params).length === 0) delete acts[i].params;
+            }
+            emit();
+            rerenderMoves();
+          });
+          input.addEventListener('input', () => {
+            const v = Number(input.value);
+            if (Number.isFinite(v) && v >= 0) {
+              acts[i].params = { ...(acts[i].params ?? {}), [k.key]: v };
+              emit();
+            }
+          });
+          ovBox.appendChild(el('label', { class: 'moves-ov-cell', title: `覆盖 ${k.label}` }, [cb, input]));
+        }
+
+        const del = el('button', { type: 'button', class: 'btn memes-del', text: '删除' });
+        del.addEventListener('click', () => {
+          acts.splice(i, 1);
+          emit();
+          rerenderMoves();
+        });
+
+        actBox.appendChild(el('div', { class: 'moves-act' }, [nameInput, ovBox, del]));
+      });
+
+      const addAct = el('button', { type: 'button', class: 'btn', text: '＋ 添加移动动作' });
+      addAct.addEventListener('click', () => {
+        acts.push({ name: '' });
+        emit();
+        rerenderMoves();
+      });
+      actBox.appendChild(addAct);
+      mvWrap.appendChild(
+        el('div', { class: 'moves-sec' }, [el('h4', { text: `移动动作（${acts.length} 个）` }), actBox]),
+      );
+    };
+
+    rerenderMoves();
     wrap.appendChild(
       section(
-        '移动参数（只读）',
-        `default: minDist=${draft.moves.default?.minDist} maxDist=${draft.moves.default?.maxDist} ` +
-          `leadSec=${draft.moves.default?.leadSec} tailSec=${draft.moves.default?.tailSec} · ` +
-          `actions=${(draft.moves.actions ?? []).length} 个。` +
-          '这部分结构嵌套较深（每个动作可带自己的 params），本轮不在 GUI 里改。',
-        el('div', {}),
+        '移动参数',
+        'default 是所有移动动画共用的参数；每个动作可勾选若干项做覆盖（未勾的取 default）。' +
+          '左侧勾选框表示"该动作覆盖这一项"。',
+        mvWrap,
       ),
     );
   }
