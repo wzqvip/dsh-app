@@ -72,6 +72,51 @@ const check = (label, ok, extra = '') => {
   if (!ok) failures += 1;
 };
 
+// ---- 确保前置条件：网页端可见 + 工作状态联动已开 ----
+//
+// ⚠️ 两个都必须自己保证（2026-09-30 起的默认值）：
+//   · `display` 默认 `desktop` → 网页浮层不渲染 → 联动没得验
+//   · `workStatusEnabled` 默认 `false` → 组件直接 `return`，同样没得验
+//   实测：不处理时本脚本从 6/6 掉到 **0/6**（断言本身是对的 —— 它如实报出前置条件不满足）。
+//   做法：临时改 → 验证 → **按记录复原**（不要硬编码原值）。
+const NO_TOUCH = process.argv.includes('--no-touch');
+let restorePatch = null;
+if (!NO_TOUCH) {
+  const api = `http://127.0.0.1:${port}/dsh-pet-7340/config`;
+  try {
+    const cur = await (await fetch(api)).json();
+    const bucket = cur && typeof cur === 'object' ? cur[Object.keys(cur)[0]] : null;
+    const pet = bucket?.pets?.[0];
+    if (pet) {
+      const needDisplay = !['web', 'both'].includes(pet.display);
+      const needWork = pet.workStatusEnabled !== true;
+      restorePatch = { display: pet.display, workStatusEnabled: pet.workStatusEnabled };
+      if (needDisplay || needWork) {
+        const r = await fetch(api, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            pets: [{ ...pet, display: 'web', workStatusEnabled: true }],
+          }),
+        });
+        console.log(
+          `[workstatus] 临时调整前置条件（display: ${pet.display}→web` +
+            `${needWork ? `, workStatusEnabled: ${pet.workStatusEnabled}→true` : ''}），结束复原`,
+        );
+        if (!r.ok) console.log(`[workstatus] ⚠️ 设置失败 HTTP ${r.status}`);
+        await new Promise((res) => setTimeout(res, 3000));
+      } else {
+        restorePatch = null; // 本来就满足，无需复原
+      }
+    }
+  } catch (e) {
+    console.log(`[workstatus] ⚠️ 读取/设置前置条件失败：${String(e).split('\n')[0]}`);
+    restorePatch = null;
+  }
+} else {
+  console.log('[workstatus] --no-touch：不改配置（需自行确保 display=web 且 workStatusEnabled=true）');
+}
+
 const probeDir = join(tmpdir(), 'dsh-workstatus-probe');
 mkdirSync(probeDir, { recursive: true });
 writeFileSync(
@@ -325,6 +370,28 @@ try {
 } catch (err) {
   console.error(`[workstatus] ❌ ${String(err)}`);
   failures += 1;
+}
+
+// ---- 复原前置条件（改过就必须改回）----
+if (restorePatch) {
+  try {
+    const api = `http://127.0.0.1:${port}/dsh-pet-7340/config`;
+    const cur = await (await fetch(api)).json();
+    const bucket = cur && typeof cur === 'object' ? cur[Object.keys(cur)[0]] : null;
+    const pet = bucket?.pets?.[0];
+    if (pet) {
+      const r = await fetch(api, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ pets: [{ ...pet, ...restorePatch }] }),
+      });
+      console.log(
+        `[workstatus] 已复原 display=${restorePatch.display} workStatusEnabled=${restorePatch.workStatusEnabled}（HTTP ${r.status}）`,
+      );
+    }
+  } catch (e) {
+    console.log(`[workstatus] ⚠️ 复原失败：${String(e).split('\n')[0]}`);
+  }
 }
 
 console.log('');

@@ -41,12 +41,12 @@ const PET_FIELDS = {
     label: '显示方式',
     kind: 'select',
     options: [
+      ['desktop', '仅桌面小窗（默认）'],
       ['web', '仅网页浮层'],
-      ['desktop', '仅桌面小窗'],
       ['both', '两者都要'],
       ['none', '都不显示'],
     ],
-    desc: '网页浮层在浏览器页面里；桌面小窗是独立的透明窗口',
+    desc: '默认只在桌面小窗（不打扰网页）；想让它也活在 DSH 网页里就选 web 或 both',
   },
   corner: { label: '停靠角落', kind: 'select', path: ['position', 'corner'], options: [
     ['top-left', '左上'], ['top-right', '右上'], ['bottom-left', '左下'], ['bottom-right', '右下'],

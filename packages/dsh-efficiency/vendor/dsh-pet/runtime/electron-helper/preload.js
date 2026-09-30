@@ -34,10 +34,6 @@ contextBridge.exposeInMainWorld('petBridge', {
   openDshSite(url) {
     ipcRenderer.send('pet:open-site', { url });
   },
-  // [dsh-app] 右键菜单「设置…」：主进程开一个普通设置窗口（幂等，已开则聚焦）
-  openSettings() {
-    ipcRenderer.send('pet:open-settings');
-  },
   // ---- 宠物间碰撞（跨窗 broker）----
   reportFlight(state) {
     ipcRenderer.send('pet:report-flight', state);

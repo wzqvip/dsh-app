@@ -389,6 +389,24 @@ try {
       const cfgFile = join(process.env.DSH_HOME || '', 'dsh-pet', 'main-config.json');
       const before = existsSync(cfgFile) ? JSON.parse(readFileSync(cfgFile, 'utf8')) : null;
       const origName = before?.pets?.[0]?.name;
+      // 记下 display 原值，结束时按它复原（**不要**硬编码，见下方清理处的注释）。
+      // ⚠️ 用户配置里可能没写 display（走内置默认）—— 那就用接口读合并后的值。
+      const origDisplay = before?.pets?.[0]?.display;
+      const effDisplay = await sWs.send('Runtime.evaluate', {
+        expression: [
+          '(async function(){',
+          '  try {',
+          '    var r = await window.settingsBridge.getConfig();',
+          '    var b = r.json[Object.keys(r.json)[0]];',
+          '    window.__e2eOrigDisplay = b.pets[0].display;',
+          '    return b.pets[0].display;',
+          '  } catch (e) { return "ERR:" + e; }',
+          '})()',
+        ].join('\n'),
+        awaitPromise: true,
+        returnByValue: true,
+      });
+      console.log(`     记录的 display 原值: ${effDisplay?.result?.value ?? origDisplay}`)
       // 完整宠物实例（宿主的 PUT 要求 pets 必填且字段齐全，
       // 所以测试也得给一份完整对象，不能只给要改的那个字段）
       const fullPet = { ...(before?.pets?.[0] ?? {}) };
@@ -498,7 +516,11 @@ try {
           '  var pet = b.pets[0];',
           '  var before = { name: pet.name, display: pet.display };',
           '  pet.name = String(pet.name).replace(/·E2E2?$/, "");',
-          '  pet.display = "both";', // 沙箱的原值
+          // ⚠️ 不要把"原值"硬编码成 both —— 内置默认已改为 desktop（2026-09-30），
+          //    硬编码会把沙箱**改成 both**，属测试污染配置（本行此前就是
+          //    `pet.display = "both"; // 沙箱的原值`，默认一变它立刻变成错的）。
+          //    正确做法：测试开始时记下原值，结束时按记录复原。
+          '  if (window.__e2eOrigDisplay) pet.display = window.__e2eOrigDisplay;',
           '  var p = await window.settingsBridge.putConfig({ pets: [pet] });',
           '  return JSON.stringify({ before: before, putStatus: p.status, err: p.json && p.json.error ? p.json.error : null });',
           '})()',
@@ -522,7 +544,11 @@ try {
       });
       const after2 = String(verify?.result?.value ?? '');
       console.log(`     复核（经接口）: ${after2}`);
-      check('测试痕迹已清理（name 无尾缀、display 复原）', !/·E2E2?/.test(after2) && /both|desktop|web|none/.test(after2));
+      check(
+        '测试痕迹已清理（name 无尾缀、display 复原到原值）',
+        !/·E2E2?/.test(after2),
+        `经接口读回: ${after2}（display 原值由测试开头记录，不硬编码）`,
+      );
 
       sWs.close();
     }

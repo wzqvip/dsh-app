@@ -104,7 +104,7 @@
   // balanceEnabled（是否启用余额功能：true=触发余额动画+显示余额气泡；false=该宠物完全禁用。
   //   必填布尔值，缺失即配置错误）、display（显示位置，必填四值之一：
   //   web=仅浏览器 overlay / desktop=仅桌面模式（Electron 透明窗）/ both=两者/ none=都不显示。
-  //   缺失按默认 both 处理并告警（兼容 ≤0.2.0 旧配置），写了非法值即配置错误；桌面模式渲染
+  //   缺失按默认 desktop 处理并告警（本仓库改为默认桌面宠物；上游为 both），写了非法值即配置错误；桌面模式渲染
   //   display 含 desktop/both 的全部宠物，每只一个局部小窗）、
   // position（corner: 四角之一；marginX/marginY: 距所属角落偏移 px）
   "pets": [
@@ -120,7 +120,7 @@
       // 工作状态联动默认关闭：开启后监听 DSH 会话事件（工具调用等），按
       // animations.events.workStatus 数组切档位动画 + 气泡（仅监听，不调用模型）。
       "workStatusEnabled": false,
-      "display": "both",
+      "display": "desktop", // [dsh-app] 默认桌面宠物；需要时可在设置里切 web/both
       "position": {
         "corner": "top-right",
         "marginX": 24,

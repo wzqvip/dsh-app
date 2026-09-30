@@ -43,7 +43,7 @@ const zh = {
   notifyEnabled: '系统通知',
   notifyEnabledHint: '窗口失焦时，对话完成／需要你确认／出错会弹系统通知。',
   displayMode: '显示位置',
-  displayHint: 'web=只在网页；desktop=只在桌面小窗；both=两者都显示。',
+  displayHint: 'desktop=只在桌面小窗（默认）；web=只在网页；both=两者都显示；none=都不显示。',
   openSettingsWhere: '完整设置窗口',
   openSettingsWhereHint:
     '在【桌面小窗】的宠物上点右键 →「设置…」打开（含物理、动画池、表情包池等全部项）。' +
@@ -77,7 +77,7 @@ const en = {
   notifyEnabled: 'System notifications',
   notifyEnabledHint: 'Toast on completion / question / error while the window is unfocused.',
   displayMode: 'Where to show',
-  displayHint: 'web = browser only; desktop = floating window; both = both.',
+  displayHint: 'desktop = floating window (default); web = browser only; both = both; none = neither.',
   openSettingsWhere: 'Full settings window',
   openSettingsWhereHint:
     'Right-click the pet in the DESKTOP window → "Settings…" (physics, animation pools, meme pool, etc.). ' +

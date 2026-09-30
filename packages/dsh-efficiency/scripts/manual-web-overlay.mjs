@@ -64,6 +64,43 @@ if (!electronPath) {
   process.exit(1);
 }
 
+// ---- 确保该宠物在网页端可见（默认已改为 desktop，网页端不渲染）----
+//
+// ⚠️ 为什么需要这一步（2026-09-30 默认变更的直接后果）：
+//   本仓库把内置默认 display 从 `both` 改成 `desktop`（默认桌面宠物）。
+//   于是"全新安装"下网页浮层**按设计不渲染** —— 本脚本就什么都验不到，
+//   只会打印一句 ⚠️ 然后 PASS（**假绿**）。
+//   所以这里：**把 display 临时设为 web → 验证 → 复原成原值**。
+//   `--no-touch` 可跳过（想验证"desktop 时网页端确实不渲染"就用它）。
+const NO_TOUCH = process.argv.includes('--no-touch');
+let displayBefore = null;
+if (!NO_TOUCH) {
+  const api = `http://127.0.0.1:${port}/dsh-pet-7340/config`;
+  try {
+    const cur = await (await fetch(api)).json();
+    const bucket = cur && typeof cur === 'object' ? cur[Object.keys(cur)[0]] : null;
+    const pet = bucket?.pets?.[0];
+    displayBefore = pet?.display ?? null;
+    if (pet && !['web', 'both'].includes(displayBefore)) {
+      const r = await fetch(api, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ pets: [{ ...pet, display: 'web' }] }),
+      });
+      console.log(`[web-overlay] 临时把 display 从 ${displayBefore} 改为 web 以便验证（结束复原）`);
+      if (!r.ok) console.log(`[web-overlay] ⚠️ 设置失败 HTTP ${r.status} —— 网页端可能仍不渲染`);
+      await new Promise((res) => setTimeout(res, 3000));
+    } else {
+      displayBefore = null; // 本来就可见，无需复原
+    }
+  } catch (e) {
+    console.log(`[web-overlay] ⚠️ 读取/设置 display 失败：${String(e).split('\n')[0]}`);
+    displayBefore = null;
+  }
+} else {
+  console.log('[web-overlay] --no-touch：不改 display（若为 desktop，网页端不渲染属正确行为）');
+}
+
 // ---- 起一个最小 Electron 宿主来承载浏览器窗口 ----
 const probeDir = join(tmpdir(), 'dsh-web-probe');
 mkdirSync(probeDir, { recursive: true });
@@ -292,6 +329,26 @@ try {
 } catch (err) {
   console.error(`[web-overlay] ❌ ${String(err)}`);
   failures += 1;
+}
+
+// ---- 复原 display（改过就必须改回，否则污染沙箱配置）----
+if (displayBefore) {
+  try {
+    const api = `http://127.0.0.1:${port}/dsh-pet-7340/config`;
+    const cur = await (await fetch(api)).json();
+    const bucket = cur && typeof cur === 'object' ? cur[Object.keys(cur)[0]] : null;
+    const pet = bucket?.pets?.[0];
+    if (pet) {
+      const r = await fetch(api, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ pets: [{ ...pet, display: displayBefore }] }),
+      });
+      console.log(`[web-overlay] 已复原 display → ${displayBefore}（HTTP ${r.status}）`);
+    }
+  } catch (e) {
+    console.log(`[web-overlay] ⚠️ 复原 display 失败：${String(e).split('\n')[0]} —— 请手动检查沙箱配置`);
+  }
 }
 
 console.log('');

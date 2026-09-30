@@ -53,8 +53,6 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { homedir } from 'node:os';
 import { join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-// [dsh-app] 用于定位已安装的 dsh-pet 包（素材根，见下方 resolveDshPetRoot）
-import { createRequire } from 'node:module';
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths';
 import { credentialRef } from '@deepseek-ai/dsh-credentials';
 import { queryBalance } from './balance';
@@ -96,116 +94,8 @@ export const inject = ['webServer', 'agentDefaultModel', 'credentials', 'llm', '
 /** 本包目录：宿主构建产物位于 lib/，其上一级即包根。 */
 const PACKAGE_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
-/**
- * [dsh-app] 定位已安装的 dsh-pet 包根目录。
- *
- * 为什么需要：上游按 `PACKAGE_ROOT/assets` 找素材，而本仓库**不带素材**
- * （dsh-pet 素材禁商用，不能 vendor 进本仓库）。合并后 PACKAGE_ROOT 指向我们
- * 自己的包根，那里没有 assets。所以素材必须从【已安装的 dsh-pet】读取。
- *
- * 多级回退，尽量在不依赖宿主模块解析的前提下也能找到；全失败时大声报错。
- */
-function resolveDshPetRoot(): string | undefined {
-  // 动态取 Node 内建模块：避免改动 vendor 文件顶部的 import 区
-  // （那里是上游的行，多动一行就多一处冲突面）。
-  const nodeRequire = createRequire(import.meta.url);
-  const fsSync = nodeRequire('node:fs') as typeof import('node:fs');
-  const pathMod = nodeRequire('node:path') as typeof import('node:path');
-  const osMod = nodeRequire('node:os') as typeof import('node:os');
-
-  const looksRight = (dir: string): boolean =>
-    fsSync.existsSync(pathMod.join(dir, 'assets')) && fsSync.existsSync(pathMod.join(dir, 'package.json'));
-
-  // ① 交给 Node 模块解析（最可靠，但需 dsh-pet 出现在解析链上）
-  try {
-    const pkgJson = nodeRequire.resolve('dsh-pet/package.json');
-    const dir = pathMod.dirname(pkgJson);
-    if (looksRight(dir)) return dir;
-  } catch {
-    /* 继续回退 */
-  }
-
-  // ② 从起点逐级向上找 node_modules/dsh-pet
-  const start = pathMod.dirname(fileURLToPath(import.meta.url));
-  for (let d = start, i = 0; i < 12 && d; d = pathMod.dirname(d), i++) {
-    const cand = pathMod.join(d, 'node_modules', 'dsh-pet');
-    if (looksRight(cand)) return cand;
-  }
-
-  // ③ DSH_HOME/profiles/<任一 profile>/node_modules/dsh-pet
-  const scanProfiles = (dshHome: string): string | undefined => {
-    const profilesDir = pathMod.join(dshHome, 'profiles');
-    if (!fsSync.existsSync(profilesDir)) return undefined;
-    try {
-      for (const name of fsSync.readdirSync(profilesDir)) {
-        const cand = join(profilesDir, name, 'node_modules', 'dsh-pet');
-        if (looksRight(cand)) return cand;
-      }
-    } catch {
-      /* 读不了就跳过 */
-    }
-    return undefined;
-  };
-
-  const envHome = process.env.DSH_HOME;
-  if (envHome) {
-    const viaProfiles = scanProfiles(envHome);
-    if (viaProfiles) return viaProfiles;
-    // DSH_HOME 也可能就是 .dsh 本身
-    const viaProfiles2 = scanProfiles(pathMod.join(envHome, '.dsh'));
-    if (viaProfiles2) return viaProfiles2;
-  }
-
-  // ④ ~/.dsh/profiles/...
-  try {
-    const viaDefault = scanProfiles(pathMod.join(osMod.homedir(), '.dsh'));
-    if (viaDefault) return viaDefault;
-  } catch {
-    /* ignore */
-  }
-
-  // ⑤ 兜底：从本文件位置向上找 dsh-pet 包（本包恰好被嵌在它里面时的情形）
-  for (let d = start, i = 0; i < 12 && d; d = pathMod.dirname(d), i++) {
-    if (looksRight(d)) return d;
-  }
-  return undefined;
-}
-
-const DSH_PET_ROOT = resolveDshPetRoot();
-
-/**
- * [dsh-app] 素材根：**优先本包自带的素材**（vendor/dsh-pet/assets），
- * 找不到才回落到已安装的 dsh-pet 包。
- *
- * 为什么改成"自带优先"（2026-09-30 维护者决定）：
- *   素材此前不随仓库分发，用户必须另装一份 dsh-pet 才能有立绘 —— 多一步操作。
- *   现在素材随包分发，用户装本包一个命令即可用。既然要自包含，
- *   就该**用自己的那份**：否则同一台机器上装了不同版本的 dsh-pet 时，
- *   实际播放的素材会取决于环境、难以复现。
- *
- * 回退链仍然保留：万一打包时漏了 assets（或有人裁剪了发布包），
- * 还能退到已安装的 dsh-pet，不至于整个宠物不可用。
- */
-const BUNDLED_ASSETS = join(PACKAGE_ROOT, 'vendor', 'dsh-pet', 'assets');
-const ASSET_ROOT = existsSync(BUNDLED_ASSETS)
-  ? BUNDLED_ASSETS
-  : join(DSH_PET_ROOT ?? PACKAGE_ROOT, 'assets');
-if (existsSync(BUNDLED_ASSETS)) {
-  console.log('[dsh-app] 素材根: ' + ASSET_ROOT + ' （自带）');
-} else if (DSH_PET_ROOT) {
-  console.log('[dsh-app] 素材根: ' + ASSET_ROOT + ' （回退到已安装的 dsh-pet）');
-  console.warn('[dsh-app] 本包未自带素材（vendor/dsh-pet/assets 缺失），已回退到已安装的 dsh-pet。');
-} else {
-  console.error(
-    '[dsh-app] 找不到宠物素材：本包未自带（vendor/dsh-pet/assets 缺失），' +
-      '且系统里也没有已安装的 dsh-pet（无立绘/表情包/字体/内置默认配置）。\n' +
-      '          正常情况下本包会自带素材，出现此提示说明发布包不完整；\n' +
-      '          临时可用：dsh plugin --profile <你的 profile> add dsh-pet',
-  );
-}
-
 /** 包内 assets 根（表情包池解析用：assets/memes/<名称>.png） */
-const PACKAGE_ROOT_ASSETS = ASSET_ROOT;
+const PACKAGE_ROOT_ASSETS = join(PACKAGE_ROOT, 'assets');
 
 /** 路由前缀 */
 const ROUTE_PREFIX = '/dsh-pet-7340';
@@ -330,7 +220,7 @@ export function apply(ctx: any): void {
   const petConfigDir = join(userRoot, 'pet');
   // 配置路径集（readAllConfig 的唯一输入：内置默认 + 用户主配置 + 文件宠物目录）
   const configPaths: ConfigPaths = {
-    defaultFile: join(ASSET_ROOT, 'config.jsonc'), // [dsh-app] 素材在已安装的 dsh-pet 里
+    defaultFile: join(PACKAGE_ROOT, 'assets', 'config.jsonc'),
     userFile: userConfigPath,
     petDir: petConfigDir,
   };
@@ -734,7 +624,7 @@ export function apply(ctx: any): void {
   const animSubdirFor = (ext: string): string => (ext === '.mov' ? 'mov' : 'webm');
 
   /** 包内动画素材根：按扩展名取子目录（webm/ 随包发布；mov/ 不存在时为 404 兜底，仅 macOS 自维护）。 */
-  const assetRootFor = (ext: string): string => join(ASSET_ROOT, animSubdirFor(ext)); // [dsh-app]
+  const assetRootFor = (ext: string): string => join(PACKAGE_ROOT, 'assets', animSubdirFor(ext));
 
   /** 用户动画根：按扩展名取子目录（main-animation/webm 或 main-animation/mov）。 */
   const userRootFor = (ext: string): string => join(thumbUserRoot, animSubdirFor(ext));
@@ -809,7 +699,7 @@ export function apply(ctx: any): void {
         status: 200,
         obj: {
           user: userConfigPath,
-          default: join(ASSET_ROOT, 'config.jsonc'), // [dsh-app] 素材在已安装的 dsh-pet 里
+          default: join(PACKAGE_ROOT, 'assets', 'config.jsonc'),
           animations: thumbUserRoot,
           // 全部落盘位置（本包用户数据 / Electron 运行时 / 桌面端缓存 / 下载缓存 / 插件本体）：
           // 前两条直接传真实写入方的路径，不在这里重拼目录名
@@ -998,7 +888,7 @@ export function apply(ctx: any): void {
     // 这里先拆 scope，再按 scope 各自拆剩余段，避免 font/pic 被误当作 petId 吞掉文件段。
     const [scope, ...restParts] = rest.split('/');
     if (scope === 'font') {
-      const fontRoot = join(ASSET_ROOT, 'fonts'); // [dsh-app]
+      const fontRoot = join(PACKAGE_ROOT, 'assets', 'fonts');
       const fontFile = resolveExisting(fontRoot, restParts.join('/'));
       if (fontFile === undefined) return { kind: 'text', status: 404, body: 'dsh-pet: font not found' };
       const ext = fontFile.slice(fontFile.lastIndexOf('.')).toLowerCase();
@@ -1010,7 +900,7 @@ export function apply(ctx: any): void {
     // 共用一条路由与防穿越校验；名称含中文，URL 段已在上方 decodeURIComponent 解码。
     if (scope === 'pic') {
       const isMeme = restParts[0] === 'memes';
-      const picRoot = join(ASSET_ROOT, isMeme ? 'memes' : 'pic'); // [dsh-app]
+      const picRoot = join(PACKAGE_ROOT, 'assets', isMeme ? 'memes' : 'pic');
       const picFile = resolveExisting(picRoot, (isMeme ? restParts.slice(1) : restParts).join('/'));
       if (picFile === undefined) return { kind: 'text', status: 404, body: 'dsh-pet: pic not found' };
       const ext = picFile.slice(picFile.lastIndexOf('.')).toLowerCase();

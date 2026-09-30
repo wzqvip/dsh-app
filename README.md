@@ -96,9 +96,13 @@ DSH 的 agent 本身很强，问题在于**提问的触达方式**：
 
 ![诊断信息](packages/dsh-efficiency/docs/screenshots/settings-08-diagnostics.png)
 
-**④ 网页浮层** —— 同一只宠物也能直接活在 DSH 网页里（`display` 设为 `web`/`both`）
+**④ 网页浮层** —— 同一只宠物也能直接活在 DSH 网页里（默认只在**桌面小窗**；把「显示方式」改成 `web`/`both` 即可，见 [TESTING.md](docs/TESTING.md) §5.1）
 
 ![网页浮层](packages/dsh-efficiency/docs/screenshots/web-overlay.png)
+
+> 💡 **默认是桌面宠物**：内置默认 `display=desktop`（上游为 `both`）——
+> 桌宠的价值在"不打开网页也能看到提问"，所以默认不占网页。
+> 想在 DSH 网页里也看到它，把设置窗口的「显示方式」改成 `两者都要`/`仅网页浮层` 即可（即时生效）。
 
 > ⚠️ **两套壳的工具项不同**（实测确认，不是缺陷）：
 > - **桌面小窗**（Electron）：打开网站 · 查看余额 · **设置…** · 回到初始位置

@@ -514,13 +514,6 @@ export function makePetUI(rt: {
       );
       const stateChanged = prevWorkStateRef.current !== workStatus.state;
       prevWorkStateRef.current = workStatus.state;
-      // [dsh-app] 同一档位内不打断正在播的动画。
-      // 原实现每次 tick 都重新抽并切换动画（即使刻意避开当前段），结果是
-      // 每次 tool/result 都把正在播的那段打断重开 —— 档位动画永远播不完。
-      // 档位未变且当前动画仍属于本档位时直接返回（气泡文本已在上面更新过）。
-      if (!stateChanged && poolIncludes(pool, animRef.current)) {
-        return;
-      }
       stopMove();
       // 气泡文本：任务详情（todo/write 提供，如"正在做 X"）优先，否则从条目级配置
       // workStatusTexts[档位]（数组）随机抽一句；整字段/整档缺失 = 不弹文本，只播动画。

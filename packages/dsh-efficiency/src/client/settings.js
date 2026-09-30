@@ -77,7 +77,9 @@ export function makeSettingsSection({ h, useState, useEffect, useCallback }) {
         setEdit({
           workStatusEnabled: pet.workStatusEnabled === true,
           notificationsEnabled: data.main.notificationsEnabled === true,
-          display: DISPLAYS.includes(pet.display) ? pet.display : 'both',
+          // 兜底与内置默认一致：**desktop**（本仓库默认桌面宠物；上游默认是 both）。
+      // 这里若写成 both 会与 config.jsonc 的默认不一致 —— 未读到配置时行为就变了。
+      display: DISPLAYS.includes(pet.display) ? pet.display : 'desktop',
           size: typeof pet.size === 'number' ? pet.size : 462,
         });
       } catch {
