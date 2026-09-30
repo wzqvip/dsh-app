@@ -80,27 +80,55 @@ if (!existsSync(vendorDir)) {
     bad('缺上游 LICENSE 原文（MIT 要求保留）');
   }
 
-  // 递归找素材类文件
+  // ---- 素材：**2026-09-30 起随包分发**（维护者决定，见 NOTICE.md）----
+  // 此前这条检查是"vendor 里不许有任何素材"；现在改为：
+  //   · `vendor/dsh-pet/assets/` 是**唯一允许**放素材的地方，且必须存在
+  //   · 它以外**仍不许**有素材（防止有人把素材散落到 src/ 或包根）
   const mediaExt = /\.(png|jpe?g|gif|webp|svg|webm|mov|mp4|ttf|otf|woff2?|mp3|wav)$/i;
-  const media = [];
+  const allowedAssetDir = join(vendorDir, 'assets');
+  const strayMedia = [];
+  const assetFiles = [];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {
       const p = join(dir, name);
       const st = statSync(p);
-      if (st.isDirectory()) walk(p);
-      else if (mediaExt.test(name)) media.push(p.replace(vendorDir, '').replace(/\\/g, '/'));
+      if (st.isDirectory()) {
+        walk(p);
+      } else if (mediaExt.test(name)) {
+        const rel = p.replace(vendorDir, '').replace(/\\/g, '/');
+        if (p.startsWith(allowedAssetDir)) assetFiles.push(rel);
+        else strayMedia.push(rel);
+      }
     }
   };
   walk(vendorDir);
-  if (media.length === 0) ok('vendor 内没有任何素材文件（上游素材禁商用，不能进仓库）');
-  else bad(`vendor 里出现素材文件 ${media.length} 个`, media.slice(0, 5).join(', '));
+
+  if (allowedAssetDir && existsSync(allowedAssetDir)) {
+    const bytes = assetFiles.reduce((s, rel) => {
+      try {
+        return s + statSync(join(vendorDir, rel)).size;
+      } catch {
+        return s;
+      }
+    }, 0);
+    ok(
+      '自带素材在库（`vendor/dsh-pet/assets/`）',
+      `${assetFiles.length} 文件 / ${(bytes / 1024 / 1024).toFixed(1)} MB`,
+    );
+    if (assetFiles.length === 0) bad('`vendor/dsh-pet/assets/` 是空的 —— 用户将拿不到立绘');
+  } else {
+    bad('缺 `vendor/dsh-pet/assets/` —— 素材应随包分发（若有意改成"仅代码"，请同时更新本检查与文档）');
+  }
+  if (strayMedia.length === 0) ok('素材只出现在 `vendor/dsh-pet/assets/`（没有散落到别处）');
+  else bad(`vendor 里出现 ${strayMedia.length} 个位置不对的素材文件`, strayMedia.slice(0, 5).join(', '));
 
   if (existsSync(join(vendorDir, 'README.dsh-app.md'))) ok('出处说明 README.dsh-app.md 在库');
   else warn('缺 vendor/dsh-pet/README.dsh-app.md（出处说明）');
 
   // ---- 代码完整性 + 改动边界 + 来源可追溯（AGENTS.md §4.1 的三条规则）----
   // ① 代码完整：src/ 与 runtime/ 的文件数必须与**已安装的上游包**一致。
-  //    只验"没有素材"是不够的 —— 漏 vendor 某个源文件要到运行时才炸。
+  //    漏 vendor 某个源文件要到运行时才炸 —— 只看"有没有素材"发现不了。
+  //    （这段依赖本机装有上游 dsh-pet；没装则跳过并告警，不阻断。）
   const upPkg = join(home, '.dsh', 'profiles', 'web', 'node_modules', 'dsh-pet');
   if (existsSync(upPkg)) {
     for (const sub of ['src', 'runtime']) {
@@ -311,7 +339,7 @@ if (!existsSync(sandboxHome)) {
   // 素材必须来自【已安装的 dsh-pet】，不能来自我们仓库
   const ourAssets = join(pkgRoot, 'assets');
   if (existsSync(ourAssets)) bad('我们包根出现了 assets/ —— 素材不应随本仓库分发');
-  else ok('我们包根没有 assets/（素材不随本仓库分发）');
+  else ok('我们包根没有 assets/（素材统一放 vendor/dsh-pet/assets）');
   const prodAssets = join(home, '.dsh', 'profiles', 'web', 'node_modules', 'dsh-pet', 'assets');
   if (existsSync(prodAssets)) ok('已安装的 dsh-pet 提供素材（运行时读取）');
   else warn('找不到已安装 dsh-pet 的 assets —— 宠物会缺立绘（属预期，需用户自行安装）');
