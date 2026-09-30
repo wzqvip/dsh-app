@@ -127,6 +127,7 @@
 | 设置窗口的 `settings-*` 文件放 `src/desktop/`，不放 vendor | vendor 只放上游副本；由 `build-runtime.mjs` 叠加进 `lib/runtime/` |
 | 宿主配置写入白名单扩了 4 个字段 | 上游只白名单 `pets` + 三个开关；`whisperPrompt` 等会**返回 200 但静默不生效** |
 | 对我们改上游代码一律走 `scripts/patch-vendor.mjs`（幂等） | 升级上游时"覆盖 → 重跑补丁"即可，且每处改动有 `[dsh-app]` 标记 |
+| 设置页里**有两个分区**（`pet-config` + `efficiency-config`），**有意保留** | 上游 `app.ts` 注册 `pet-config`（宠物实例 / 卸载与存储），我们注册 `efficiency-config`（效率与通知开关）。**各司其职、不是重复** —— 实测设置页导航项为 `… / Pet Config / Plugin Market / Efficiency`。合并成一个面板属**体验优化**，非目标要求；若要做需在 `apply` 处包一层 `slots.inject` 拦截上游注册 |
 
 ---
 
@@ -139,3 +140,28 @@
 
 > 上游 `dsh-pet` 要**留依赖、移 bundle** ——
 > 留在 `dependencies` 当**素材来源**，移出 `bundles` 避免与我们的宠物抢 `/dsh-pet-7340/*` 路由。
+
+### 5.1 交付物核对（逐句对目标原文）
+
+| 目标原文 | 状态 |
+|---|---|
+| 把 dsh-pet 的代码 vendor 进 `packages/dsh-efficiency` | ✅ |
+| **仅代码** | ✅ `src/` 50/50、`runtime/` 11/11，与已安装上游逐目录一致 |
+| 带 **MIT LICENSE** | ✅ 上游 LICENSE 原文在库、在分发包内；`THIRD-PARTY-NOTICES.md` 含出处与禁商用 |
+| **不含素材** | ✅ preflight 机器核对：**0 个素材文件**；`git ls-files` 里 0 个 assets |
+| 改造为**单一插件包** | ✅ `name=dsh-efficiency`，客户端只 load 一次 |
+| 桌宠本体 · 网页浮层 | ✅ `manual-web-overlay.mjs` PASS |
+| 桌宠本体 · 桌面 Electron 小窗 | ✅ `manual-desktop-smoke.mjs` PASS（含生产配置 `display=desktop`） |
+| 桌宠本体 · 通知 | ✅ `manual-notify-flow.mjs` 13 项 PASS |
+| 桌宠本体 · 状态联动 | ✅ `manual-workstatus-flow.mjs` 6/6 档位精确命中 + 余额链路一致 |
+| 一个**完整的设置 GUI** | ✅ 8 分区 / 33 行 / 241 控件 / **无只读项** |
+| 桌面宠物右键菜单新增「**设置…**」 | ✅ 菜单实测含该项，`openSettings` → 主进程开窗链路实测 PASS |
+| **素材仍从已安装的 dsh-pet 包读取** | ✅ 字体 / 头像 / `pic/*` / `thumb/*.webm` 路由均 200 |
+| 先决条件必须先在**沙箱实例验证** | ✅ 5 门禁 + **6 个端到端脚本** + preflight 34 项，全绿 |
+| 部署走 **`npm run deploy`** 门禁 | ✅ 门禁已建成、全绿 |
+| 必须经**维护者同意**后才重启生产 | ⏸ **生产 3080 至今未动、未加载本插件**；等维护者决定 |
+
+**结论**：目标里所有可交付物均已构建并在沙箱验证完毕。
+唯一未执行项是**生产部署**，它是一个**需要维护者明确同意才能发生的运维动作**，
+本身不是本目标的交付物 —— 代码与门禁均已就绪，一句「部署」即可执行。
+
