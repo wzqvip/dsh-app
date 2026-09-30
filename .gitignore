@@ -75,3 +75,8 @@ msg64.tmp
 
 
 msg65.tmp
+
+# release/ 里的部署戳：每次 deploy 都带新时间戳，属生成物，不入库
+packages/*/release/DEPLOY.json
+
+msg66.tmp
