@@ -167,38 +167,41 @@ dsh web                            # 2. 自己在终端敲
 
 ## 快速开始
 
-> 状态：**规划阶段，尚未实现**。当前仓库是设计与调研成果，代码未开工。
-> 落地顺序见 [todo.md](todo.md)。
+> **想亲手试一下？** 完整的沙箱实测步骤（含前置、启动、该看到什么、排查）
+> 见 **[TESTING.md](TESTING.md)** —— 那份是照着做就能跑通的版本，本节只是摘要。
 
 本项目**只发布在 GitHub，不发布 npm**。`lib/` 构建产物不入库，因此安装分两步：**先构建，再 `add file:`**。
 
-### ① 承载层：`dsh-pet`（第三方，已选定模板）
+### ① 承载层：`dsh-pet`（第三方 —— 现在只作**素材来源**）
+
+`dsh-pet` 的**代码**已 vendor 进本仓库（见 [NOTICE.md](NOTICE.md)），
+但它的**素材禁商用、不能进我们仓库**，所以仍需装一份来提供立绘/表情包/字体：
 
 ```sh
-git clone https://github.com/PC2005-cloud/dsh-pet.git
-cd dsh-pet/dsh-pet
-npm install
-npm run prepare      # ⚠️ 必须用 prepare，裸 tsdown 会缺桌面运行时与类型声明
-dsh plugin --profile web add file:<上一步的绝对路径>
+dsh plugin --profile web add dsh-pet     # 只作依赖，不要放进 bundles
 ```
 
-> ⚠️ 它有**已确认的版本闸门风险**（peer 全为 `^0.1.1-rc.2`，不含新的 `0.2.0-rc.2`）。
-> 若被拒，见下方「版本兼容」。
+> ⚠️ 装好后**不要**把 `dsh-pet` 加进 `dsh.profile.bundles` ——
+> 它和我们打包的宠物都会注册 `/dsh-pet-7340/*`，会互相抢。详见 [TESTING.md](TESTING.md) §3。
 
 ### ② 本项目
 
 ```sh
 git clone https://github.com/wzqvip/dsh-app.git
-cd dsh-app
-pnpm install
-pnpm run build       # 产出 lib/index.js（Host 半）+ lib/client.js（Client 半）
-dsh plugin --profile web add file:<本仓库绝对路径>
+cd dsh-app/packages/dsh-efficiency
+npm install
+npm run deploy                            # 五道门禁全绿才产出 release/
+dsh plugin --profile web add file:<上一步所在目录>/release
 ```
+
+> 装的路径是 **`packages/dsh-efficiency/release`**（门禁把关后的成品），
+> 不是仓库根目录。开发时也可以直接装包根 `packages/dsh-efficiency`
+> —— 两者 `lib/` 内容一致。
 
 ### ③ 校验（不启动服务器）
 
 ```sh
-dsh --profile web --dump-config
+node packages/dsh-efficiency/scripts/preflight.mjs    # 只读，34 项，约 1.3 秒
 ```
 
 ### 版本兼容
@@ -267,6 +270,9 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 
 | 文档 | 内容 |
 |---|---|
+| [**TESTING.md**](TESTING.md) | **沙箱实测指南**：前置、构建安装、启动、该看到什么、排查 —— 照着做就能跑通 |
+| [STATUS.md](STATUS.md) | **交付状态**：逐项验证证据、已知取舍、部署前核对表 |
+| [DEPLOY-CHECKLIST.md](DEPLOY-CHECKLIST.md) | 部署到生产的步骤与注意事项（含最容易搞错的一点） |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 技术设计：提问-回答管线、进度数据来源、token 成本控制 |
 | [LAUNCHER.md](LAUNCHER.md) | 启动器设计：启动时序、环境检测、跨平台要点、失败处理 |
 | [plan.md](plan.md) | 完整规划：需求拆解、调研结论、架构、分阶段路线图、风险登记 |
