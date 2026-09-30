@@ -44,6 +44,10 @@ const zh = {
   notifyEnabledHint: '窗口失焦时，对话完成／需要你确认／出错会弹系统通知。',
   displayMode: '显示位置',
   displayHint: 'web=只在网页；desktop=只在桌面小窗；both=两者都显示。',
+  openSettingsWhere: '完整设置窗口',
+  openSettingsWhereHint:
+    '在【桌面小窗】的宠物上点右键 →「设置…」打开（含物理、动画池、表情包池等全部项）。' +
+    '网页浮层的右键菜单里没有这一项：它要经 IPC 通知 Electron 主进程，网页端没有这条通道。',
   size: '尺寸',
   save: '保存',
   saving: '保存中…',
@@ -74,6 +78,10 @@ const en = {
   notifyEnabledHint: 'Toast on completion / question / error while the window is unfocused.',
   displayMode: 'Where to show',
   displayHint: 'web = browser only; desktop = floating window; both = both.',
+  openSettingsWhere: 'Full settings window',
+  openSettingsWhereHint:
+    'Right-click the pet in the DESKTOP window → "Settings…" (physics, animation pools, meme pool, etc.). ' +
+    'The browser overlay menu does not have that item: it must reach the Electron main process over IPC.',
   size: 'Size',
   save: 'Save',
   saving: 'Saving…',

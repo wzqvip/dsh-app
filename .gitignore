@@ -33,127 +33,24 @@ restart-dsh.stderr.log
 # 提交信息临时文件
 commit-msg.tmp
 
-msg2.tmp
-
 # 凭据与密钥（绝不可入库）
 .credentials.yaml
 *.credentials.yaml
 .env
 .env.*
 
-msg3.tmp
-
 # 插件构建产物
 packages/*/lib/
 
-msg4.tmp
-
-msg5.tmp
-
-msg6.tmp
-
-msg7.tmp
-
-msg8.tmp
-
-msg9.tmp
-
-msg10.tmp
-
-msg11.tmp
-
-msg12.tmp
-
-msg13.tmp
-
-msg14.tmp
-
-msg15.tmp
-
 # 发布产物（由 npm run deploy 生成）
 packages/dsh-efficiency/release/lib/
-
-msg16.tmp
-
-msg17.tmp
-
 # vendored 上游代码：只带源码，不带其构建产物与依赖
 packages/*/vendor/*/node_modules/
 packages/*/vendor/*/lib/
 
-msg18.tmp
-
 # vendor 转译产物（由 scripts/build-vendor.mjs 生成）
 packages/*/build/
 
-msg19.tmp
+# msgx.tmp已经在上面*.tmp包含了
 
-msg20.tmp
-
-msg21.tmp
-
-msg22.tmp
-
-msg23.tmp
-
-msg24.tmp
-
-msg25.tmp
-
-msg26.tmp
-
-msg27.tmp
-
-msg28.tmp
-
-msg29.tmp
-
-msg30.tmp
-
-msg31.tmp
-
-msg32.tmp
-
-msg33.tmp
-
-msg34.tmp
-
-msg35.tmp
-
-msg36.tmp
-
-msg37.tmp
-
-msg38.tmp
-
-msg39.tmp
-
-msg40.tmp
-
-msg41.tmp
-
-msg42.tmp
-
-msg43.tmp
-
-msg44.tmp
-
-msg45.tmp
-
-msg46.tmp
-
-msg47.tmp
-
-msg48.tmp
-
-msg49.tmp
-
-msg50.tmp
-
-msg51.tmp
-
-msg52.tmp
-
-msg53.tmp
-
-msg54.tmp
+msg55.tmp

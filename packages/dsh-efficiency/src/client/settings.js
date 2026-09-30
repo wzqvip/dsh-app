@@ -186,6 +186,19 @@ export function makeSettingsSection({ h, useState, useEffect, useCallback }) {
         ),
       ),
 
+      // ⚠️ 指路提示（实测踩过）：完整的设置窗口只能从**桌面小窗**的右键菜单打开，
+      //    网页浮层里没有那一项 —— 网页与桌面用的是**两套不同的工具项**：
+      //      桌面（sprite.js）：打开网站 / 查看余额 / 设置… / 回到初始位置
+      //      网页（client/pet.ts）：打开网站 / 查看余额 / 碎碎念 / 对话
+      //    因为 openSettings 需要经 IPC 通知 Electron 主进程，网页端没有这条通道。
+      //    维护者实测时就因此以为"没有设置菜单"，所以这里说清楚去哪点。
+      h('div', { style: S.row },
+        h('label', { style: S.rowLabel }, t('openSettingsWhere')),
+        h('div', { style: S.control },
+          h('div', { style: S.hint }, t('openSettingsWhereHint')),
+        ),
+      ),
+
       h('div', { style: S.footer },
         h('button', {
           type: 'button',
