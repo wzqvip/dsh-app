@@ -743,6 +743,50 @@ app.whenReady().then(() => {
     });
   });
 
+  // [dsh-app] 右键菜单「设置…」：开一个**普通的设置窗口**（不是透明小窗）。
+  //
+  // 为什么单独做窗口而不是交给系统浏览器：
+  //   设置项要频繁试改（大小/位置/开关），每次跳浏览器割裂感太强；
+  //   而且用户可能根本没开网页端。这是本仓库新增的能力。
+  //
+  // 为什么由主进程持有：
+  //   保存配置会触发宿主 restartHelper，若窗口挂在助手进程上就会被一起重启。
+  //
+  // 幂等：已开着则聚焦复用，不重复开窗。
+  let settingsWin = null;
+  ipcMain.on('pet:open-settings', () => {
+    if (settingsWin && !settingsWin.isDestroyed()) {
+      settingsWin.show();
+      settingsWin.focus();
+      return;
+    }
+    const win = new BrowserWindow({
+      width: 720,
+      height: 760,
+      minWidth: 520,
+      minHeight: 480,
+      title: '桌宠设置',
+      autoHideMenuBar: true,
+      backgroundColor: '#f6f7f9',
+      webPreferences: {
+        preload: path.join(__dirname, 'settings-preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    win.removeMenu();
+    win.loadFile('settings.html');
+    win.on('closed', () => {
+      settingsWin = null;
+    });
+    settingsWin = win;
+  });
+  // 设置窗口自己的关闭按钮：只关它，不影响宠物窗口
+  ipcMain.on('pet:settings-close', (event) => {
+    const w = BrowserWindow.fromWebContents(event.sender);
+    if (w) w.close();
+  });
+
   // 显示器热更新：分辨率/缩放变化、插拔屏、旋转都会让桌面几何失效。原先几何只在
   // createPetWindows() 算一次并经 URL query 注入，渲染端 VIEW 是模块顶层常量，运行期永不更新——
   // 表现为「改了分辨率后可移动范围还是旧的」。这里重算并推给所有窗口，渲染端就地重挂。

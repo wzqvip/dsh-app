@@ -19,7 +19,7 @@
  * 用法：node scripts/build-runtime.mjs
  */
 
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync, copyFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,6 +37,22 @@ if (!existsSync(src)) {
 if (existsSync(dest)) rmSync(dest, { recursive: true, force: true });
 mkdirSync(dirname(dest), { recursive: true });
 cpSync(src, dest, { recursive: true });
+
+// ---- 叠加我们自研的桌面层文件 ----
+// 我们的设置窗口（settings.html/css/js + settings-preload.js）不在 vendor 里，
+// 而是本仓库的 src/desktop/ —— vendor 目录只放上游副本，我们的代码不混进去。
+// 这样上游升级时覆盖 vendor 不会碰到我们的东西。
+const ownDesktop = join(pkgRoot, 'src', 'desktop');
+let overlaid = 0;
+if (existsSync(ownDesktop)) {
+  for (const f of readdirSync(ownDesktop)) {
+    const from = join(ownDesktop, f);
+    if (!statSync(from).isFile()) continue;
+    copyFileSync(from, join(dest, f));
+    overlaid += 1;
+  }
+}
+console.log(`[runtime] 叠加自研桌面层 ${overlaid} 个文件（src/desktop/）`);
 
 // 覆写 helper 自己的 package.json：声明 CommonJS + 入口。
 // 不写这一份的话，lib/ 会继承外层 "type": "module"，helper 的 require 会直接报错。

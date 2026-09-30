@@ -1029,6 +1029,8 @@ class PetSprite {
     tools.push(
       { label: '碎碎念', action: 'whisper' },
       { label: '对话', action: 'chat' },
+      // [dsh-app] 设置入口：开本仓库自己的设置窗口（不是浏览器）
+      { label: '设置…', action: 'settings' },
       { label: '回到初始位置', action: 'home' },
     );
     const tree = tools.concat(S.buildMenuTree(this.animations));
@@ -1071,6 +1073,16 @@ class PetSprite {
     }
     if (leaf.action === 'chat') {
       this.showChatFromMenu(); // 打开对话弹窗（记忆经 host /chat 读写，浏览器/桌面同一实例共享）
+      return;
+    }
+    // [dsh-app] 设置：交给主进程开一个普通设置窗口（幂等）。
+    // 不在渲染进程里造窗口 —— 渲染层是透明小窗，承载不了常规表单。
+    if (leaf.action === 'settings') {
+      if (window.petBridge && typeof window.petBridge.openSettings === 'function') {
+        window.petBridge.openSettings();
+      } else {
+        console.error('[dsh-app] petBridge.openSettings 不可用，无法打开设置窗口');
+      }
       return;
     }
     if (leaf.action === 'home') {

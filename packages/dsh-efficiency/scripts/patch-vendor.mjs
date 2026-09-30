@@ -262,6 +262,83 @@ patch(
   '素材路径 → ASSET_ROOT：图片根 picRoot',
 );
 
+// ---------------------------------------------------------------------------
+// 改动 3：扩大配置写入白名单，让设置 GUI 能真正管到这些字段
+//
+// 问题：上游 saveUserConfig 的白名单只有 pets + 三个全局开关。
+//   实测：PUT 里带 whisperPrompt / chatMemoryRounds 会返回 200，
+//   但值【静默不生效】（被当"非白名单"丢掉，走 existing 透传旧值）。
+//   对设置窗口来说这是最坏的失败方式 —— 用户以为保存了。
+//
+// 修法：新增 4 个可写字段，每个都做类型/范围校验
+//   （非法就 return null → 宿主回 400 并说明，不静默忽略）：
+//     whisperPrompt      string，≤2000
+//     chatMemoryRounds   int 0..50
+//     eventsRefreshSec   int 1..3600
+//     workStatusTexts    长度 6 的 string[]（每档 ≤20 句，每句 ≤200）
+//   physics / animations / animationWeights / memes 仍走透传保留，不在本期范围。
+// ---------------------------------------------------------------------------
+patch(
+  join('src', 'host', 'config.ts'),
+  `  const ne = o.notificationsEnabled;
+  if (ne !== undefined && typeof ne !== 'boolean') return null;`,
+  `  const ne = o.notificationsEnabled;
+  if (ne !== undefined && typeof ne !== 'boolean') return null;
+  // [dsh-app] 以下 4 个字段新增为可写：本仓库的设置 GUI 需要它们。
+  // 每个都显式校验；非法一律 return null（宿主回 400 并给出原因），
+  // 绝不静默丢弃 —— "保存成功但值没变"是最难排查的失败方式（实测过）。
+  const extra = {};
+  const wp = o.whisperPrompt;
+  if (wp !== undefined) {
+    if (typeof wp !== 'string' || wp.length > 2000) return null;
+    extra.whisperPrompt = wp;
+  }
+  const cmr = o.chatMemoryRounds;
+  if (cmr !== undefined) {
+    if (typeof cmr !== 'number' || !Number.isInteger(cmr) || cmr < 0 || cmr > 50) return null;
+    extra.chatMemoryRounds = cmr;
+  }
+  const ers = o.eventsRefreshSec;
+  if (ers !== undefined) {
+    if (typeof ers !== 'number' || !Number.isInteger(ers) || ers < 1 || ers > 3600) return null;
+    extra.eventsRefreshSec = ers;
+  }
+  const wst = o.workStatusTexts;
+  if (wst !== undefined) {
+    if (!Array.isArray(wst) || wst.length !== 6) return null;
+    for (const group of wst) {
+      if (!Array.isArray(group) || group.length > 20) return null;
+      for (const line of group) {
+        if (typeof line !== 'string' || line.length > 200) return null;
+      }
+    }
+    extra.workStatusTexts = wst;
+  }`,
+  '配置写入白名单：新增 whisperPrompt / chatMemoryRounds / eventsRefreshSec / workStatusTexts（含校验）',
+);
+
+patch(
+  join('src', 'host', 'config.ts'),
+  `  if (cie !== undefined) outConfig.chatImageEnabled = cie;`,
+  `  if (cie !== undefined) outConfig.chatImageEnabled = cie;
+  // [dsh-app] 新增可写字段：只在请求体携带时写入（未携带则走下方透传保留磁盘旧值）
+  for (const k of Object.keys(extra)) {
+    outConfig[k] = extra[k];
+  }`,
+  '配置写入白名单：把新增字段写进结果',
+);
+
+patch(
+  join('src', 'host', 'config.ts'),
+  `  if (cie !== undefined) bodyOwned.add('chatImageEnabled');`,
+  `  if (cie !== undefined) bodyOwned.add('chatImageEnabled');
+  // [dsh-app] 新增可写字段同样标记为"由请求体拥有"，否则会被下方透传逻辑用磁盘旧值覆盖
+  for (const k of Object.keys(extra)) {
+    bodyOwned.add(k);
+  }`,
+  '配置写入白名单：新增字段标记为请求体所有（否则被磁盘旧值覆盖）',
+);
+
 // 素材根缺失时报警（紧跟定义之后，保证一定会打印）
 patch(
   join('src', 'host', 'index.ts'),
@@ -270,6 +347,123 @@ patch(
 // [dsh-app] 用于定位已安装的 dsh-pet 包（素材根，见下方 resolveDshPetRoot）
 import { createRequire } from 'node:module';`,
   '补 createRequire 导入（供素材根解析使用）',
+);
+
+// ---------------------------------------------------------------------------
+// 改动 4：桌面宠物右键菜单新增「设置…」入口
+//
+// 四处联动（缺任何一处，菜单点了都没反应）：
+//   a) sprite.js   tools 数组加一项（菜单里出现）
+//   b) sprite.js   onMenuAction 加分支（点了做事）
+//   c) preload.js  暴露 openSettings 桥方法（渲染层 -> 主进程）
+//   d) main.js     监听 IPC 并开设置窗口
+//
+// 为什么设置窗口由【主进程】开、而不是宿主开（很重要）：
+//   配置保存后会触发宿主侧 restartHelper（syncSavedConfig 重解析桌面宠物）。
+//   若设置窗口挂在助手进程上，用户每改一项保存就会被连窗一起重启掉。
+//   主进程持有该窗口即可避开这个循环。
+//
+// 设置窗口自身的文件（settings.html/css/js + settings-preload.js）是**我们自研**的，
+// 不放 vendor —— 它们在 src/desktop/，由 build-runtime.mjs 叠加进 lib/runtime/。
+// ---------------------------------------------------------------------------
+
+// a) 菜单项
+patch(
+  join('runtime', 'electron-helper', 'sprite.js'),
+  `      { label: '对话', action: 'chat' },
+      { label: '回到初始位置', action: 'home' },`,
+  `      { label: '对话', action: 'chat' },
+      // ${MARK} 设置入口：开本仓库自己的设置窗口（不是浏览器）
+      { label: '设置…', action: 'settings' },
+      { label: '回到初始位置', action: 'home' },`,
+  '右键菜单新增「设置…」项',
+);
+
+// b) 菜单动作分支
+patch(
+  join('runtime', 'electron-helper', 'sprite.js'),
+  `    if (leaf.action === 'home') {`,
+  `    // ${MARK} 设置：交给主进程开一个普通设置窗口（幂等）。
+    // 不在渲染进程里造窗口 —— 渲染层是透明小窗，承载不了常规表单。
+    if (leaf.action === 'settings') {
+      if (window.petBridge && typeof window.petBridge.openSettings === 'function') {
+        window.petBridge.openSettings();
+      } else {
+        console.error('[dsh-app] petBridge.openSettings 不可用，无法打开设置窗口');
+      }
+      return;
+    }
+    if (leaf.action === 'home') {`,
+  '菜单动作分发「设置…」',
+);
+
+// c) preload 桥方法
+patch(
+  join('runtime', 'electron-helper', 'preload.js'),
+  `  // ---- 宠物间碰撞（跨窗 broker）----`,
+  `  // ${MARK} 右键菜单「设置…」：主进程开一个普通设置窗口（幂等，已开则聚焦）
+  openSettings() {
+    ipcRenderer.send('pet:open-settings');
+  },
+  // ---- 宠物间碰撞（跨窗 broker）----`,
+  'preload 暴露 openSettings 桥方法',
+);
+
+// d) 主进程开窗 + 关窗 IPC
+// 锚点用 open-site 处理器的收尾（那一段在本文件里唯一）
+patch(
+  join('runtime', 'electron-helper', 'main.js'),
+  `      console.error('[dsh-pet-desktop-helper] openExternal failed:', error);
+    });
+  });`,
+  `      console.error('[dsh-pet-desktop-helper] openExternal failed:', error);
+    });
+  });
+
+  // ${MARK} 右键菜单「设置…」：开一个**普通的设置窗口**（不是透明小窗）。
+  //
+  // 为什么单独做窗口而不是交给系统浏览器：
+  //   设置项要频繁试改（大小/位置/开关），每次跳浏览器割裂感太强；
+  //   而且用户可能根本没开网页端。这是本仓库新增的能力。
+  //
+  // 为什么由主进程持有：
+  //   保存配置会触发宿主 restartHelper，若窗口挂在助手进程上就会被一起重启。
+  //
+  // 幂等：已开着则聚焦复用，不重复开窗。
+  let settingsWin = null;
+  ipcMain.on('pet:open-settings', () => {
+    if (settingsWin && !settingsWin.isDestroyed()) {
+      settingsWin.show();
+      settingsWin.focus();
+      return;
+    }
+    const win = new BrowserWindow({
+      width: 720,
+      height: 760,
+      minWidth: 520,
+      minHeight: 480,
+      title: '桌宠设置',
+      autoHideMenuBar: true,
+      backgroundColor: '#f6f7f9',
+      webPreferences: {
+        preload: path.join(__dirname, 'settings-preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    win.removeMenu();
+    win.loadFile('settings.html');
+    win.on('closed', () => {
+      settingsWin = null;
+    });
+    settingsWin = win;
+  });
+  // 设置窗口自己的关闭按钮：只关它，不影响宠物窗口
+  ipcMain.on('pet:settings-close', (event) => {
+    const w = BrowserWindow.fromWebContents(event.sender);
+    if (w) w.close();
+  });`,
+  '主进程开设置窗口 + 关窗 IPC',
 );
 
 // ---------------------------------------------------------------------------

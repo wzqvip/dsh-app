@@ -45,7 +45,8 @@
     "patch:vendor": "node scripts/patch-vendor.mjs",
     "build:runtime": "node scripts/build-runtime.mjs",
     "test:materialize": "node scripts/test-client-materialize.mjs",
-    "test": "node scripts/smoke-client.mjs && node scripts/test-placement.mjs && node scripts/test-client-materialize.mjs"
+    "test:config": "node scripts/test-config-write.mjs",
+    "test": "node scripts/smoke-client.mjs && node scripts/test-placement.mjs && node scripts/test-client-materialize.mjs && node scripts/test-config-write.mjs"
   },
   "dsh": {
     "bundle": {

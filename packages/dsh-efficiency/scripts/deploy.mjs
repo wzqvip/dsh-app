@@ -61,6 +61,10 @@ if (!run('test-placement', 'test-placement.mjs')) process.exit(1);
 //    合并后的「只装了一个/漏了一个」错误只会在浏览器里暴露，必须在这里拦住。
 if (!run('test-client-materialize（两个插件都能实例化）', 'test-client-materialize.mjs')) process.exit(1);
 
+// 5) 配置写入契约：把“保存成功但值没变”这种最坏的失败方式拦在门外
+//    （上游原本只白名单 pets + 三个开关，PUT 别的字段返回 200 却静默丢弃，实测踩过）
+if (!run('test-config-write（配置写入契约）', 'test-config-write.mjs')) process.exit(1);
+
 // 5) 复制到 release/（复制，不是链接）
 console.log('[deploy] 全部通过 → 写入 release/');
 mkdirSync(releaseLib, { recursive: true });

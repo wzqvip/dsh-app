@@ -487,6 +487,36 @@ export function saveUserConfig(
   }
   const ne = o.notificationsEnabled;
   if (ne !== undefined && typeof ne !== 'boolean') return null;
+  // [dsh-app] 以下 4 个字段新增为可写：本仓库的设置 GUI 需要它们。
+  // 每个都显式校验；非法一律 return null（宿主回 400 并给出原因），
+  // 绝不静默丢弃 —— "保存成功但值没变"是最难排查的失败方式（实测过）。
+  const extra = {};
+  const wp = o.whisperPrompt;
+  if (wp !== undefined) {
+    if (typeof wp !== 'string' || wp.length > 2000) return null;
+    extra.whisperPrompt = wp;
+  }
+  const cmr = o.chatMemoryRounds;
+  if (cmr !== undefined) {
+    if (typeof cmr !== 'number' || !Number.isInteger(cmr) || cmr < 0 || cmr > 50) return null;
+    extra.chatMemoryRounds = cmr;
+  }
+  const ers = o.eventsRefreshSec;
+  if (ers !== undefined) {
+    if (typeof ers !== 'number' || !Number.isInteger(ers) || ers < 1 || ers > 3600) return null;
+    extra.eventsRefreshSec = ers;
+  }
+  const wst = o.workStatusTexts;
+  if (wst !== undefined) {
+    if (!Array.isArray(wst) || wst.length !== 6) return null;
+    for (const group of wst) {
+      if (!Array.isArray(group) || group.length > 20) return null;
+      for (const line of group) {
+        if (typeof line !== 'string' || line.length > 200) return null;
+      }
+    }
+    extra.workStatusTexts = wst;
+  }
   const wie = o.whisperImageEnabled;
   if (wie !== undefined && typeof wie !== 'boolean') return null;
   const cie = o.chatImageEnabled;
@@ -496,6 +526,10 @@ export function saveUserConfig(
   if (ne !== undefined) outConfig.notificationsEnabled = ne;
   if (wie !== undefined) outConfig.whisperImageEnabled = wie;
   if (cie !== undefined) outConfig.chatImageEnabled = cie;
+  // [dsh-app] 新增可写字段：只在请求体携带时写入（未携带则走下方透传保留磁盘旧值）
+  for (const k of Object.keys(extra)) {
+    outConfig[k] = extra[k];
+  }
   // 透传保留：请求体未携带的顶层字段，从 existing（磁盘现有用户文件）原样带回——
   // 设置页只提交 pets(+全局开关)，手改的 physics/whisperPrompt/memes/... 借此保住。
   // 全局开关只在「请求体传了」时才算白名单（已由上方写入）；未传时走这里透传磁盘旧值——
@@ -504,6 +538,10 @@ export function saveUserConfig(
   if (ne !== undefined) bodyOwned.add('notificationsEnabled');
   if (wie !== undefined) bodyOwned.add('whisperImageEnabled');
   if (cie !== undefined) bodyOwned.add('chatImageEnabled');
+  // [dsh-app] 新增可写字段同样标记为"由请求体拥有"，否则会被下方透传逻辑用磁盘旧值覆盖
+  for (const k of Object.keys(extra)) {
+    bodyOwned.add(k);
+  }
   if (existing && typeof existing === 'object') {
     for (const key of Object.keys(existing)) {
       if (bodyOwned.has(key)) continue; // 白名单字段由请求体决定

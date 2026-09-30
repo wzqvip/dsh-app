@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <!-- [dsh-app] 桌宠设置窗口。由宠物右键菜单「设置…」经主进程打开。
+         CSP 收紧到 self：这个窗口只需要本地脚本与样式，不加载任何外部资源。 -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src dsh-pet-bridge:"
+    />
+    <title>桌宠设置</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <h1>桌宠设置</h1>
+      <div class="bar-right">
+        <span id="status" class="status" role="status" aria-live="polite"></span>
+        <button id="reload" type="button" class="btn">重新载入</button>
+        <button id="save" type="button" class="btn btn-primary">保存</button>
+      </div>
+    </header>
+
+    <main id="sections" class="sections">
+      <p class="loading">正在读取配置…</p>
+    </main>
+
+    <footer class="foot">
+      <span id="meta" class="meta"></span>
+    </footer>
+
+    <script src="settings.js"></script>
+  </body>
+</html>
