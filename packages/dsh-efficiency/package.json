@@ -29,7 +29,8 @@
     "src",
     "cordis.patch.yml",
     "LICENSE",
-    "THIRD-PARTY-NOTICES.md"
+    "THIRD-PARTY-NOTICES.md",
+    "docs"
   ],
   "scripts": {
     "build": "node scripts/build-host.mjs && node scripts/build-runtime.mjs && node scripts/build.mjs",

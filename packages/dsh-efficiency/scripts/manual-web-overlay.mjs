@@ -26,7 +26,7 @@ const arg = (n, d) => {
 };
 const port = arg('port', '3097');
 const cdpPort = arg('cdp', '9444');
-const shot = join(pkgRoot, 'build', 'web-overlay.png');
+const shot = join(pkgRoot, 'docs', 'screenshots', 'web-overlay.png');
 
 const home = process.env.PROFILE ?? process.env.USERPROFILE ?? process.env.HOME ?? '';
 

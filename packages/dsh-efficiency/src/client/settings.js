@@ -30,7 +30,7 @@ const S = {
     borderRadius: 6, padding: '3px 6px', fontFamily: 'inherit', fontSize: 12, width: 90,
   },
   btn: {
-    cursor: 'pointer', border: 'none', borderRadius: 6, background: '#4a90d9',
+    cursor: 'pointer', border: 'none', borderRadius: 6, background: '#4d6bfe',
     color: '#fff', padding: '5px 14px', fontSize: 12, fontFamily: 'inherit',
   },
   btnOff: { cursor: 'not-allowed', opacity: 0.45 },
@@ -40,8 +40,8 @@ const S = {
     fontSize: 12, fontFamily: 'inherit',
   },
   footer: { display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 },
-  ok: { color: '#27ae60', fontSize: 12 },
-  err: { color: '#e74c3c', fontSize: 12 },
+  ok: { color: '#1a7f37', fontSize: 12 },
+  err: { color: '#b42318', fontSize: 12 },
   missing: {
     fontSize: 12, opacity: 0.75, padding: '8px 10px',
     border: '1px dashed var(--dsw-alias-border-secondary, #3a3a3f)', borderRadius: 8,

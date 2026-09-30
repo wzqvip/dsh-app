@@ -27,7 +27,7 @@ const pkgRoot = join(here, '..');
 const port = process.env.PROBE_PORT || '3097';
 const cdpPort = process.env.PROBE_CDP_PORT || '9451';
 const home = process.env.USERPROFILE ?? process.env.HOME ?? '';
-const shot = join(pkgRoot, 'build', 'question-panel.png');
+const shot = join(pkgRoot, 'docs', 'screenshots', 'question-panel.png');
 
 const arg = (n, d) => {
   const i = process.argv.indexOf(`--${n}`);

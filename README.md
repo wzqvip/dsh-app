@@ -40,6 +40,36 @@ DSH 的 agent 本身很强，问题在于**提问的触达方式**：
 
 ---
 
+## 界面预览
+
+> 截图取自**沙箱实例**（`dsh-efficiency` 已并入桌宠能力后的实际界面）。
+> 宠物立绘与表情素材来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)（禁止商用，详见 [NOTICE.md](NOTICE.md)）。
+
+**① 桌面小窗 + 右键菜单** —— 工具项里有「**设置…**」，动作分组可点播任意动画
+
+![桌面小窗与右键菜单](packages/dsh-efficiency/docs/screenshots/desktop-menu.png)
+
+**② 提问面板** —— 提问到达时锚定在宠物下方，点选项 + Submit 即可回答（不用切回网页）
+
+![提问面板](packages/dsh-efficiency/docs/screenshots/question-panel.png)
+
+**③ 设置窗口** —— 8 个分区，内置配置**全部字段可编辑**（含物理引擎、动画池、表情包池）
+
+![设置窗口](packages/dsh-efficiency/docs/screenshots/settings-window.png)
+
+**④ 网页浮层** —— 同一只宠物也能直接活在 DSH 网页里（`display` 设为 `web`/`both`）
+
+![网页浮层](packages/dsh-efficiency/docs/screenshots/web-overlay.png)
+
+> ⚠️ **两套壳的工具项不同**（实测确认，不是缺陷）：
+> - **桌面小窗**（Electron）：打开网站 · 查看余额 · **设置…** · 回到初始位置
+> - **网页浮层**：打开网站 · 查看余额 · 碎碎念 · 对话
+>
+> 「设置…」只在桌面小窗里 —— 它要经 IPC 通知 Electron 主进程开窗，网页端没有这条通道。
+> 在 DSH 设置页的 **Efficiency** 分区里也有这条指路提示。
+
+---
+
 ## 核心能力（按重要性排序）
 
 ### ① 问题提醒 —— 本项目存在的主要理由

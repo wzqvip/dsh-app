@@ -30,7 +30,7 @@ const arg = (n, d) => {
 };
 const port = arg('port', '3097');
 const cdpPort = arg('cdp', '9333');
-const shot = join(pkgRoot, 'build', 'settings-window.png');
+const shot = join(pkgRoot, 'docs', 'screenshots', 'settings-window.png');
 
 const home = process.env.USERPROFILE ?? process.env.HOME ?? '';
 const electronPath = [

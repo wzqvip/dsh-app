@@ -1,14 +1,24 @@
 /* [dsh-app] 桌宠设置窗口样式。
-   独立窗口（非透明小窗），所以用常规的浅色面板布局，不跟随宠物尺寸缩放。 */
+   独立窗口（非透明小窗），所以用常规的浅色面板布局，不跟随宠物尺寸缩放。
+
+   配色：对齐 DeepSeek 的淡蓝白视觉。
+   中性色取自 **DSH 前端产物里实测到**的色值（#f9fafb / #0f1115 / #61666b / #81858c 系），
+   品牌蓝取 DeepSeek 主蓝 #4d6bfe，其余淡蓝由它派生。
+   ⚠️ 改这里前先去 DSH 的
+   `dsh-web-frontend/dist/assets/index-*.css` 核对中性色，别凭印象调。 */
 
 :root {
-  --bg: #f6f7f9;
+  --bg: #f7f9fc; /* 极淡蓝白底（DeepSeek 页面底色的观感） */
   --panel: #ffffff;
-  --line: #e3e6ea;
-  --text: #24292f;
-  --dim: #667085;
-  --accent: #2f6fed;
-  --accent-weak: #eaf1fe;
+  --line: #e6ebf5; /* 淡蓝灰描边 */
+  --text: #0f1115; /* 实测：DSH 主文本色 */
+  --dim: #61666b; /* 实测：DSH 次级文本 */
+  --dim-2: #81858c; /* 实测：DSH 三级文本 */
+  --accent: #4d6bfe; /* DeepSeek 品牌蓝 */
+  --accent-strong: #3a56e4; /* 悬停 / 按下 */
+  --accent-weak: #eef2ff; /* 选中项底色 */
+  --accent-line: #c7d4ff; /* 淡蓝描边（选中/聚焦） */
+  --ok: #1a7f37;
   --danger: #b42318;
 }
 
@@ -60,7 +70,7 @@ body {
   font-size: 12px;
 }
 .status.is-ok {
-  color: #1a7f37;
+  color: var(--ok);
 }
 .status.is-err {
   color: var(--danger);
@@ -70,14 +80,14 @@ body {
   padding: 6px 14px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--panel);
   color: var(--text);
   font: inherit;
   font-size: 13px;
   cursor: pointer;
 }
 .btn:hover {
-  border-color: #cfd4da;
+  border-color: var(--accent-line);
 }
 .btn:disabled {
   opacity: 0.5;
@@ -86,10 +96,10 @@ body {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: #ffffff;
 }
 .btn-primary:hover {
-  background: #2560db;
+  background: var(--accent-strong);
 }
 
 .sections {
@@ -130,7 +140,7 @@ body {
   gap: 10px 14px;
   align-items: center;
   padding: 7px 0;
-  border-top: 1px solid #f0f2f5;
+  border-top: 1px solid var(--line);
 }
 .row:first-of-type {
   border-top: none;
@@ -155,7 +165,7 @@ textarea {
   padding: 6px 9px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--panel);
   color: var(--text);
   font: inherit;
   font-size: 13px;
@@ -201,7 +211,7 @@ input[type='range'] {
   font-size: 13px;
 }
 .readonly code {
-  background: #f0f2f5;
+  background: var(--line);
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 12px;
@@ -274,7 +284,7 @@ input[type='range'] {
   grid-column: 1 / -1;
 }
 .anim-sec {
-  border-top: 1px solid #f0f2f5;
+  border-top: 1px solid var(--line);
   padding-top: 10px;
 }
 .anim-sec:first-child {
@@ -373,7 +383,7 @@ input[type='range'] {
   gap: 10px;
   align-items: start;
   padding: 6px 0;
-  border-top: 1px solid #f0f2f5;
+  border-top: 1px solid var(--line);
 }
 .moves-acts > .moves-act:first-child {
   border-top: none;
