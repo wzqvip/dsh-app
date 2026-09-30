@@ -6,7 +6,7 @@
          CSP 收紧到 self：这个窗口只需要本地脚本与样式，不加载任何外部资源。 -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src dsh-pet-bridge:"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src dsh-pet-bridge: http://127.0.0.1:* http://localhost:*"
     />
     <title>桌宠设置</title>
     <link rel="stylesheet" href="settings.css" />
