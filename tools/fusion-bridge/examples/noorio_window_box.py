@@ -355,7 +355,7 @@ def make_hex_plane(face, azimuth_deg):
     #    有蜂窝就以为成了，其实外表面一直是光滑的（从侧后方看才露馅）。
     #    用 HEX_OUTSET/HEX_SPAN_IN：平面到 r≈56.5，朝内切 11mm -> 覆盖 45.5..56.5，
     #    正好穿透 50.6..55.5 的壁。
-    distance, span = HEX_OUTSET, HEX_SPAN_IN
+    distance, span = -HEX_INSET, HEX_SPAN
     _ = normal  # 保留读取，便于以后需要时再判方向
 
     offset_input = root.constructionPlanes.createInput()
@@ -418,33 +418,35 @@ def cut_hex_row(row_index, row_y, count, plane, azimuth_deg, span_mm):
        因此蜂窝**只能做在圆柱段**；半球尾部没有可用切平面，孔会斜切甚至打空。
     """
     phi = math.radians(azimuth_deg)
-    plane_geometry = plane.geometry
-    origin = plane_geometry.origin
-    u_dir = plane_geometry.uDirection
-    v_dir = plane_geometry.vDirection
-
-    def to_sketch(pt):
-        delta = adsk.core.Vector3D.create(pt.x - origin.x, pt.y - origin.y, pt.z - origin.z)
-        return adsk.core.Point3D.create(delta.dotProduct(u_dir),
-                                        delta.dotProduct(v_dir), 0.0)
-
-    sketch = sketches.add(plane)
-    sketch.name = "hex_row_%d" % row_index
-    r_plane = OUT_R - HEX_INSET
+    r_plane = OUT_R - HEX_INSET   # = 实际切平面半径（平面在内腔里，朝外切）
     cx, cz = r_plane * math.cos(phi), r_plane * math.sin(phi)
     e_t = (-math.sin(phi), 0.0, math.cos(phi))   # 方位向
     e_a = (0.0, 1.0, 0.0)                        # 轴向
-    verts = []
+
+    # ⚠️⚠️ 模型坐标 -> 草图坐标**必须用 Fusion 自己的换算**：
+    #      sketch.modelToSketchSpace(point)
+    #
+    # 踩过的两个坑，都别再走：
+    #   1. 自己用 (point-origin)·uDirection 换算 —— 草图原点通常不是
+    #      plane.geometry.origin，而是"世界原点在该平面上的投影"。结果整个六边形
+    #      沿轴向错位约 27.5mm（要打 y=24，实际落到 y≈-3.5），**切在贴胶布的法兰上**。
+    #   2. `sketchPoints.add(point)` —— 它收的是**草图坐标**，把模型坐标（几十毫米）
+    #      当草图坐标用，六边形被扔到几十毫米外，拉伸时报"未找到要剪切或相交的目标实体"。
+    sketch = sketches.add(plane)
+    sketch.name = "hex_row_%d" % row_index
+    sketch_pts = []
     for k in range(6):
         a = math.radians(60.0 * k + 30.0)
         u = HEX_CIRCUM_R * math.cos(a)
         v = HEX_CIRCUM_R * math.sin(a)
-        verts.append(to_sketch(adsk.core.Point3D.create(
+        model_pt = adsk.core.Point3D.create(
             (cx + u * e_t[0] + v * e_a[0]) * MM,
             (row_y + u * e_t[1] + v * e_a[1]) * MM,
-            (cz + u * e_t[2] + v * e_a[2]) * MM)))
+            (cz + u * e_t[2] + v * e_a[2]) * MM)
+        sketch_pts.append(sketch.modelToSketchSpace(model_pt))
     for k in range(6):
-        sketch.sketchCurves.sketchLines.addByTwoPoints(verts[k], verts[(k + 1) % 6])
+        sketch.sketchCurves.sketchLines.addByTwoPoints(
+            sketch_pts[k], sketch_pts[(k + 1) % 6])
     if sketch.profiles.count < 1:
         raise RuntimeError("hex_row_%d: 轮廓未闭合" % row_index)
 
