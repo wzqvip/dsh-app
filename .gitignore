@@ -96,3 +96,6 @@ msg75.tmp
 
 # FusionBridge 的截图临时目录（shoot_views.py 的默认输出）
 .fusion-shots/
+
+# Fusion STL/STEP 导出产物（二进制，每次重建都变；可复现的是脚本）
+exports/
