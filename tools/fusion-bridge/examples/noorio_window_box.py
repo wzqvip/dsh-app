@@ -117,6 +117,7 @@ APPEARANCE = "塑料 - 粗面(白色)"
 _OVERRIDES = globals().get("WINDOWBOX_OVERRIDES", {})
 FILE_NAME = _OVERRIDES.get("file_name", "WindowBox")
 HEX_ROW_Y = _OVERRIDES.get("hex_row_y", HEX_ROW_Y)
+HEX_PITCH = _OVERRIDES.get("hex_pitch", HEX_PITCH)
 HOOK_ENABLED = _OVERRIDES.get("hook", True)
 PROJECT_NAME = "Noorio B310"
 
@@ -303,7 +304,38 @@ step("body revolved: %.3f cm3" % body.volume)
 # --------------------------------------------------------------------------- #
 
 
-def cut_hex_row(row_index, row_y, phi_deg, count):
+def find_cylinder_face():
+    b = root.bRepBodies.item(0)
+    for i in range(b.faces.count):
+        f = b.faces.item(i)
+        g = f.geometry
+        if g.objectType.endswith("Cylinder") and abs(g.radius / MM - OUT_R) < 0.1:
+            return f
+    return None
+
+
+def make_hex_plane(azimuth_deg):
+    """在**未被切过的原始圆柱面**上建一个竖直切平面，并朝内偏移到内腔里。
+
+    ⚠️ 必须在切任何孔**之前**全部建好。切过孔之后圆柱面会被 Fusion 重建，
+       此时再 setByTangent 得到的角度基准会漂 —— 症状是某圈"切成功但只掉
+       0.62 cm3（应有 9.6）"，或干脆报"未找到要剪切或相交的目标实体"。
+       所以：平面一次建好，之后每圈只在平面上换 y 位置画六边形，
+       圆周分布交给 circularPattern，不再碰任何面引用。
+    """
+    phi = math.radians(azimuth_deg)
+    tangent_input = root.constructionPlanes.createInput()
+    tangent_input.setByTangent(find_cylinder_face(),
+                               adsk.core.ValueInput.createByReal(phi - math.pi / 2.0),
+                               root.xYConstructionPlane)
+    tangent_plane = root.constructionPlanes.add(tangent_input)
+    offset_input = root.constructionPlanes.createInput()
+    offset_input.setByOffset(tangent_plane,
+                             adsk.core.ValueInput.createByReal(-HEX_INSET * MM))
+    return root.constructionPlanes.add(offset_input)
+
+
+def cut_hex_row(row_index, row_y, count, plane, azimuth_deg):
     """径向切一个正六边形，再绕 Y 轴阵列出整圈。
 
     ⚠️ 平面只能用 **setByTangent(圆柱面, angle, XY平面)** —— 实测这是本 Fusion
@@ -315,25 +347,7 @@ def cut_hex_row(row_index, row_y, phi_deg, count):
          setByAngleOnCurvedFace must be a cylindrical or conical face
        因此蜂窝**只能做在圆柱段**；半球尾部没有可用切平面，孔会斜切甚至打空。
     """
-    phi = math.radians(phi_deg)
-
-    tangent_input = root.constructionPlanes.createInput()
-    tangent_input.setByTangent(cylinder_face,
-                               adsk.core.ValueInput.createByReal(phi - math.pi / 2.0),
-                               root.xYConstructionPlane)
-    tangent_plane = root.constructionPlanes.add(tangent_input)
-
-    # 法线永远朝外 -> 把平面朝内偏移到内腔里，再单向朝外切，正好穿透壁厚
-    offset_input = root.constructionPlanes.createInput()
-    offset_input.setByOffset(tangent_plane,
-                             adsk.core.ValueInput.createByReal(-HEX_INSET * MM))
-    plane = root.constructionPlanes.add(offset_input)
-
-    sketch = sketches.add(plane)
-    sketch.name = "hex_row_%d" % row_index
-
-    # ⚠️ addByTwoPoints 要的是**草图坐标系**的点。直接喂模型坐标会生成"3D 轮廓"：
-    #    profiles.count 仍是 1，但拉伸时报"未找到要剪切或相交的目标实体"。
+    phi = math.radians(azimuth_deg)
     plane_geometry = plane.geometry
     origin = plane_geometry.origin
     u_dir = plane_geometry.uDirection
@@ -344,6 +358,8 @@ def cut_hex_row(row_index, row_y, phi_deg, count):
         return adsk.core.Point3D.create(delta.dotProduct(u_dir),
                                         delta.dotProduct(v_dir), 0.0)
 
+    sketch = sketches.add(plane)
+    sketch.name = "hex_row_%d" % row_index
     r_plane = OUT_R - HEX_INSET
     cx, cz = r_plane * math.cos(phi), r_plane * math.sin(phi)
     e_t = (-math.sin(phi), 0.0, math.cos(phi))   # 方位向
@@ -379,21 +395,27 @@ def cut_hex_row(row_index, row_y, phi_deg, count):
     return feature
 
 
-cylinder_face = None
-for _i in range(body.faces.count):
-    _f = body.faces.item(_i)
-    _g = _f.geometry
-    _t = _g.objectType
-    # ⚠️ 必须先按类型筛：Plane 面没有 radius 属性，直接取会 AttributeError
-    if _t.endswith("Cylinder") and abs(_g.radius / MM - OUT_R) < 0.1:
-        cylinder_face = _f
-        break
-report["outerCylinderFaceFound"] = cylinder_face is not None
-
+cylinder_face = find_cylinder_face()
 if cylinder_face is None:
     report["errors"].append("outer cylinder face (R%.1f) not found" % OUT_R)
 else:
     _count = max(8, int(round(2.0 * math.pi * OUT_R / HEX_PITCH)))
+    _stagger = 180.0 / _count
+    # ⚠️ 切平面**只能在切第一个孔之前**建（切过之后圆柱面被重建，角度基准会漂），
+    #    而且实测：**平面只在其原点以下的那半边有效**。setByTangent 生成的原点
+    #    落在圆柱面的中高处，所以能切的高度被限制在中高以下 —— 27.5 的面上，
+    #    y=14 / 24 成功（−9.6 / −10.2 cm3），y=30 只切到 −1.1，y=34 起直接报
+    #    "未找到要剪切或相交的目标实体"。
+    #
+    #    要覆盖到赤道附近，得先用浅环槽把外柱面**分段**，逐段用各自的切平面
+    #    （每段只在其下半部打孔）。这需要 2 道 0.3mm 的浅槽，槽线正好落在蜂窝
+    #    孔内部、基本看不见 —— 等用户确认再做。
+    #
+    #    隔行错位靠"把六边形画在目标方位上"实现（投影只差 cos φ，6° 时 0.55%），
+    #    不再建第二个平面：实测 6° 平面的法线方向不对，偏移量跑到壁外，
+    #    那一圈只切掉 0.62 cm3。
+    _plane = make_hex_plane(0.0)
+    _before = root.bRepBodies.item(0).volume
     for row_index, row_y in enumerate(_OVERRIDES.get("hex_row_y", HEX_ROW_Y)):
         if row_y > EQUATOR_Y - 3.0:
             report["errors"].append(
@@ -401,11 +423,12 @@ else:
                 % (row_index, row_y))
             continue
         try:
-            offset = (180.0 / _count) * (row_index % 2)   # 隔行错开半格 -> 蜂窝
-            cut_hex_row(row_index, row_y, offset, _count)
+            azimuth = _stagger if row_index % 2 else 0.0
+            cut_hex_row(row_index, row_y, _count, _plane, azimuth)
             body = root.bRepBodies.item(0)
-            step("hex row %d (y=%.1f, %d 孔, 起始 %.1f deg): %.3f cm3"
-                 % (row_index, row_y, _count, offset, body.volume))
+            step("hex row %d (y=%.1f, %d 孔, 起始 %.1f deg): %.3f cm3 (本圈 -%.2f)"
+                 % (row_index, row_y, _count, azimuth, body.volume, _before - body.volume))
+            _before = body.volume
         except Exception as exc:
             report["errors"].append("hex row %d (y=%.1f): %s: %s"
                                     % (row_index, row_y, type(exc).__name__, exc))
