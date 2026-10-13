@@ -61,27 +61,25 @@ OUT_R = 55.5              # 外圆柱 / 外半球半径 -> 壁厚 4.9mm（原来
 FRONT_R = SOCKET_R        # 前口半径（Ø101.2，相机 Ø100 进得去）
 
 # 蜂窝镂空。⚠️ 曲面上的孔不能用"平面草图正交拉伸"：孔会切歪，而且斜着穿过
-# 壁厚会啃到内腔壁面。做法改为**切平面 + 径向对称切**：
+# 壁厚会啃到内腔壁面。做法改为**曲面切点平面 + 径向切**：
 #
-#   1. 平面用 setByTangent(圆柱面, angle, 参考面)，法线即径向
-#      ⚠️ 参考面**只能用 XY 平面** —— XZ 平面与圆柱轴平行，Fusion 直接拒绝
-#      ⚠️ 真签名是 (face, angle, planarEntity)；只传 face 会报"缺 angle/planarEntity"
-#      ⚠️ 角度约定实测：切点方位 φ（自 +X 向 +Z）= angle + 90°
-#   2. 法线**永远朝外**，单侧拉伸只会往外切。改为把切平面朝内偏移 HEX_INSET，
-#      再用**对称拉伸** —— 外伸量被压到 0.8mm，不会啃坏别处
-#   3. `setByThreePoints` 在这个 Fusion 版本里完全不可用（连平凡三点都报
-#      InternalValidationError），别再试它
-#   4. 两圈蜂窝的 y 区间必须避开挂绳耳片（35..45），否则耳片根部会被切穿
-HEX_ROWS = [              # (高度 y, 起始角偏移) —— 行间错开半格才是蜂窝
-    (14.0, 0.0),
-    (28.0, 7.5),
-]
+#   1. 平面用 **setByTangentAtPoint(face, point)** —— 圆柱面和半球面都能用，
+#      法线就是该点的径向。
+#      ⚠️ 别用 setByTangent(圆柱面, angle, XY平面)：它只对圆柱段成立，
+#         半球段给不出正确切平面，孔会斜切甚至完全打空
+#      ⚠️ `setByThreePoints` 在这个 Fusion 版本里完全不可用（连平凡三点都报
+#         InternalValidationError），别再试它
+#   2. 法线**永远朝外**，单侧拉伸只会往外切。所以把切平面朝内偏移 HEX_INSET
+#      到内腔里，再单向朝外切 HEX_SPAN —— 正好穿透壁厚，只外伸 0.4mm
+#      ⚠️ 对称拉伸 setDistanceExtent(True,d) 与 setAllExtent(Symmetric) 虽然
+#         返回成功，但会**在对侧多打一个洞**，不用
+#   3. `sketchLines.addByTwoPoints` 要的是**草图坐标**，模型坐标会生成"3D 轮廓"：
+#      profiles.count 仍为 1，但拉伸时报"未找到要剪切或相交的目标实体"
+#
+# 行距 HEX_PITCH 沿圆周方向，每行孔数按该处外半径自动算，行间错开半格。
+HEX_ROW_Y = [14.0, 28.0]  # 各圈所在高度 y
+HEX_PITCH = 14.4          # 圆周方向孔距（≈ 24 孔 @ r55.5）
 HEX_CIRCUM_R = 5.0        # 正六边形外接圆半径（对角 10mm）
-HEX_COUNT = 24            # 每圈孔数（15° 一个）
-# 切平面放到**内腔里**（r = OUT_R - HEX_INSET = 50.1），再**单向朝外**切 HEX_SPAN。
-# 实测：单向 setDistanceExtent(False, d) 可用；对称 setDistanceExtent(True, d) 与
-# setAllExtent(Symmetric) 虽然也返回成功，但会**在对侧多打一个洞**，所以不用。
-# 这样正好穿透 50.6..55.5 的壁，只外伸 0.4mm，不会啃到挂绳耳片。
 HEX_INSET = 5.4           # 切平面朝内偏移量（落进内腔）
 HEX_SPAN = 5.8            # 单向拉伸长度 -> 覆盖 r 50.1..55.9
 
@@ -111,7 +109,15 @@ HOOK_HOLE_R = 3.0         # Ø6 安全绳孔
 # 凸出壳体的高度由 26mm 收到 14.5mm。
 
 APPEARANCE = "塑料 - 粗面(白色)"
-FILE_NAME = "WindowBox"
+
+# --------------------------------------------------------------------------- #
+# 变体参数：包装脚本可以先设 WINDOWBOX_OVERRIDES 再 exec 本文件
+# （见 noorio_window_box_hex.py —— "从第二圈起一直排到尾部、不要挂耳"的版本）
+# --------------------------------------------------------------------------- #
+_OVERRIDES = globals().get("WINDOWBOX_OVERRIDES", {})
+FILE_NAME = _OVERRIDES.get("file_name", "WindowBox")
+HEX_ROW_Y = _OVERRIDES.get("hex_row_y", HEX_ROW_Y)
+HOOK_ENABLED = _OVERRIDES.get("hook", True)
 PROJECT_NAME = "Noorio B310"
 
 
@@ -297,11 +303,17 @@ step("body revolved: %.3f cm3" % body.volume)
 # --------------------------------------------------------------------------- #
 
 
-def cut_hex_row(row_index, row_y, phi_deg):
-    """在方位 phi、高度 row_y 处径向切一个正六边形，再绕 Y 轴阵列出整圈。
+def cut_hex_row(row_index, row_y, phi_deg, count):
+    """径向切一个正六边形，再绕 Y 轴阵列出整圈。
 
-    角度换算实测：切点方位 φ（自 +X 向 +Z）= angle + 90°。
-    法线永远朝外，所以靠"平面内移 + 对称拉伸"把切深压进壁里。
+    ⚠️ 平面只能用 **setByTangent(圆柱面, angle, XY平面)** —— 实测这是本 Fusion
+       版本里唯一能给出"径向切平面"的构造。其它五条路全部堵死：
+         setByThreePoints       InternalValidationError（连平凡三点都报）
+         setByPlane             Environment is not supported
+         setByTangent(球面,…)    input face is not cylindrical
+         setByTangentAtPoint    忽略给定点位置（要 +X 侧却给 +Z 侧）
+         setByAngleOnCurvedFace must be a cylindrical or conical face
+       因此蜂窝**只能做在圆柱段**；半球尾部没有可用切平面，孔会斜切甚至打空。
     """
     phi = math.radians(phi_deg)
 
@@ -311,6 +323,7 @@ def cut_hex_row(row_index, row_y, phi_deg):
                                root.xYConstructionPlane)
     tangent_plane = root.constructionPlanes.add(tangent_input)
 
+    # 法线永远朝外 -> 把平面朝内偏移到内腔里，再单向朝外切，正好穿透壁厚
     offset_input = root.constructionPlanes.createInput()
     offset_input.setByOffset(tangent_plane,
                              adsk.core.ValueInput.createByReal(-HEX_INSET * MM))
@@ -319,25 +332,21 @@ def cut_hex_row(row_index, row_y, phi_deg):
     sketch = sketches.add(plane)
     sketch.name = "hex_row_%d" % row_index
 
-    # ⚠️ addByTwoPoints 要的是**草图坐标系**的点。直接把模型坐标喂进去，Fusion 会
-    #    生成"3D 轮廓"，`profiles.count` 仍为 1，但拉伸时报
-    #    "未找到要剪切或相交的目标实体"（圆形测试用的草图原点，所以没暴露这个坑）。
-    #    必须用平面自身的 origin/uDirection/vDirection 换算。
+    # ⚠️ addByTwoPoints 要的是**草图坐标系**的点。直接喂模型坐标会生成"3D 轮廓"：
+    #    profiles.count 仍是 1，但拉伸时报"未找到要剪切或相交的目标实体"。
     plane_geometry = plane.geometry
     origin = plane_geometry.origin
     u_dir = plane_geometry.uDirection
     v_dir = plane_geometry.vDirection
 
-    def to_sketch(point):
-        delta = adsk.core.Vector3D.create(point.x - origin.x,
-                                          point.y - origin.y,
-                                          point.z - origin.z)
+    def to_sketch(pt):
+        delta = adsk.core.Vector3D.create(pt.x - origin.x, pt.y - origin.y, pt.z - origin.z)
         return adsk.core.Point3D.create(delta.dotProduct(u_dir),
                                         delta.dotProduct(v_dir), 0.0)
 
     r_plane = OUT_R - HEX_INSET
     cx, cz = r_plane * math.cos(phi), r_plane * math.sin(phi)
-    e_t = (-math.sin(phi), 0.0, math.cos(phi))   # 切向（⟂ 径向）
+    e_t = (-math.sin(phi), 0.0, math.cos(phi))   # 方位向
     e_a = (0.0, 1.0, 0.0)                        # 轴向
     verts = []
     for k in range(6):
@@ -363,7 +372,7 @@ def cut_hex_row(row_index, row_y, phi_deg):
     objects.add(feature)
     pattern_input = root.features.circularPatternFeatures.createInput(
         objects, root.yConstructionAxis)
-    pattern_input.quantity = adsk.core.ValueInput.createByReal(HEX_COUNT)
+    pattern_input.quantity = adsk.core.ValueInput.createByReal(count)
     pattern_input.totalAngle = adsk.core.ValueInput.createByReal(2 * math.pi)
     pattern_input.isSymmetric = False
     root.features.circularPatternFeatures.add(pattern_input)
@@ -374,7 +383,9 @@ cylinder_face = None
 for _i in range(body.faces.count):
     _f = body.faces.item(_i)
     _g = _f.geometry
-    if _g.objectType.endswith("Cylinder") and abs(_g.radius / MM - OUT_R) < 0.1:
+    _t = _g.objectType
+    # ⚠️ 必须先按类型筛：Plane 面没有 radius 属性，直接取会 AttributeError
+    if _t.endswith("Cylinder") and abs(_g.radius / MM - OUT_R) < 0.1:
         cylinder_face = _f
         break
 report["outerCylinderFaceFound"] = cylinder_face is not None
@@ -382,21 +393,35 @@ report["outerCylinderFaceFound"] = cylinder_face is not None
 if cylinder_face is None:
     report["errors"].append("outer cylinder face (R%.1f) not found" % OUT_R)
 else:
-    for row_index, (row_y, row_offset) in enumerate(HEX_ROWS):
+    _count = max(8, int(round(2.0 * math.pi * OUT_R / HEX_PITCH)))
+    for row_index, row_y in enumerate(_OVERRIDES.get("hex_row_y", HEX_ROW_Y)):
+        if row_y > EQUATOR_Y - 3.0:
+            report["errors"].append(
+                "hex row %d (y=%.1f) 落在半球段：本版本 API 无法构造球面切平面，已跳过"
+                % (row_index, row_y))
+            continue
         try:
-            cut_hex_row(row_index, row_y, row_offset)
+            offset = (180.0 / _count) * (row_index % 2)   # 隔行错开半格 -> 蜂窝
+            cut_hex_row(row_index, row_y, offset, _count)
             body = root.bRepBodies.item(0)
-            step("hex row %d (y=%.1f, offset=%.1f deg): %.3f cm3"
-                 % (row_index, row_y, row_offset, body.volume))
+            step("hex row %d (y=%.1f, %d 孔, 起始 %.1f deg): %.3f cm3"
+                 % (row_index, row_y, _count, offset, body.volume))
         except Exception as exc:
-            report["errors"].append("hex row %d: %s: %s"
-                                    % (row_index, type(exc).__name__, exc))
+            report["errors"].append("hex row %d (y=%.1f): %s: %s"
+                                    % (row_index, row_y, type(exc).__name__, exc))
 
 # --------------------------------------------------------------------------- #
-# 3. 挂绳眼环
+# 3. 挂绳眼环（HEX 变体 HOOK_ENABLED=False 时整块跳过）
 # --------------------------------------------------------------------------- #
+
+
+class _SkipHook(Exception):
+    pass
+
 
 try:
+    if not HOOK_ENABLED:
+        raise _SkipHook()
     plane_input = root.constructionPlanes.createInput()
     plane_input.setByOffset(root.xZConstructionPlane, V(HOOK_Y0))
     plane = root.constructionPlanes.add(plane_input)
@@ -436,6 +461,8 @@ try:
     step("hook lug Ø%.0f x %d wide x %d thick, tip z=%.0f: %.3f cm3"
          % (HOOK_HOLE_R * 2, HOOK_HALF_X * 2, HOOK_Y1 - HOOK_Y0,
             HOOK_CAP_Z + HOOK_HALF_X, body.volume))
+except _SkipHook:
+    step("hook skipped (HOOK_ENABLED=False)")
 except Exception as exc:
     report["errors"].append("hook: %s: %s" % (type(exc).__name__, exc))
 

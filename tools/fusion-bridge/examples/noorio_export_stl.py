@@ -34,6 +34,7 @@ EXPORT_DIR = r"C:\Users\WANGZ\Documents\GitHub\dsh-app\exports"
 JOBS = [
     ("Stand v5", "Stand_v5_plus_bottom.stl"),
     ("WindowBox", "WindowBox.stl"),
+    ("WindowBoxHex", "WindowBoxHex.stl"),
     ("Camera B210", "Camera_B210_mock.stl"),
 ]
 
