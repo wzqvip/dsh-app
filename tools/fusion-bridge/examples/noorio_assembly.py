@@ -14,8 +14,8 @@
     Stand v5        本就在装配坐标系里，不平移
     Bottom_bottom   局 z=0 -> y=6     法兰贴安装面（安装面 y=6）
     Gimbal          局 z=0 -> y=4     Bottom_bottom 局 z=2 处是 y=4，壳体内螺纹拧在这
-    Camera          局 z=0 -> y=-88   螺杆尖 y=-30-18=-48，相机孔底
-                                      -88+40=-48，正好对上
+    Camera          局 z=0 -> y=-91   相机尾极 = -41，到壳体锥尖(-26) 正好 15mm
+                                      （用户实测值；螺杆只咬约 7mm，未顶到孔底）
 
 于是：
     球头球心      局 z=25.5 -> y=-21.5
@@ -46,11 +46,15 @@ PROJECT_NAME = "Noorio B310"
 ASSEMBLY_NAME = "Assembly B210"
 
 # 局部 z=0 在世界 y 的位置（绕 X +90° 之后的平移量）
+#
+# ⚠️ Camera 的取值来自用户实测：相机尾面到壳体锥尖面是 **15mm**（不是模型早先的 12）。
+#    壳体锥尖 y = 4-30 = -26；相机尾极 = y0+50。要差 15mm 就得 y0 = -91。
+#    换句话说螺杆在相机孔里只咬约 7mm，并没有顶到 Ø5 孔底（我之前假设了 10mm 全咬合）。
 PLACEMENT = {
     "Stand v5": 0.0,
     "Bottom_bottom": 6.0,
     "Gimbal B210": 4.0,
-    "Camera B210": -88.0,
+    "Camera B210": -91.0,
 }
 AXIS_Z = 96.0
 
@@ -301,9 +305,20 @@ cg_x = sum(r["mass_g"] * r["com_mm"][0] for r in mass_rows) / total_mass
 cg_y = sum(r["mass_g"] * r["com_mm"][1] for r in mass_rows) / total_mass
 cg_z = sum(r["mass_g"] * r["com_mm"][2] for r in mass_rows) / total_mass
 
-# Stand v5 的底面足迹（用于判断是否会倾覆）
-FOOTPRINT_FRONT = -92.0
-FOOTPRINT_BACK = 84.0
+# Stand v5 的底面足迹 —— ⚠️ 从支架实体实测包围盒取，不要硬编码。
+# 上一版把足迹写死成 [-92, +84]，后来底座前移 28mm 变成 [-120, +56]，
+# 结果算出来的前缘余量/抗倾覆全是错的（43.9mm/31.4° vs 实际 71.9mm/45.0°）。
+stand_body = None
+for i in range(root.bRepBodies.count):
+    b = root.bRepBodies.item(i)
+    if b.name.startswith("Stand"):
+        stand_body = b
+        break
+if stand_body is not None:
+    FOOTPRINT_FRONT = round(stand_body.boundingBox.minPoint.y / MM, 2)
+    FOOTPRINT_BACK = round(stand_body.boundingBox.maxPoint.y / MM, 2)
+else:
+    FOOTPRINT_FRONT, FOOTPRINT_BACK = -92.0, 84.0
 front_margin = cg_y - FOOTPRINT_FRONT
 
 report["masses"] = mass_rows
