@@ -77,7 +77,10 @@ FRONT_R = SOCKET_R        # 前口半径（Ø101.2，相机 Ø100 进得去）
 #      profiles.count 仍为 1，但拉伸时报"未找到要剪切或相交的目标实体"
 #
 # 行距 HEX_PITCH 沿圆周方向，每行孔数按该处外半径自动算，行间错开半格。
-HEX_ROW_Y = [14.0, 28.0]  # 各圈所在高度 y
+# 蜂窝圈位置（空 = 不打孔，实心）
+# ⚠️ 原版 `WindowBox` 是**无孔实心**（用户要求）。蜂窝只在变体 `WindowBoxHex` 里，
+#    由 noorio_window_box_hex.py 通过 WINDOWBOX_OVERRIDES 传入圈位置。
+HEX_ROW_Y = []            # 各圈所在高度 y；[] = 实心无孔
 HEX_PITCH = 14.4          # 圆周方向孔距（≈ 24 孔 @ r55.5）
 HEX_CIRCUM_R = 5.0        # 正六边形外接圆半径（对角 10mm）
 HEX_INSET = 5.4           # 切平面朝内偏移量（落进内腔）
@@ -396,8 +399,11 @@ def cut_hex_row(row_index, row_y, count, plane, azimuth_deg):
 
 
 cylinder_face = find_cylinder_face()
+_rows = list(_OVERRIDES.get("hex_row_y", HEX_ROW_Y))
 if cylinder_face is None:
     report["errors"].append("outer cylinder face (R%.1f) not found" % OUT_R)
+elif not _rows:
+    step("no hex rows -> solid body（原版 WindowBox 是无孔实心）")
 else:
     _count = max(8, int(round(2.0 * math.pi * OUT_R / HEX_PITCH)))
     _stagger = 180.0 / _count
@@ -416,7 +422,7 @@ else:
     #    那一圈只切掉 0.62 cm3。
     _plane = make_hex_plane(0.0)
     _before = root.bRepBodies.item(0).volume
-    for row_index, row_y in enumerate(_OVERRIDES.get("hex_row_y", HEX_ROW_Y)):
+    for row_index, row_y in enumerate(_rows):
         if row_y > EQUATOR_Y - 3.0:
             report["errors"].append(
                 "hex row %d (y=%.1f) 落在半球段：本版本 API 无法构造球面切平面，已跳过"
