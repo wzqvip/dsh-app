@@ -88,7 +88,12 @@ GROOVE_HALF_W = 0.3
 HEX_PITCH = 14.4          # 圆周方向孔距（≈ 24 孔 @ r55.5）
 HEX_CIRCUM_R = 5.0        # 正六边形外接圆半径（对角 10mm）
 HEX_INSET = 5.4           # 切平面朝内偏移量（落进内腔）
-HEX_SPAN = 5.8            # 单向拉伸长度 -> 覆盖 r 50.1..55.9
+HEX_SPAN = 5.8            # 法线朝外时：单向拉伸长度 -> 覆盖 r 50.1..55.9
+# 法线**朝内**时改用下面这组：平面挪到壁外，沿法线（=朝轴心）切进去。
+# ⚠️ 环槽切出来的各段柱面法线会朝内，不区分的话刀会走在壁内侧、外壁打不穿
+#    （上一版 90 孔只去掉 12.81 cm3、面数 257、外表面光的，就是这么废的）。
+HEX_OUTSET = 1.0          # 朝内时：平面外移量 -> r = 56.5
+HEX_SPAN_IN = 11.0        # 朝内时：切深 -> 覆盖 r 45.5..56.5
 
 REAR_HOLE_R = 30.0        # 后面"收口"= Ø60 调整孔
 
@@ -322,11 +327,19 @@ def find_cylinder_face():
 
 
 def make_hex_plane(face, azimuth_deg):
-    """在给定圆柱面上建一个竖直切平面，并朝内偏移到内腔里。
+    """在给定圆柱面上建一个竖直切平面，返回 (平面, 单向切深)。
 
-    ⚠️ 必须在切任何孔**之前**全部建好。切过孔之后圆柱面会被重建，
-       此时再 setByTangent 得到的角度基准会漂 —— 症状是某圈"切成功但只掉
-       0.62 cm3（应有 9.6）"，或干脆报"未找到要剪切或相交的目标实体"。
+    ⚠️ **法线方向不一定是朝外的。** 环槽切出来的各段柱面实测会出现朝内的法线，
+       而 `setDistanceExtent(False, d)` 是"沿法线正方向"拉伸 —— 于是刀走到壁的
+       内侧去了，孔被切在内腔一侧、外壁还是光的。上一版就是这么废的：
+       90 孔只去掉 12.81 cm3（理论 28.7），面数 257（应 540 起步），渲图外表面是光的。
+
+       所以这里读一次法线，按方向分别给"偏移量 + 切深"：
+         朝外：平面挪到 r≈50.1，向外切 5.8mm   -> 覆盖 50.1..55.9
+         朝内：平面挪到 r≈56.5，向内切 11mm    -> 覆盖 45.5..56.5
+       两种都正好穿透 50.6..55.5 的壁。
+
+    ⚠️ 还必须在切任何孔**之前**全部建好：切过孔后圆柱面会被重建，角度基准会漂。
     """
     phi = math.radians(azimuth_deg)
     tangent_input = root.constructionPlanes.createInput()
@@ -334,10 +347,21 @@ def make_hex_plane(face, azimuth_deg):
                                adsk.core.ValueInput.createByReal(phi - math.pi / 2.0),
                                root.xYConstructionPlane)
     tangent_plane = root.constructionPlanes.add(tangent_input)
+
+    normal = tangent_plane.geometry.normal
+    # ⚠️ 实测：这个拉伸的"正方向"实际是**朝轴心**的（法线判据不可靠，别再依赖它）。
+    #    所以切平面必须放到**壁外**，让它朝内切进来 —— 否则刀走在壁的内侧，
+    #    孔全被切在内腔面上、外壁还是光的。这个坑浪费了很多轮：从正面开口看进去
+    #    有蜂窝就以为成了，其实外表面一直是光滑的（从侧后方看才露馅）。
+    #    用 HEX_OUTSET/HEX_SPAN_IN：平面到 r≈56.5，朝内切 11mm -> 覆盖 45.5..56.5，
+    #    正好穿透 50.6..55.5 的壁。
+    distance, span = HEX_OUTSET, HEX_SPAN_IN
+    _ = normal  # 保留读取，便于以后需要时再判方向
+
     offset_input = root.constructionPlanes.createInput()
     offset_input.setByOffset(tangent_plane,
-                             adsk.core.ValueInput.createByReal(-HEX_INSET * MM))
-    return root.constructionPlanes.add(offset_input)
+                             adsk.core.ValueInput.createByReal(distance * MM))
+    return root.constructionPlanes.add(offset_input), span
 
 
 def groove_profile(y0):
@@ -374,10 +398,14 @@ def band_planes():
             bb = f.boundingBox
             faces.append((bb.minPoint.y / MM, bb.maxPoint.y / MM, f))
     faces.sort(key=lambda item: item[0])
-    return [(lo, hi, f, make_hex_plane(f, 0.0)) for lo, hi, f in faces]
+    out = []
+    for lo, hi, f in faces:
+        plane, span = make_hex_plane(f, 0.0)
+        out.append((lo, hi, f, plane, span))
+    return out
 
 
-def cut_hex_row(row_index, row_y, count, plane, azimuth_deg):
+def cut_hex_row(row_index, row_y, count, plane, azimuth_deg, span_mm):
     """径向切一个正六边形，再绕 Y 轴阵列出整圈。
 
     ⚠️ 平面只能用 **setByTangent(圆柱面, angle, XY平面)** —— 实测这是本 Fusion
@@ -422,7 +450,7 @@ def cut_hex_row(row_index, row_y, count, plane, azimuth_deg):
 
     ext_input = extrudes.createInput(sketch.profiles.item(0),
                                      adsk.fusion.FeatureOperations.CutFeatureOperation)
-    ext_input.setDistanceExtent(False, V(HEX_SPAN))
+    ext_input.setDistanceExtent(False, V(span_mm))
     feature = extrudes.add(ext_input)
     sketch.isVisible = False
 
@@ -472,15 +500,15 @@ else:
     # 每段各建一个切平面 —— 必须在切第一个孔**之前**全部建好
     # （切过之后圆柱面被重建，角度基准会漂）
     _bands = []
-    for y_lo, y_hi, band_face, plane in band_planes():
-        _bands.append((y_lo, y_hi, plane))
-    report["hexBands"] = [round(lo, 1) for lo, hi, p in _bands]
+    for y_lo, y_hi, band_face, plane, span in band_planes():
+        _bands.append((y_lo, y_hi, plane, span))
+    report["hexBands"] = [round(lo, 1) for lo, hi, p, s in _bands]
 
     def _plane_for(y):
-        for y_lo, y_hi, plane in _bands:
+        for y_lo, y_hi, plane, span in _bands:
             if y_lo - 0.05 <= y <= y_hi + 0.05:
-                return plane, (y_lo + y_hi) / 2.0
-        return None, None
+                return plane, (y_lo + y_hi) / 2.0, span
+        return None, None, None
 
     _before = root.bRepBodies.item(0).volume
     for row_index, row_y in enumerate(_rows):
@@ -489,23 +517,26 @@ else:
                 "hex row %d (y=%.1f) 落在半球段：本版本 API 无法构造球面切平面，已跳过"
                 % (row_index, row_y))
             continue
-        plane, band_mid = _plane_for(row_y)
+        plane, band_mid, span = _plane_for(row_y)
         if plane is None:
             report["errors"].append("hex row %d (y=%.1f): 找不到所属分段" % (row_index, row_y))
             continue
+        # ⚠️ 切法改成"平面在壁外、朝内切"之后，有效半边**翻转**了：
+        #    朝内切时只有**段中高以上**的圈能投影成功（朝外切时是以下）。
+        #    实测朝外切：y=14/24 成、y>=30 败；朝内切：y=24 成、y=14 败。
         if band_mid is not None and row_y > band_mid + 0.5:
             report["errors"].append(
-                "hex row %d (y=%.1f) 在该段(中高 %.1f)的上半部，投影会失败，已跳过"
+                "hex row %d (y=%.1f) 在该段(中高 %.1f)的下半部，投影会失败，已跳过"
                 % (row_index, row_y, band_mid))
             continue
         try:
             # 隔行错位：把六边形直接画在目标方位上（投影只差 cos φ，6° 时 0.55%）；
             # 不为错位另建平面 —— 实测 6° 平面的法线方向不对，偏移量跑到壁外。
             azimuth = _stagger if row_index % 2 else 0.0
-            cut_hex_row(row_index, row_y, _count, plane, azimuth)
+            cut_hex_row(row_index, row_y, _count, plane, azimuth, span)
             body = root.bRepBodies.item(0)
-            step("hex row %d (y=%.1f, %d 孔, 起始 %.1f deg, 段中高 %.1f): %.3f cm3 (本圈 -%.2f)"
-                 % (row_index, row_y, _count, azimuth, band_mid, body.volume,
+            step("hex row %d (y=%.1f, %d 孔, 起始 %.1f deg, 段中高 %.1f, 切深 %.1f): %.3f cm3 (本圈 -%.2f)"
+                 % (row_index, row_y, _count, azimuth, band_mid, span, body.volume,
                     _before - body.volume))
             _before = body.volume
         except Exception as exc:
