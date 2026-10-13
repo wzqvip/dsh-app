@@ -73,11 +73,11 @@ HOOK_Y1 = 32.0
 # ⚠️ 根部半径必须 ≥ SOCKET_R。曾写 HOOK_Z0=44 想"埋进本体"，但内腔半径是 50.6，
 #    z 44..50.6 那段**不在壁里而是在内腔中** —— 挤出后直接捅进内腔撞到相机，
 #    实测干涉 520.7 mm3。根部只能落在壁厚内（r 50.6..54）。
-HOOK_Z0 = SOCKET_R
-HOOK_Z1 = 80.0
-HOOK_HALF_X = 8.0
-HOOK_HOLE_R = 3.0         # Ø6 安全绳孔
-HOOK_HOLE_Z = 68.0
+HOOK_ROOT_Z = 51.0        # 根部（略进壁内，避开内腔面 r=50.6）
+HOOK_CAP_Z = 70.0         # 圆头圆心高度
+HOOK_HALF_X = 10.0        # 耳片半宽 -> 外端半圆 R10，端点 z = 70+10 = 80
+HOOK_HOLE_R = 4.0         # Ø8 安全绳孔（原 Ø6 偏小）
+# 孔位放在圆头圆心处，周围料厚 = 10 - 4 = 6mm 均匀一圈
 
 APPEARANCE = "塑料 - 粗面(白色)"
 FILE_NAME = "WindowBox"
@@ -271,8 +271,21 @@ try:
     plane = root.constructionPlanes.add(plane_input)
     sketch = sketches.add(plane)
     sketch.name = "hook"
-    sketch.sketchCurves.sketchLines.addTwoPointRectangle(
-        xz_point(sketch, -HOOK_HALF_X, HOOK_Z0), xz_point(sketch, HOOK_HALF_X, HOOK_Z1))
+    # 圆头耳片（原来是尖角方块，外端方角会刮绳）：两条直边 + 外端半圆 + 根部直边
+    curves = sketch.sketchCurves
+    curves.sketchLines.addByTwoPoints(
+        xz_point(sketch, HOOK_HALF_X, HOOK_ROOT_Z),
+        xz_point(sketch, HOOK_HALF_X, HOOK_CAP_Z))
+    curves.sketchArcs.addByThreePoints(
+        xz_point(sketch, HOOK_HALF_X, HOOK_CAP_Z),
+        xz_point(sketch, 0.0, HOOK_CAP_Z + HOOK_HALF_X),
+        xz_point(sketch, -HOOK_HALF_X, HOOK_CAP_Z))
+    curves.sketchLines.addByTwoPoints(
+        xz_point(sketch, -HOOK_HALF_X, HOOK_CAP_Z),
+        xz_point(sketch, -HOOK_HALF_X, HOOK_ROOT_Z))
+    curves.sketchLines.addByTwoPoints(
+        xz_point(sketch, -HOOK_HALF_X, HOOK_ROOT_Z),
+        xz_point(sketch, HOOK_HALF_X, HOOK_ROOT_Z))
     ext_input = extrudes.createInput(
         sketch.profiles.item(0), adsk.fusion.FeatureOperations.JoinFeatureOperation)
     ext_input.setDistanceExtent(False, V(HOOK_Y1 - HOOK_Y0))
@@ -282,15 +295,16 @@ try:
     hole_sketch = sketches.add(plane)
     hole_sketch.name = "hook_hole"
     hole_sketch.sketchCurves.sketchCircles.addByCenterRadius(
-        xz_point(hole_sketch, 0.0, HOOK_HOLE_Z), HOOK_HOLE_R * MM)
+        xz_point(hole_sketch, 0.0, HOOK_CAP_Z), HOOK_HOLE_R * MM)
     hole_input = extrudes.createInput(
         hole_sketch.profiles.item(0), adsk.fusion.FeatureOperations.CutFeatureOperation)
     hole_input.setDistanceExtent(False, V(HOOK_Y1 - HOOK_Y0 + 2.0))
     extrudes.add(hole_input)
     hole_sketch.isVisible = False
     body = root.bRepBodies.item(0)
-    step("hook Ø%.0f x %d wide x %d thick: %.3f cm3"
-         % (HOOK_HOLE_R * 2, HOOK_HALF_X * 2, HOOK_Y1 - HOOK_Y0, body.volume))
+    step("hook lug Ø%.0f x %d wide x %d thick, tip z=%.0f: %.3f cm3"
+         % (HOOK_HOLE_R * 2, HOOK_HALF_X * 2, HOOK_Y1 - HOOK_Y0,
+            HOOK_CAP_Z + HOOK_HALF_X, body.volume))
 except Exception as exc:
     report["errors"].append("hook: %s: %s" % (type(exc).__name__, exc))
 
