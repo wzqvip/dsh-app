@@ -93,3 +93,6 @@ msg72.tmp
 msg73.tmp
 msg74.tmp
 msg75.tmp
+
+# FusionBridge 的截图临时目录（shoot_views.py 的默认输出）
+.fusion-shots/
