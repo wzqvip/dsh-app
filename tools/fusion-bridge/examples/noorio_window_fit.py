@@ -161,12 +161,16 @@ def derive_and_place(source_design, bodies, y0_mm, label):
 
 box_doc = open_by_name("WindowBox")
 box_design = design_of(box_doc)
-box_body = None
+# ⚠️ 必须把盒子的**所有**实体都派生进来。曾用 `if startswith("WindowBox"): box_body = b`
+#    且**没写 break**，结果循环被最后一个匹配项（WindowBox cap）覆盖 —— 配合文档里
+#    只剩盖子，壳体根本没参与干涉检查，却报出"干涉 0"的假结论。
+box_bodies = []
 for i in range(box_design.rootComponent.bRepBodies.count):
     b = box_design.rootComponent.bRepBodies.item(i)
     if b.name.startswith("WindowBox"):
-        box_body = b
-derive_and_place(box_design, [box_body], None, "WindowBox")
+        box_bodies.append(b)
+report["boxBodyNames"] = [b.name for b in box_bodies]
+derive_and_place(box_design, box_bodies, None, "WindowBox(+cap)")
 
 # ⚠️ 不再装万向节：原设计的 M42 套筒方案实测干涉 2.02 cm3（套筒 Ø42 撞穿万向节
 #    内部 y=110..125 那段 Ø41->Ø19 的锥腔，而且球头也占在同一个腔里），已改成
