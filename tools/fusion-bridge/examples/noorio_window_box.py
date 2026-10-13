@@ -61,7 +61,7 @@ MM = 0.1
 
 CENTER_Y = 45.0          # 相机球心
 BALL_R = 50.0
-SOCKET_R = BALL_R + 0.4  # 球窝 R50.4
+SOCKET_R = BALL_R + 0.6  # 球窝 R50.6（0.6mm/边；FDM 公差 ±0.2，0.4 会咬死）
 
 RIM_Y = 3.0              # 前段外缘起点（也是贴窗法兰的背面高度）
 RIM_R_OUTER = 62.0       # 前段外缘
@@ -73,14 +73,28 @@ FRONT_OPEN_R = 42.5      # 前口半径（Ø85）；相机在 y≈12 处是 42.4
 FRONT_Y = 12.0           # 挡边所在高度
 # ⚠️ 首个点必须引用 FRONT_OPEN_R，不能写死常量：曾用脚本全局替换 42.0->42.5
 #    只改到前口内壁那条线，让位腔样条起点还留在 42.0，轮廓差 0.5mm 断开。
+# ⚠️ 末个点必须与 SOCKET_ARC 的首点**逐位相同**，否则同样断开（踩过两次）。
+SOCKET_ARC = [(50.51, 42.0), (50.59, 46.0), (50.35, 50.0)]
 CAVITY_FRONT = [(FRONT_OPEN_R, FRONT_Y), (44.5, 15.0), (46.4, 20.0),
-                (49.2, 30.0), (50.31, 42.0)]
+                (49.2, 30.0), SOCKET_ARC[0]]
 
-LIP_R = 49.1             # 收口唇边
-LIP_Y = 53.0
-LIP_BACK_Y = 57.0
+# ⚠️⚠️ 这里**没有收口唇边**，这是踩过坑后的结论。
+#
+# 原先在 y=53 做了一个 Ø98.2 的收口唇边，想让它"卡住球头 + 提供定位摩擦"。
+# **那是装不进去的**：球是 Ø100，要过去就得把这个刚性整圈撑开 1.8mm 直径，
+# 环向应变 = 1.8π/(π×98.2) ≈ 1.8%，超出 PLA 弹性范围；而且整圈没有开缝、
+# 壁厚 10mm，没有任何顺从性，手压不动，硬压会崩。
+#
+# 更本质：**任何要求球"轴向挤过去"的整圈都不行** —— 球面在圈口处几乎与轴线
+# 平行，没有楔形放大，推力必须直接对抗整个过盈。要么开缝让指爪弯曲，要么
+# 根本不要过盈。
+#
+# 而且**过盈本来就不必要**：相机质心就在球心上（它就是个球），重力对球心
+# 不产生力矩，瞄准角度天然稳定，不靠摩擦卡住。
+#
+# 所以：纯间隙配合（0.4mm/边），靠「前端挡边 + 后盖」定轴向位置。
 
-CAVITY_R = 50.5          # 唇边后的让位腔 Ø101
+CAVITY_R = 50.5          # 球窝之后的让位腔 Ø101
 REAR_Y = 97.0            # 后端盖接合面（相机尾极在 95，留 2）
 REAR_R_OUTER = 58.0      # 后端外缘（留 7.5mm 给 M3 自攻）
 
@@ -290,15 +304,13 @@ OUTER = [(RIM_R_OUTER, RIM_Y), (58.0, 40.0), (56.0, 70.0), (REAR_R_OUTER, REAR_Y
 # 球窝：**精确 R50.4 圆弧**（三点都在以 (0,45) 为心、R50.4 的圆上）。
 # ⚠️ 别用样条逼近 —— 之前样条在两点之间鼓包切进相机，实测干涉 83.9 mm3。
 # ⚠️ 而且球窝只能做在球心**之后**：相机前锥比 R50 球还鼓，包到前面就撞。
-SOCKET_ARC = [(50.31, 42.0), (50.4, 46.0), (50.15, 50.0)]
-# 收口唇边
-LIP_SPLINE = [(50.15, 50.0), (LIP_R, LIP_Y), (CAVITY_R, LIP_BACK_Y)]
+SOCKET_EXIT = [(50.35, 50.0), (CAVITY_R, 57.0)]   # 球窝自然收到让位腔（无收口唇边）
 
 cup = revolve_profile(
     "cup_profile",
     lines=[
         ((FRONT_OPEN_R, 0.0), (FRONT_OPEN_R, FRONT_Y)),        # 前口内壁（挡边）
-        ((CAVITY_R, LIP_BACK_Y), (CAVITY_R, REAR_Y)),          # 唇边之后的让位腔
+        ((CAVITY_R, 57.0), (CAVITY_R, REAR_Y)),                # 球窝之后的让位腔
         ((CAVITY_R, REAR_Y), (REAR_R_OUTER, REAR_Y)),          # 后端接合面
         # ⚠️ 这里**不能**再补一条 (REAR_R_OUTER,REAR_Y)->(RIM_R_OUTER,RIM_Y) 的直线：
         #    它和 OUTER 样条连着同样的两点，会把闭合区域切碎，
@@ -307,7 +319,7 @@ cup = revolve_profile(
         ((MOUNT_R_OUTER, RIM_Y), (MOUNT_R_OUTER - MOUNT_CHAMFER, 0.0)),  # 法兰倒角
         ((MOUNT_R_OUTER - MOUNT_CHAMFER, 0.0), (FRONT_OPEN_R, 0.0)),     # 法兰正面
     ],
-    splines=[OUTER, CAVITY_FRONT, LIP_SPLINE],
+    splines=[OUTER, CAVITY_FRONT, SOCKET_EXIT],
     arcs=[SOCKET_ARC],
 )
 cup.name = "WindowBox"
@@ -360,11 +372,16 @@ step("4 x M3 pilot holes (Ø%.1f) on rear face" % (SCREW_PILOT_R * 2))
 cap = revolve_profile(
     "cap_profile",
     lines=[
-        ((CAP_HOLE_R, CAP_Y0), (REAR_R_OUTER, CAP_Y0)),                      # 接合面
+        # ⚠️ 内表面做成锥面，用来**限制相机往后滑的行程**：
+        #    相机 r=30 那一圈在 y=85，锥面在 r=30 处是 y=87 -> 只能后滑 2mm。
+        #    如果这里是平face（y=97 通面），相机尾极会直接钻进门洞、后滑 12mm。
+        #    锥面只占 r 30..50，Ø60 调整孔（r<30）完全不被挡。
+        ((CAP_HOLE_R, CAP_Y0 - 10.0), (50.0, CAP_Y0)),                       # 锥形内表面
+        ((50.0, CAP_Y0), (REAR_R_OUTER, CAP_Y0)),                            # 接合面
         ((REAR_R_OUTER, CAP_Y0), (REAR_R_OUTER, CAP_Y1 - CAP_CHAMFER)),      # 外缘
         ((REAR_R_OUTER, CAP_Y1 - CAP_CHAMFER), (REAR_R_OUTER - CAP_CHAMFER, CAP_Y1)),
         ((REAR_R_OUTER - CAP_CHAMFER, CAP_Y1), (CAP_HOLE_R, CAP_Y1)),        # 背面
-        ((CAP_HOLE_R, CAP_Y1), (CAP_HOLE_R, CAP_Y0)),                        # Ø60 孔壁
+        ((CAP_HOLE_R, CAP_Y1), (CAP_HOLE_R, CAP_Y0 - 10.0)),                 # Ø60 孔壁
     ],
     splines=[],
 )
