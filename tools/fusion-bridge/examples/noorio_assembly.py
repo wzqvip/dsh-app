@@ -64,8 +64,10 @@ DENSITY = {
     "gimbal_housing": 1.24,
     "ball_stud": 7.85,      # 钢
 }
-CAMERA_MASS_G = 450.0
+CAMERA_MASS_G = 456.0        # 用户实测
+GIMBAL_TOTAL_MASS_G = 45.0   # 用户实测（按整个万向节单元：壳体 + 球头 + 螺杆）
 PLA_DENSITY = 1.24
+STEEL_DENSITY = 7.85
 
 report = {"steps": [], "errors": []}
 
@@ -278,27 +280,36 @@ for i in range(root.bRepBodies.count):
     })
 report["bodies"] = bodies
 
-# 按体积/名字分配质量假设
+# 质量分配：
+#   相机            用户实测 456g
+#   万向节单元      用户实测 45g（壳体+球头+螺杆整体）—— 壳体按 PLA 算，余下给金属球头
+#   Stand / Bottom  按 PLA 体积算
 mass_rows = []
 for entry in bodies:
     volume = entry["volume_cm3"]
     if abs(volume - 502.766) < 0.5:
-        mass = CAMERA_MASS_G
-        note = "假设 450g（净重未公布）"
-    elif volume > 200.0:
-        mass = volume * PLA_DENSITY
-        note = "PLA"
+        mass, note = CAMERA_MASS_G, "实测 456g"
+    elif abs(volume - 14.703) < 0.5:
+        mass, note = volume * PLA_DENSITY, "PLA（万向节壳体）"
     elif abs(volume - 2.853) < 0.1:
-        mass = volume * DENSITY["ball_stud"]
-        note = "钢 7.85"
+        mass, note = None, "待定：球头+螺杆 = 45g 减去壳体"
     else:
-        mass = volume * PLA_DENSITY
-        note = "PLA"
+        mass, note = volume * PLA_DENSITY, "PLA"
     mass_rows.append({
         "name": entry["name"], "volume_cm3": volume,
-        "mass_g": round(mass, 1), "note": note,
-        "com_mm": entry["com_mm"],
+        "mass_g": None if mass is None else round(mass, 1),
+        "note": note, "com_mm": entry["com_mm"],
     })
+
+# 球头+螺杆的质量 = 万向节整体 45g − 壳体
+# ⚠️ 这里必须同时判 mass_g 不为 None：球头那行的说明里也含"壳体"二字，
+#    只按文字过滤会把 None 带进求和（踩过）。
+housing_mass = sum(r["mass_g"] for r in mass_rows
+                   if r["mass_g"] is not None and "万向节壳体" in r["note"])
+for row in mass_rows:
+    if row["mass_g"] is None:
+        row["mass_g"] = round(GIMBAL_TOTAL_MASS_G - housing_mass, 1)
+        row["note"] = "实测：45g 单元 − 壳体 %.1fg" % housing_mass
 
 total_mass = sum(r["mass_g"] for r in mass_rows)
 cg_x = sum(r["mass_g"] * r["com_mm"][0] for r in mass_rows) / total_mass

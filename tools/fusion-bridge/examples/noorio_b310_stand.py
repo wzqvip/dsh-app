@@ -82,9 +82,12 @@ LIP_DEPTH = 4.0
 
 JUNCTION_FILLET = 5.0
 
-CAMERA_MASS_G = 450.0
-CAMERA_CG_OFFSET = 80.0
-MASS_SENSITIVITY = [300.0, 450.0, 600.0, 726.0]
+# 质量取自用户实测。⚠️ 这只是**简化模型**（只有支架 + 相机两项），
+# 精确值以 `noorio_assembly.py` 为准 —— 那里把 Bottom_bottom / 万向节都算进去了，
+# 而且相机重心高度用的是实体几何而非安装盘高度。两者结论一致（约 45°）。
+CAMERA_MASS_G = 456.0        # 用户实测
+CAMERA_CG_OFFSET = 95.0      # 相机自身重心距安装面（装配实测 89mm + 安装面到轴线 6mm）
+MASS_SENSITIVITY = [300.0, 456.0, 600.0, 726.0]
 PLA_DENSITY = 1.24
 
 FILE_NAME = "Stand v5"
