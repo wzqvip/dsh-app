@@ -33,15 +33,13 @@ import adsk.fusion
 MM = 0.1
 
 STAND_NAME = "Stand v5"
-BOTTOM_NAME = "Bottom_bottom v4"
+BOTTOM_NAME = "Bottom_bottom"
 PROJECT_NAME = "Noorio B310"
 PAD_FACE_Y = 6.0     # Stand v5 安装盘的外表面 y
-RECESS_DEPTH = 1.2   # 安装盘上 ⌀48.8 沉台的深度（就是给法兰定位用的）
 PAD_Z = 96.0         # Stand v5 安装盘中心高度
 
-# 法兰（局部 z=0..2 那 2mm）要**嵌进**沉台，所以法兰外表面不该停在沉台口 y=6，
-# 而应落在沉台底 y=6+1.2=7.2 —— 这样法兰后 1.2mm 埋在沉台里、前 0.8mm 露在外面。
-FLANGE_FACE_Y = PAD_FACE_Y + RECESS_DEPTH
+# 用户要求安装面做成纯平面（不要托边、不要定位沉台），所以法兰直接贴在这个平面上。
+FLANGE_FACE_Y = PAD_FACE_Y
 
 report = {"steps": [], "errors": []}
 
@@ -108,8 +106,14 @@ if target_file is None:
     result = report
 else:
     doc = app.documents.open(target_file, True)
-    design = wait_active()
+    # ⚠️ 不要用 app.activeProduct / wait_active()：open() 在桥接里会被延后，
+    #    取到的可能是**另一个文档**的 design（本脚本上一版因此把 Stand v5 清空重建过）。
+    design = adsk.fusion.Design.cast(doc.products.itemByProductType("DesignProductType"))
     root = design.rootComponent
+    if not doc.name.startswith(STAND_NAME):
+        report["errors"].append("identity check failed: %s" % doc.name)
+        result = report
+        raise SystemExit
     step("reopened %s, features=%d" % (doc.name, root.features.count))
 
     # ------------------------------------------------------------------ #
@@ -199,18 +203,13 @@ else:
                 "flangeOuterFaceY_mm": bb["max"][1],
                 "expected": FLANGE_FACE_Y,
                 "delta_mm": round(bb["max"][1] - FLANGE_FACE_Y, 3),
-                "seatedInRecess_mm": round(min(RECESS_DEPTH,
-                                               bb["max"][1] - PAD_FACE_Y), 3),
-                "proudOfPad_mm": round(PAD_FACE_Y - (bb["max"][1] - 2.0), 3),
                 "axisHeightZ_mm": round((bb["min"][2] + bb["max"][2]) / 2.0, 2),
                 "expectedAxisZ_mm": PAD_Z,
                 "forwardExtent_mm": round(bb["max"][1] - bb["min"][1], 2),
             }
-            step("check: 法兰外表面 y=%.2f (期望 %.1f)，嵌入沉台 %.2fmm，露出 %.2fmm，轴线 z=%.2f"
-                 % (bb["max"][1], FLANGE_FACE_Y,
-                    report["check"]["seatedInRecess_mm"],
-                    report["check"]["proudOfPad_mm"],
-                    report["check"]["axisHeightZ_mm"]))
+            step("check: 法兰外表面 y=%.2f (期望 %.1f，偏差 %.3f)，轴线 z=%.2f (期望 %.1f)"
+                 % (bb["max"][1], FLANGE_FACE_Y, report["check"]["delta_mm"],
+                    report["check"]["axisHeightZ_mm"], PAD_Z))
 
     # ------------------------------------------------------------------ #
     # 5. 保存
