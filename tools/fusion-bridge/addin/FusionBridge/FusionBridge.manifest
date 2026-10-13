@@ -1,0 +1,13 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "addin",
+    "id": "7c1f0a34-9b2e-4d77-8f61-2ae5c9d4b013",
+    "author": "蓝色大肥鱼",
+    "description": {
+        "": "FusionBridge - exposes the Fusion 360 Python API over a loopback TCP socket so an external agent can drive modelling."
+    },
+    "version": "0.1.0",
+    "runOnStartup": true,
+    "supportedOS": "windows|mac",
+    "editEnabled": true
+}

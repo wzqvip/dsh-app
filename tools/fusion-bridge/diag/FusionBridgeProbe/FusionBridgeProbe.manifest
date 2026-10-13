@@ -1,0 +1,12 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "addin",
+    "id": "9d4b7e12-5c3a-4f88-b0a6-71e2f5c8a944",
+    "author": "蓝色大肥鱼",
+    "description": {
+        "": "FusionBridgeProbe - diagnoses why Application.fireCustomEvent refuses to queue an event."
+    },
+    "version": "0.1.0",
+    "supportedOS": "windows|mac",
+    "editEnabled": true
+}
