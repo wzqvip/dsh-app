@@ -41,6 +41,11 @@ PAD_Z = 96.0         # Stand v5 安装盘中心高度
 # 用户要求安装面做成纯平面（不要托边、不要定位沉台），所以法兰直接贴在这个平面上。
 FLANGE_FACE_Y = PAD_FACE_Y
 
+# 用户要求把 Bottom_bottom 并进支架、一起打印。
+# 并集之后 Stand v5 里只剩一个实体，可直接导出 STL 打印；万向节的 M42x1 内螺纹
+# 就拧在这个打印件的外螺纹上。
+MERGE_FOR_PRINTING = True
+
 report = {"steps": [], "errors": []}
 
 
@@ -117,19 +122,31 @@ else:
     step("reopened %s, features=%d" % (doc.name, root.features.count))
 
     # ------------------------------------------------------------------ #
-    # 1b. 幂等：先把上次装配留下的派生/移动特征删掉，免得越叠越多
-    #     （Stand v5 原本的 9 个特征里没有任何 Derive/Move，所以按类型删是安全的）
+    # 1b. 幂等：只删**时间轴尾部连续的那一段**装配特征。
+    #
+    # ⚠️ 不能"按类型删全部"：支架自己那个「底座+立柱」的合并也是 CombineFeature，
+    #    按类型删会连它一起删掉、把支架拆了。这里从末尾往前删，一碰到非装配特征
+    #    就停 —— 装配块永远是尾部的连续一段。
     # ------------------------------------------------------------------ #
-    for i in range(root.features.count - 1, -1, -1):
-        feature = root.features.item(i)
+    index = root.features.count - 1
+    removed = 0
+    while index >= 0:
+        feature = root.features.item(index)
         kind = feature.objectType.split("::")[-1]
-        if kind in ("DeriveFeature", "MoveFeature"):
+        if kind in ("DeriveFeature", "MoveFeature", "CombineFeature"):
             name = feature.name
             try:
                 feature.deleteMe()
-                step("removed stale %s: %s" % (kind, name))
+                removed += 1
+                step("removed trailing %s: %s" % (kind, name))
             except Exception as exc:
                 report["errors"].append("deleteMe %s: %s" % (name, exc))
+                break
+            index -= 1
+        else:
+            break
+    if removed == 0:
+        step("no trailing assembly features to remove")
 
     # ------------------------------------------------------------------ #
     # 2. 派生（sourceEntities 必须是列表）
@@ -181,6 +198,40 @@ else:
             step("moved to mount face")
         except Exception as exc:
             report["errors"].append("move: %s: %s" % (type(exc).__name__, exc))
+
+        # -------------------------------------------------------------- #
+        # 3b. 并成一个实体 —— 用户要求支架和 Bottom_bottom 一起打印
+        #     法兰面正好落在安装盘面 y=6 上，两面共面，Join 后是一个连通实体。
+        # -------------------------------------------------------------- #
+        if MERGE_FOR_PRINTING:
+            stand_body = None
+            bottom_in_stand = None
+            for i in range(root.bRepBodies.count):
+                b = root.bRepBodies.item(i)
+                if b.name.startswith("Stand"):
+                    stand_body = b
+                elif abs(b.volume - bottom_body.volume) < 0.05:
+                    bottom_in_stand = b
+            if stand_body is None or bottom_in_stand is None:
+                report["errors"].append("merge: bodies not found")
+            else:
+                try:
+                    tools = adsk.core.ObjectCollection.create()
+                    tools.add(bottom_in_stand)
+                    combine_input = root.features.combineFeatures.createInput(stand_body, tools)
+                    combine_input.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
+                    root.features.combineFeatures.add(combine_input)
+                    merged = root.bRepBodies.item(0)
+                    merged.name = "Stand v5 + bottom"
+                    step("merged -> %s (%.3f cm3)" % (merged.name, merged.volume))
+                    report["merged"] = {
+                        "name": merged.name,
+                        "volume_cm3": round(merged.volume, 3),
+                        "expected_cm3": round(313.700 + bottom_body.volume, 3),
+                        "bodyCount": root.bRepBodies.count,
+                    }
+                except Exception as exc:
+                    report["errors"].append("merge: %s: %s" % (type(exc).__name__, exc))
 
         report["bodies"] = []
         for i in range(root.bRepBodies.count):

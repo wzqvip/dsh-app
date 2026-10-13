@@ -119,10 +119,11 @@ def design_of(doc):
 
 
 def pick_body(design, name=None, volume=None):
+    """name 用前缀匹配 —— 支架已经和 Bottom_bottom 合并，名字叫 "Stand v5 + bottom"。"""
     root = design.rootComponent
     for i in range(root.bRepBodies.count):
         b = root.bRepBodies.item(i)
-        if name is not None and b.name == name:
+        if name is not None and b.name.startswith(name):
             return b
         if volume is not None and abs(b.volume - volume) < 0.05:
             return b
@@ -233,14 +234,11 @@ def derive_and_place(source_design, source_bodies, y_local_zero_mm, label):
 
 sources = {}
 
+# ⚠️ Bottom_bottom 已经被合并进 Stand v5（用户要求一起打印），所以这里**不再**
+#    单独派生它 —— 否则装配里会出现两个底座。
 stand_doc = open_by_name("Stand v5")
 stand_design = design_of(stand_doc)
 sources["stand"] = (stand_design, [pick_body(stand_design, name="Stand v5")])
-
-bottom_doc = open_by_name("Bottom_bottom")
-bottom_design = design_of(bottom_doc)
-sources["bottom"] = (bottom_design,
-                     [bottom_design.rootComponent.bRepBodies.item(0)])
 
 gimbal_doc = open_by_name("Gimbal B210")
 gimbal_design = design_of(gimbal_doc)
@@ -253,8 +251,7 @@ camera_design = design_of(camera_doc)
 sources["camera"] = (camera_design,
                      [camera_design.rootComponent.bRepBodies.item(0)])
 
-for key, y0 in (("stand", None),          # 支架本就在装配坐标系里，恒等变换
-                ("bottom", PLACEMENT["Bottom_bottom"]),
+for key, y0 in (("stand", None),          # 支架(含已合并的底座)本就在装配坐标系里
                 ("gimbal", PLACEMENT["Gimbal B210"]),
                 ("camera", PLACEMENT["Camera B210"])):
     source_design, bodies = sources[key]
