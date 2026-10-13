@@ -57,8 +57,33 @@ BALL_R = 50.0
 SOCKET_R = BALL_R + 0.6   # 内腔 R50.6（0.6mm/边；0.4 会被 FDM 公差咬死）
 EQUATOR_Y = 45.0          # 球心高度 = 圆柱段长度
 
-OUT_R = 54.0              # 外圆柱 / 外半球半径 -> 壁厚 3.4mm
+OUT_R = 55.5              # 外圆柱 / 外半球半径 -> 壁厚 4.9mm（原来是 3.4）
 FRONT_R = SOCKET_R        # 前口半径（Ø101.2，相机 Ø100 进得去）
+
+# 蜂窝镂空。⚠️ 曲面上的孔不能用"平面草图正交拉伸"：孔会切歪，而且斜着穿过
+# 壁厚会啃到内腔壁面。做法改为**切平面 + 径向对称切**：
+#
+#   1. 平面用 setByTangent(圆柱面, angle, 参考面)，法线即径向
+#      ⚠️ 参考面**只能用 XY 平面** —— XZ 平面与圆柱轴平行，Fusion 直接拒绝
+#      ⚠️ 真签名是 (face, angle, planarEntity)；只传 face 会报"缺 angle/planarEntity"
+#      ⚠️ 角度约定实测：切点方位 φ（自 +X 向 +Z）= angle + 90°
+#   2. 法线**永远朝外**，单侧拉伸只会往外切。改为把切平面朝内偏移 HEX_INSET，
+#      再用**对称拉伸** —— 外伸量被压到 0.8mm，不会啃坏别处
+#   3. `setByThreePoints` 在这个 Fusion 版本里完全不可用（连平凡三点都报
+#      InternalValidationError），别再试它
+#   4. 两圈蜂窝的 y 区间必须避开挂绳耳片（35..45），否则耳片根部会被切穿
+HEX_ROWS = [              # (高度 y, 起始角偏移) —— 行间错开半格才是蜂窝
+    (14.0, 0.0),
+    (28.0, 7.5),
+]
+HEX_CIRCUM_R = 5.0        # 正六边形外接圆半径（对角 10mm）
+HEX_COUNT = 24            # 每圈孔数（15° 一个）
+# 切平面放到**内腔里**（r = OUT_R - HEX_INSET = 50.1），再**单向朝外**切 HEX_SPAN。
+# 实测：单向 setDistanceExtent(False, d) 可用；对称 setDistanceExtent(True, d) 与
+# setAllExtent(Symmetric) 虽然也返回成功，但会**在对侧多打一个洞**，所以不用。
+# 这样正好穿透 50.6..55.5 的壁，只外伸 0.4mm，不会啃到挂绳耳片。
+HEX_INSET = 5.4           # 切平面朝内偏移量（落进内腔）
+HEX_SPAN = 5.8            # 单向拉伸长度 -> 覆盖 r 50.1..55.9
 
 REAR_HOLE_R = 30.0        # 后面"收口"= Ø60 调整孔
 
@@ -68,8 +93,8 @@ FLANGE_CHAMFER = 1.5
 TRANSITION_Y = 10.0       # 法兰背面到外圆柱的过渡结束高度
 TRANSITION_R = 58.0       # 过渡起点半径
 
-HOOK_Y0 = 18.0
-HOOK_Y1 = 30.0
+HOOK_Y0 = 35.0
+HOOK_Y1 = 45.0
 # ⚠️ 根部半径必须 ≥ SOCKET_R。曾写 HOOK_Z0=44 想"埋进本体"，但内腔半径是 50.6，
 #    z 44..50.6 那段**不在壁里而是在内腔中** —— 挤出后直接捅进内腔撞到相机，
 #    实测干涉 520.7 mm3。根部只能落在壁厚内（r 50.6..54）。
@@ -268,7 +293,107 @@ body.name = "WindowBox"
 step("body revolved: %.3f cm3" % body.volume)
 
 # --------------------------------------------------------------------------- #
-# 2. 挂绳眼环
+# 2. 蜂窝镂空（径向棱柱 + 圆周阵列）
+# --------------------------------------------------------------------------- #
+
+
+def cut_hex_row(row_index, row_y, phi_deg):
+    """在方位 phi、高度 row_y 处径向切一个正六边形，再绕 Y 轴阵列出整圈。
+
+    角度换算实测：切点方位 φ（自 +X 向 +Z）= angle + 90°。
+    法线永远朝外，所以靠"平面内移 + 对称拉伸"把切深压进壁里。
+    """
+    phi = math.radians(phi_deg)
+
+    tangent_input = root.constructionPlanes.createInput()
+    tangent_input.setByTangent(cylinder_face,
+                               adsk.core.ValueInput.createByReal(phi - math.pi / 2.0),
+                               root.xYConstructionPlane)
+    tangent_plane = root.constructionPlanes.add(tangent_input)
+
+    offset_input = root.constructionPlanes.createInput()
+    offset_input.setByOffset(tangent_plane,
+                             adsk.core.ValueInput.createByReal(-HEX_INSET * MM))
+    plane = root.constructionPlanes.add(offset_input)
+
+    sketch = sketches.add(plane)
+    sketch.name = "hex_row_%d" % row_index
+
+    # ⚠️ addByTwoPoints 要的是**草图坐标系**的点。直接把模型坐标喂进去，Fusion 会
+    #    生成"3D 轮廓"，`profiles.count` 仍为 1，但拉伸时报
+    #    "未找到要剪切或相交的目标实体"（圆形测试用的草图原点，所以没暴露这个坑）。
+    #    必须用平面自身的 origin/uDirection/vDirection 换算。
+    plane_geometry = plane.geometry
+    origin = plane_geometry.origin
+    u_dir = plane_geometry.uDirection
+    v_dir = plane_geometry.vDirection
+
+    def to_sketch(point):
+        delta = adsk.core.Vector3D.create(point.x - origin.x,
+                                          point.y - origin.y,
+                                          point.z - origin.z)
+        return adsk.core.Point3D.create(delta.dotProduct(u_dir),
+                                        delta.dotProduct(v_dir), 0.0)
+
+    r_plane = OUT_R - HEX_INSET
+    cx, cz = r_plane * math.cos(phi), r_plane * math.sin(phi)
+    e_t = (-math.sin(phi), 0.0, math.cos(phi))   # 切向（⟂ 径向）
+    e_a = (0.0, 1.0, 0.0)                        # 轴向
+    verts = []
+    for k in range(6):
+        a = math.radians(60.0 * k + 30.0)
+        u = HEX_CIRCUM_R * math.cos(a)
+        v = HEX_CIRCUM_R * math.sin(a)
+        verts.append(to_sketch(adsk.core.Point3D.create(
+            (cx + u * e_t[0] + v * e_a[0]) * MM,
+            (row_y + u * e_t[1] + v * e_a[1]) * MM,
+            (cz + u * e_t[2] + v * e_a[2]) * MM)))
+    for k in range(6):
+        sketch.sketchCurves.sketchLines.addByTwoPoints(verts[k], verts[(k + 1) % 6])
+    if sketch.profiles.count < 1:
+        raise RuntimeError("hex_row_%d: 轮廓未闭合" % row_index)
+
+    ext_input = extrudes.createInput(sketch.profiles.item(0),
+                                     adsk.fusion.FeatureOperations.CutFeatureOperation)
+    ext_input.setDistanceExtent(False, V(HEX_SPAN))
+    feature = extrudes.add(ext_input)
+    sketch.isVisible = False
+
+    objects = adsk.core.ObjectCollection.create()
+    objects.add(feature)
+    pattern_input = root.features.circularPatternFeatures.createInput(
+        objects, root.yConstructionAxis)
+    pattern_input.quantity = adsk.core.ValueInput.createByReal(HEX_COUNT)
+    pattern_input.totalAngle = adsk.core.ValueInput.createByReal(2 * math.pi)
+    pattern_input.isSymmetric = False
+    root.features.circularPatternFeatures.add(pattern_input)
+    return feature
+
+
+cylinder_face = None
+for _i in range(body.faces.count):
+    _f = body.faces.item(_i)
+    _g = _f.geometry
+    if _g.objectType.endswith("Cylinder") and abs(_g.radius / MM - OUT_R) < 0.1:
+        cylinder_face = _f
+        break
+report["outerCylinderFaceFound"] = cylinder_face is not None
+
+if cylinder_face is None:
+    report["errors"].append("outer cylinder face (R%.1f) not found" % OUT_R)
+else:
+    for row_index, (row_y, row_offset) in enumerate(HEX_ROWS):
+        try:
+            cut_hex_row(row_index, row_y, row_offset)
+            body = root.bRepBodies.item(0)
+            step("hex row %d (y=%.1f, offset=%.1f deg): %.3f cm3"
+                 % (row_index, row_y, row_offset, body.volume))
+        except Exception as exc:
+            report["errors"].append("hex row %d: %s: %s"
+                                    % (row_index, type(exc).__name__, exc))
+
+# --------------------------------------------------------------------------- #
+# 3. 挂绳眼环
 # --------------------------------------------------------------------------- #
 
 try:
@@ -315,7 +440,7 @@ except Exception as exc:
     report["errors"].append("hook: %s: %s" % (type(exc).__name__, exc))
 
 # --------------------------------------------------------------------------- #
-# 3. 材质 + 量结果
+# 4. 材质 + 量结果
 # --------------------------------------------------------------------------- #
 
 appearance = find_appearance(APPEARANCE)
@@ -349,7 +474,7 @@ step("wall %.2fmm, bodies %d, total %.3f cm3 / %.1f g PLA"
      % (OUT_R - SOCKET_R, root.bRepBodies.count, total, total * 1.24))
 
 # --------------------------------------------------------------------------- #
-# 4. 保存
+# 5. 保存
 # --------------------------------------------------------------------------- #
 
 try:
