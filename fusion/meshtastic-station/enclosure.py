@@ -115,12 +115,28 @@ def fresh(name):
     if design is None:
         raise RuntimeError("design is None: " + name)
     root = design.rootComponent
+    # ⚠️ 必须删**特征**，不能只删实体：只删实体时实体仍被时间轴特征引用，
+    #    Fusion 会延迟重建 -> 下次统计仍看得到旧实体，体积在两次运行间乱跳。
+    for i in range(root.features.count - 1, -1, -1):
+        try:
+            root.features.item(i).deleteMe()
+        except Exception:
+            pass
     for i in range(root.bRepBodies.count - 1, -1, -1):
-        root.bRepBodies.item(i).deleteMe()
+        try:
+            root.bRepBodies.item(i).deleteMe()
+        except Exception:
+            pass
     for i in range(root.sketches.count - 1, -1, -1):
-        root.sketches.item(i).deleteMe()
+        try:
+            root.sketches.item(i).deleteMe()
+        except Exception:
+            pass
     for i in range(root.constructionPlanes.count - 1, -1, -1):
-        root.constructionPlanes.item(i).deleteMe()
+        try:
+            root.constructionPlanes.item(i).deleteMe()
+        except Exception:
+            pass
     root.isConstructionFolderLightBulbOn = False
     root.isSketchFolderLightBulbOn = False
     root.isOriginFolderLightBulbOn = False
@@ -172,22 +188,26 @@ def draw_circle(sk, cx, cy, d):
     sk.sketchCurves.sketchCircles.addByCenterRadius(_sp(sk, cx, cy), d / 2.0 * MM)
 
 
-def op_at(root, z_lo, dz, draw, operation, name):
-    """在 z_lo..z_lo+dz 之间做一个拉伸/切除。
+def op_at(root, z_lo, z_hi, draw, operation, name):
+    """在 Z 区间 [z_lo, z_hi] 做一个拉伸/切除。
 
-    ⚠️ 实测：`setDistanceExtent(False, d)` 在 XY 偏移平面上是朝 **-Z** 走的。
-       所以草图要建在**高位**（z_lo+dz），向下拉 dz —— 不这样建的话，
-       实体跑到平面下方、切除报"未找到要剪切或相交的目标实体"。
+    ⚠️⚠️ 这个桥/版本里有两个反直觉行为，实测确认：
+
+      1. `setByOffset(xYConstructionPlane, s)` 得到的平面**不影响拉伸的 Z 位置**——
+         拉伸始终相对模型 Z=0 计量（平面在 +40，拉出来的实体却在 -5..0）。
+      2. `setTwoSidesDistanceExtent(a, b)` 的实际区间是 **[-b, +a]**。
+
+    所以配方是：**草图一律画在 XY 平面上**，用 `setTwoSidesDistanceExtent(z_hi, -z_lo)`
+    把操作放到任意 Z 区间（实测 (10, -8) -> 恰好 8..10）。不用构造平面，完全确定。
     """
-    pl = z_plane(root, z_lo + dz, name)
-    sk = root.sketches.add(pl)
+    sk = root.sketches.add(root.xYConstructionPlane)
     sk.name = name + "_sk"
     draw(sk)
     if sk.profiles.count < 1:
         raise RuntimeError("%s: 轮廓未闭合 (profiles=%d)" % (name, sk.profiles.count))
     ext = root.features.extrudeFeatures
     ei = ext.createInput(sk.profiles.item(0), operation)
-    ei.setDistanceExtent(False, V(dz))
+    ei.setTwoSidesDistanceExtent(V(z_hi), V(-z_lo))
     f = ext.add(ei)
     f.name = name
     sk.isVisible = False
@@ -195,7 +215,7 @@ def op_at(root, z_lo, dz, draw, operation, name):
 
 
 def add_body(root, x0, y0, x1, y1, z_lo, z_hi, r, name):
-    f = op_at(root, z_lo, z_hi - z_lo,
+    f = op_at(root, z_lo, z_hi,
               lambda sk: draw_rounded_rect(sk, x0, y0, x1, y1, r),
               adsk.fusion.FeatureOperations.NewBodyFeatureOperation, name)
     b = root.bRepBodies.item(root.bRepBodies.count - 1)
@@ -204,25 +224,25 @@ def add_body(root, x0, y0, x1, y1, z_lo, z_hi, r, name):
 
 
 def cut_rect(root, x0, y0, x1, y1, z_lo, z_hi, name):
-    return op_at(root, z_lo, z_hi - z_lo,
+    return op_at(root, z_lo, z_hi,
                  lambda sk: draw_rect(sk, x0, y0, x1, y1),
                  adsk.fusion.FeatureOperations.CutFeatureOperation, name)
 
 
 def cut_circle(root, cx, cy, d, z_lo, z_hi, name):
-    return op_at(root, z_lo, z_hi - z_lo,
+    return op_at(root, z_lo, z_hi,
                  lambda sk: draw_circle(sk, cx, cy, d),
                  adsk.fusion.FeatureOperations.CutFeatureOperation, name)
 
 
 def join_rect(root, x0, y0, x1, y1, z_lo, z_hi, name):
-    return op_at(root, z_lo, z_hi - z_lo,
+    return op_at(root, z_lo, z_hi,
                  lambda sk: draw_rect(sk, x0, y0, x1, y1),
                  adsk.fusion.FeatureOperations.JoinFeatureOperation, name)
 
 
 def join_circle(root, cx, cy, d, z_lo, z_hi, name):
-    return op_at(root, z_lo, z_hi - z_lo,
+    return op_at(root, z_lo, z_hi,
                  lambda sk: draw_circle(sk, cx, cy, d),
                  adsk.fusion.FeatureOperations.JoinFeatureOperation, name)
 
@@ -266,7 +286,7 @@ def build_tray():
     step("底壁三孔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
     info(root, DOC_TRAY)
-    doc.save(doc.name, "外壳背壳托盘", True)
+    doc.save(doc.name)
     return doc
 
 
@@ -286,8 +306,8 @@ def build_cover():
     step("前盖毛坯: %.3f cm3" % root.bRepBodies.item(0).volume)
 
     # 内腔
-    cut_rect(root, cx0, cy0, cx1, cy1, COVER_LO_Z, SEAM - 1.0, "cav_lo")
-    cut_rect(root, cx0, STEP_Y, cx1, cy1, COVER_HI_Z, SEAM - 1.0, "cav_hi")
+    cut_rect(root, cx0, cy0, cx1, cy1, SEAM - 1.0, COVER_LO_Z, "cav_lo")
+    cut_rect(root, cx0, STEP_Y, cx1, cy1, SEAM - 1.0, COVER_HI_Z, "cav_hi")
     step("内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
     # 止口（插入托盘内腔的一圈舌头）
@@ -313,12 +333,15 @@ def build_cover():
     step("SMA Ø%.1f" % SMA_D)
 
     # 顶壁右侧 GPS 贴片浅槽 + 挡边
-    gy0, gy1 = BOARD_D + FIT - 0.5, BOARD_D + WALL + 1.0
-    cut_rect(root, GPS_X0, gy0, GPS_X1, gy1, GPS_Z0, GPS_Z1, "pocket_gps")
-    join_rect(root, GPS_X0 - GPS_LIP, gy0, GPS_X0, gy1, GPS_Z0 - GPS_DEPTH, GPS_Z1, "gps_lip_l")
-    join_rect(root, GPS_X1, gy0, GPS_X1 + GPS_LIP, gy1, GPS_Z0 - GPS_DEPTH, GPS_Z1, "gps_lip_r")
-    join_rect(root, GPS_X0 - GPS_LIP, gy0, GPS_X1 + GPS_LIP, gy1,
-              GPS_Z0 - GPS_DEPTH, GPS_Z0 - GPS_DEPTH + GPS_DEPTH, "gps_floor")
+    wall_in, wall_out = BOARD_D + FIT - 0.5, BOARD_D + WALL
+    # 贯穿顶壁的槽（Z 7..13），X 方向为贴片长度
+    cut_rect(root, GPS_X0, wall_in, GPS_X1, wall_out + 1.0, GPS_Z0, GPS_Z1, "pocket_gps")
+    # 槽底托住贴片（贴片躺在 Z=7 上）
+    join_rect(root, GPS_X0 - GPS_LIP, wall_in, GPS_X1 + GPS_LIP, wall_out,
+              GPS_Z0 - GPS_DEPTH, GPS_Z0, "gps_floor")
+    # 外侧上沿两条挡边，压住贴片不会掉出来
+    join_rect(root, GPS_X0 - GPS_LIP, wall_out - GPS_LIP, GPS_X1 + GPS_LIP, wall_out,
+              GPS_Z1, GPS_Z1 + GPS_LIP, "gps_tab")
     step("GPS 槽")
 
     # 连体按键板：三边挖槽 + 内侧两个凸起
@@ -337,7 +360,7 @@ def build_cover():
     step("按键板 + 两个凸起")
 
     info(root, DOC_COVER)
-    doc.save(doc.name, "外壳前盖", True)
+    doc.save(doc.name)
     return doc
 
 
