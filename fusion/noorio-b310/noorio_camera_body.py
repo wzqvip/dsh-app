@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Noorio B200 系列球机 —— 摄像头本体建模。
 
-    python tools/fusion-bridge/bridge_client.py exec --file <本文件>
+    python fusion/bridge_client.py exec --file <本文件>
 
 用户口述的尺寸（毫米）：
 

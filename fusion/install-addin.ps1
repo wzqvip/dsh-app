@@ -1,13 +1,13 @@
-# Install (or remove) the FusionBridge add-in, and optionally the diagnostic
+﻿# Install (or remove) the FusionBridge add-in, and optionally the diagnostic
 # script, for Fusion 360.
 #
 # ASCII-only on purpose: this file must be safe under both Windows PowerShell
 # 5.1 and pwsh 7 (see AGENTS.md section 2.1 -- no BOM, no backticks in
 # comments, ASCII-only content).
 #
-#   powershell -ExecutionPolicy Bypass -File tools\fusion-bridge\install-addin.ps1
-#   powershell -ExecutionPolicy Bypass -File tools\fusion-bridge\install-addin.ps1 -Probe
-#   powershell -ExecutionPolicy Bypass -File tools\fusion-bridge\install-addin.ps1 -Uninstall
+#   powershell -ExecutionPolicy Bypass -File fusion\install-addin.ps1
+#   powershell -ExecutionPolicy Bypass -File fusion\install-addin.ps1 -Probe
+#   powershell -ExecutionPolicy Bypass -File fusion\install-addin.ps1 -Uninstall
 
 [CmdletBinding()]
 param(
@@ -93,4 +93,4 @@ if ($Probe) {
 }
 Write-Host ""
 Write-Host "Then verify from a shell:"
-Write-Host "  python tools\fusion-bridge\bridge_client.py ping"
+Write-Host "  python fusion\bridge_client.py ping"

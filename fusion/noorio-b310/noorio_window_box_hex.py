@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """WindowBox 的蜂窝变体 —— 另存为独立的 `WindowBoxHex`。
 
-    python tools/fusion-bridge/bridge_client.py exec --file <本文件>
+    python fusion/bridge_client.py exec --file <本文件>
 
 用户要求：
 
@@ -30,24 +30,30 @@
 """
 
 import io
+import os
 
-BASE = r"C:\Users\WANGZ\Documents\GitHub\dsh-app\tools\fusion-bridge\examples\noorio_window_box.py"
+# 基础脚本（本文件只是换一组参数去 exec 它，几何只有一份）。
+# ⚠️ Fusion 里没有 __file__，所以只能写绝对路径；用候选列表，挪目录后不会静默失效。
+_CANDIDATES = [
+    r"C:\Users\WANGZ\Documents\GitHub\dsh-app\fusion\noorio-b310\noorio_window_box.py",
+    r"C:\Users\WANGZ\Documents\GitHub\dsh-app\tools\fusion-bridge\examples\noorio_window_box.py",
+]
+BASE = next((p for p in _CANDIDATES if os.path.exists(p)), _CANDIDATES[0])
 
 WINDOWBOX_OVERRIDES = {
     "file_name": "WindowBoxHex",
     # 铺满圆柱段。真正的蜂窝节距 —— 外接圆 R=5 时
     #   方位向孔距 = √3R ≈ 11.7mm -> 每圈 30 孔
-    #   轴向行距   = 1.5R ≈ 10mm   -> y = 14 / 24 / 34 三圈（覆盖 y 约 9..39）
-    # 孔间留约 3mm 筋，行间错开半格。
+    #   轴向行距   = 1.5R ≈ 10mm   -> y = 12 / 24 / 36 三圈（覆盖 y 约 7..41）
+    # 孔间留约 3mm 筋，行间错开半格。实测三圈全部 100% 穿透，共 90 个真通孔。
     "hex_row_y": [12.0, 24.0, 36.0],
     "hex_pitch": 11.7,
     "groove_y": [18.0, 30.0],
     # ⚠️ 两道 0.3mm 浅环槽，把外柱面分成 10..20 / 20..30 / 30..45 三段。
-    #    必须这样：实测切平面只在**它原点以下**的半边有效，而 setByTangent 的
-    #    原点落在该段柱面的中高处。不分段的话整根柱面（中高 27.5）只有 y<27.5
-    #    能打孔 —— y=30 只切到 −1.1 cm3，y=34 起直接报错。
-    #    分段后各段中点为 15 / 25 / 37.5，三圈 14 / 24 / 34 都落在下半部。
-    #    槽线落在蜂窝孔内部区域，基本看不见。
+    #    为什么必须分段：切平面只在**它原点以下**的半边有效，而 setByTangent 的
+    #    原点落在该段柱面的中高处。不分段的话整根柱面（中高 27.5）只有少数高度
+    #    能打孔。分段后各段中点 13.8 / 24.0 / 37.6，三圈 12 / 24 / 36 都在其下方。
+    #    槽 0.3mm 深，落在两圈孔之间的缝里，基本看不见。
     "hook": False,
 }
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Noorio B200 整机装配：Stand v5 + Bottom_bottom + Gimbal + Camera。
 
-    python tools/fusion-bridge/bridge_client.py exec --file <本文件>
+    python fusion/bridge_client.py exec --file <本文件>
 
 新建 `Assembly B210`，把五个体分别派生（Derive）进来并按链条摆好，然后
 **用真实几何算整机重心**，回头检验支架的稳定性。

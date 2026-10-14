@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Noorio B200 系列 —— 球头万向节（"万向节"）建模。
 
-    python tools/fusion-bridge/bridge_client.py exec --file <本文件>
+    python fusion/bridge_client.py exec --file <本文件>
 
 本脚本**就地重建**工程里的 `Gimbal B210`：打开 → 校验身份 → 清空特征 → 重建 → save()。
 

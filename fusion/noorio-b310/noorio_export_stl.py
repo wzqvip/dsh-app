@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """导出可打印件的 STL。
 
-    python tools/fusion-bridge/bridge_client.py exec --file <本文件>
+    python fusion/bridge_client.py exec --file <本文件>
 
 产出到仓库根的 `exports/`（已 gitignore —— STL 是二进制产物，每次重建都会变，
 不跟着版本走；真正要复现的是本脚本）。

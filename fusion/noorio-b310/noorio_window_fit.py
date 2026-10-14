@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """窗户挂盒的配合验证：WindowBox + Gimbal + Camera 三件装起来验干涉。
 
-    python tools/fusion-bridge/bridge_client.py exec --file <本文件>
+    python fusion/bridge_client.py exec --file <本文件>
 
 新建 `WindowBoxFit`，按窗口挂盒自己的坐标系摆放（玻璃在 y=0，相机朝 -Y）：
 

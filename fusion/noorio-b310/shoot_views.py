@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """把当前活动文档从多个视角截图，用来肉眼验收 Fusion 里的模型。
 
-    python tools/fusion-bridge/bridge_client.py exec --file tools/fusion-bridge/examples/shoot_views.py
+    python fusion/bridge_client.py exec --file fusion/noorio-b310/shoot_views.py
 
 为什么需要它：Fusion 的 API 能读到精确尺寸，但读不出"好不好看"。
 改一版、截一版、看图再改，是这套桥最有价值的用法之一。

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Noorio 球机桌面支架 —— Stand v5（鹅卵石底座 + 放样立柱 + 圆形徽章安装盘）。
 
-    python tools/fusion-bridge/bridge_client.py exec --file <本文件>
+    python fusion/bridge_client.py exec --file <本文件>
 
 本脚本**就地重建**工程里的 `Stand v5`：打开 → 校验文档身份 → 清空特征 → 重建 → save()。
 不用 saveAs（用已存在的名字会新建文件，不是新版本）。

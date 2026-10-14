@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Noorio 球机 —— 窗户挂盒 WindowBox（前面圆柱 + 后面半圆球，单件）。
 
-    python tools/fusion-bridge/bridge_client.py exec --file <本文件>
+    python fusion/bridge_client.py exec --file <本文件>
 
 # 形状（用户指定："前面圆柱后面半圆球"，"后面做一个收口"）
 

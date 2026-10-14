@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """给 `Camera B210` 按区域上材质。
 
-    python tools/fusion-bridge/bridge_client.py exec --file <本文件>
+    python fusion/bridge_client.py exec --file <本文件>
 
 用户给的配色（照着他拍的照片）：
 

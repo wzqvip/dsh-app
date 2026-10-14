@@ -30,13 +30,13 @@ Fusion 的 API **只能在主线程调用**。从工作线程碰它不是抛异�
 
 ```powershell
 # 只装 add-in
-powershell -ExecutionPolicy Bypass -File tools\fusion-bridge\install-addin.ps1
+powershell -ExecutionPolicy Bypass -File fusion\install-addin.ps1
 
 # 连诊断探针一起装（排错时用）
-powershell -ExecutionPolicy Bypass -File tools\fusion-bridge\install-addin.ps1 -Probe
+powershell -ExecutionPolicy Bypass -File fusion\install-addin.ps1 -Probe
 
 # 卸载
-powershell -ExecutionPolicy Bypass -File tools\fusion-bridge\install-addin.ps1 -Uninstall -Probe
+powershell -ExecutionPolicy Bypass -File fusion\install-addin.ps1 -Uninstall -Probe
 ```
 
 装完在 Fusion 里：**实用工具 → 脚本和附加模块（Shift+S）→ 附加模块 → 选中 `FusionBridge`
@@ -48,7 +48,7 @@ powershell -ExecutionPolicy Bypass -File tools\fusion-bridge\install-addin.ps1 -
 
 ```powershell
 $py = "C:\Python314\python.exe"      # 本机 Python，随便哪个 3.8+
-$c  = "tools\fusion-bridge\bridge_client.py"
+$c  = "fusion\bridge_client.py"
 
 & $py $c ping                        # 桥还活着吗（不碰 Fusion API，主线程卡住也能答）
 & $py $c info                        # Fusion 版本 / 当前文档 / 实体数 / 参数数
@@ -154,6 +154,20 @@ fire(event.eventId, "")               -> False    [notify] handler ran
 
 ## 文件与状态
 
+```
+fusion/
+├── README.md              本文件：桥 / 插件 / 客户端 / 安装 / 排错
+├── install-addin.ps1      安装卸载（UTF-8 with BOM，见 AGENTS.md §2.1）
+├── bridge_client.py       命令行客户端
+├── addin/FusionBridge/    Fusion 侧源码（装到 %APPDATA%\Autodesk\...\API\AddIns\）
+├── diag/FusionBridgeProbe/ 只做诊断的独立 add-in
+└── noorio-b310/           具体项目：Noorio B310 摄像机支架 + 窗户挂盒
+    ├── README.md          零件清单、关键尺寸、装配、打印建议
+    ├── noorio_*.py        各零件的建模/装配/导出脚本
+    ├── shoot_views.py     批量出渲染图
+    └── shots/*.png        渲染图
+```
+
 | 路径 | 作用 |
 |---|---|
 | `addin/FusionBridge/` | Fusion 侧源码（装到 `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\`） |
@@ -169,7 +183,7 @@ fire(event.eventId, "")               -> False    [notify] handler ran
 
 ```powershell
 # 1. 桥活着吗（这一步不碰 Fusion API）
-python bridge_client.py ping
+python fusion/bridge_client.py ping
 
 # 2. Fusion 忙还是桥死了？
 #    ping 通但 info/exec 超时 → 主线程卡住（多半是模态对话框）
@@ -178,6 +192,6 @@ python bridge_client.py ping
 Get-Content "$env:LOCALAPPDATA\FusionBridge\bridge.log" -Tail 40
 
 # 4. 还不行就跑诊断探针
-powershell -ExecutionPolicy Bypass -File install-addin.ps1 -Probe
+powershell -ExecutionPolicy Bypass -File fusion/install-addin.ps1 -Probe
 #    然后在 Fusion 附加模块里运行 FusionBridgeProbe，看 probe.log
 ```

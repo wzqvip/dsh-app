@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """把 `Bottom_bottom v4` 派生进 `Stand v5` 并摆到安装面上。
 
-    python tools/fusion-bridge/bridge_client.py exec --file <本文件>
+    python fusion/bridge_client.py exec --file <本文件>
 
 # 姿态
 
