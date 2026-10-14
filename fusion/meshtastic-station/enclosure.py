@@ -40,12 +40,12 @@ WALL = 3.0
 FIT = 0.25                 # 板与内腔单边间隙
 LEDGE = 1.5                # 承板台阶宽
 
-TRAY_Z0, TRAY_Z1 = -11.0, 6.0    # 托盘：底面 -> 接缝
+TRAY_Z0, TRAY_Z1 = -13.5, 6.0    # 托盘：底面 -> 接缝（底面要容下背面 470uF 的 10.5mm）
 FLOOR = 2.5
 SEAM = TRAY_Z1
 
-COVER_LO_Z = 8.0            # 低区（按键上方）内顶面
-COVER_LO_TOP = 10.5         # 低区外顶面
+COVER_LO_Z = 12.0           # 低区（按键上方）内顶面（要容下 DC 座的 ~12mm）
+COVER_LO_TOP = 14.5         # 低区外顶面
 COVER_HI_Z = 15.5           # 高区（OLED/GPS）内顶面
 COVER_HI_TOP = 18.0         # 高区外顶面
 STEP_Y = 48.0               # 低/高区分界
@@ -61,9 +61,9 @@ BTN_X, BTN_Y, BTN_DX = 46.23, 25.7, 4.25
 PLATE_W, PLATE_H = 24.0, 9.0
 SLOT_W = 1.0
 HINGE_T = 1.3
-BUMP_R, BUMP_H = 2.0, 2.6
+BUMP_R, BUMP_H = 2.5, 7.5      # 凸起要够到 Z~4.2 的按键顶面
 
-SENSOR_Y0, SENSOR_Y1, SENSOR_Z0, SENSOR_Z1 = 58.0, 74.0, 6.5, 13.5
+SENSOR_Y0, SENSOR_Y1, SENSOR_Z0, SENSOR_Z1 = 56.0, 76.0, 2.0, 14.0  # GY-BMP280 会探出板右侧
 
 SMA_X, SMA_Z, SMA_D = 15.0, 10.0, 6.0
 GPS_X0, GPS_X1, GPS_Z0, GPS_Z1 = 39.0, 59.0, 7.0, 13.0
@@ -247,6 +247,27 @@ def join_circle(root, cx, cy, d, z_lo, z_hi, name):
                  adsk.fusion.FeatureOperations.JoinFeatureOperation, name)
 
 
+def cut_circle_y(root, cx, cz, d, y_lo, y_hi, name):
+    """沿 **Y** 方向切圆孔（草图画在 XZ 平面）。
+
+    ⚠️ 桶形电源座、USB-C 这类**从侧壁穿出去**的孔，草图必须画在 XZ 平面上；
+       画在 XY 平面上会变成沿 Z 的孔（实测只在外壁上留一条竖线）。
+    """
+    sk = root.sketches.add(root.xZConstructionPlane)
+    sk.name = name + "_sk"
+    sk.sketchCurves.sketchCircles.addByCenterRadius(
+        sk.modelToSketchSpace(P(cx, 0.0, cz)), d / 2.0 * MM)
+    if sk.profiles.count < 1:
+        raise RuntimeError("%s: 圆未闭合" % name)
+    ext = root.features.extrudeFeatures
+    ei = ext.createInput(sk.profiles.item(0), adsk.fusion.FeatureOperations.CutFeatureOperation)
+    ei.setTwoSidesDistanceExtent(V(y_hi), V(-y_lo))
+    f = ext.add(ei)
+    f.name = name
+    sk.isVisible = False
+    return f
+
+
 def info(root, key):
     b = root.bRepBodies.item(0)
     bb = b.boundingBox
@@ -280,7 +301,7 @@ def build_tray():
 
     wy0, wy1 = oy0 - 1.0, cy0 + 0.5
     cut_rect(root, PD_X - PD_W / 2, wy0, PD_X + PD_W / 2, wy1, PD_Z0, PD_Z1, "cut_pd")
-    cut_circle(root, DC_X, (wy0 + wy1) / 2.0, DC_D, DC_ZC - 1.0, DC_ZC + 1.0, "cut_dc")
+    cut_circle_y(root, DC_X, DC_ZC, DC_D, wy0, wy1, "cut_dc")   # 桶形座沿 -Y 穿墙
     cut_rect(root, PICO_X - PICO_W / 2, wy0, PICO_X + PICO_W / 2, wy1,
              PICO_Z0, PICO_Z1, "cut_pico")
     step("底壁三孔: %.3f cm3" % root.bRepBodies.item(0).volume)
