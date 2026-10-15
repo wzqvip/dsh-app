@@ -362,6 +362,7 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术设计：提问-回答管线、进度数据来源、token 成本控制 |
 | [LAUNCHER.md](docs/LAUNCHER.md) | 启动器设计：启动时序、环境检测、跨平台要点、失败处理 |
 | [SECURITY.md](docs/SECURITY.md) | 安全说明：**局域网暴露 = RCE 风险** |
+| [LAN-ACCESS.md](docs/LAN-ACCESS.md) | 局域网访问：**当前 DSH 不支持直连**，三条可行替代路径（实测） |
 | [COMMIT-IDENTITY.md](docs/COMMIT-IDENTITY.md) | 提交署名与头像的来龙去脉（含历史重写记录） |
 | [EXECUTION.md](docs/EXECUTION.md) | 实施顺序与阶段拆分 |
 | [CHANGELOG.md](docs/CHANGELOG.md) | 面向发布的变化记录 |

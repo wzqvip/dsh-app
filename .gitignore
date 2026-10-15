@@ -99,3 +99,4 @@ msg75.tmp
 
 # Fusion STL/STEP 导出产物（二进制，每次重建都变；可复现的是脚本）
 exports/
+msg76.tmp

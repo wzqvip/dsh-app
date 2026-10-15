@@ -28,6 +28,15 @@ DSH 官方**正是因为这个原因**在 CLI 层**硬拒绝** `--host 0.0.0.0`�
 
 > `--host 0.0.0.0 is intentionally not supported yet for safety: it would expose remote code execution to the network`
 
+**而且不止这一层**（2026-10-15 源码复核）：底层 webserver 的 schema 也写死了
+
+```js
+host: z.union([z.const("127.0.0.1"), z.const("0.0.0.0")]).required(),
+```
+
+所以**连"绑具体局域网 IP"也不被允许** —— `0.0.0.0` 被 CLI 拒、具体 IP 被 schema 拒，
+**没有任何受支持的局域网直连路径**。可行的替代路径见 [LAN-ACCESS.md](LAN-ACCESS.md)。
+
 ### 认证层的已知弱点
 
 - token 兑换出的 cookie **刻意不带 `Secure`**（因为默认服务是回环 HTTP）
