@@ -9,8 +9,7 @@
 
 外壳内腔（与 enclosure.py 的参数一致）
     托盘   X -0.25..60.25   Y -0.25..80.25   Z -11.0 .. 6.0
-    前盖低区（Y<48）                          Z  6.0 .. 6.4
-    DC5521 局部凸台内腔（X 11..30, Y 4..18）   Z  6.0 .. 13.0
+    前盖（平顶）                              Z  6.0 .. 15.0
     前盖高区（Y>=48）                         Z  6.0 .. 15.5
 """
 
@@ -18,8 +17,8 @@ BOARD_W, BOARD_D, BOARD_T = 60.0, 80.0, 1.6
 FIT = 0.25
 TRAY_FLOOR_Z = -11.0
 SEAM = 6.0
-LO_Z = 6.4          # 低区顶面：只盖过 Pico(5.1)/PDC004(5.5)
-HI_Z = 15.5
+LO_Z = 15.0         # 方盒子：平顶，按 OLED 的 12mm 定
+HI_Z = 15.0
 STEP_Y = 48.0
 
 CAV = {
@@ -75,12 +74,7 @@ def main():
             z_ok = z0 >= CAV["tray_z"][0]
             z_head = "托盘底 %.1f (需 <= %.1f)" % (z0, CAV["tray_z"][0])
         else:                            # 正面元件
-            if name.startswith("DC-005"):
-                ceil = 13.0          # DC 座正上方有局部凸台
-            elif y0 >= STEP_Y - 1.0:
-                ceil = HI_Z
-            else:
-                ceil = LO_Z
+            ceil = HI_Z          # 平顶：所有正面元件同一个额度
             z_ok = z1 <= ceil
             z_head = "顶面 %.1f (可用 %.1f)" % (z1, ceil)
         flags = []

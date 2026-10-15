@@ -1,29 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-ESP32-S3 / SX1262 Meshtastic Station —— 3D 打印外壳（v2）
+ESP32-S3 / SX1262 Meshtastic Station —— 3D 打印外壳（v3：方盒子）
 
-用法（仓库根执行）：
     python fusion/bridge_client.py exec --file fusion/meshtastic-station/enclosure.py --timeout 900
 
-产出：`MeshCase_Tray`（背壳托盘）、`MeshCase_Cover`（前盖）。
+产出 `MeshCase_Tray`（背壳托盘）、`MeshCase_Cover`（前盖）。
 
-坐标约定（沿用 PCB，Gerber 的 Y 已平移 -15，板下沿 = Y0）
-    X 0..60   左右
-    Y 0..80   下上
-    Z 0..1.6  板厚；**Z+ 是 ESP32/Pico 那一面 = 外壳正面**
+设计原则（按用户反馈精简）
+    * **就是一个方盒子**：Tray + Cover，平顶，对应位置开窗，不做阶梯/凸台
+    * 正面内高按 **OLED 的 12mm** 定（其他器件都没这么高）
+    * 背面内高按 **470uF 大电容** 定
+    * PCB 靠**侧边几个小托板**托住（不是整圈台阶）
+    * 两个按键**各自独立**（三边挖槽 + 中间那道槽切开）
+    * 按键凸起按"PCB 到按钮顶约 4mm"来定，**允许留缝**（行程长，不必紧贴）
 
-用户要求对应的实现
-    ESP32 面为正面                    -> Z+ 是前盖
-    底部左下 C 口 / DC5521 / 右下 ESP32 C 口 -> 托盘底壁(Y=-WALL)三个开孔
-    顶部左上 SMA（向上）               -> 前盖顶壁 Ø6 通孔 @ X=15
-    正面右上 12864 OLED                -> 前盖高区开窗
-    两个按键：连体、三边挖槽、中间突起   -> 低区内顶面上的按键板 + 2 个凸起
-    右侧上部温湿度传感器：直接开放窗口   -> 前盖右壁开口
-    GPS 陶瓷贴片(20x5x6) 固定顶部右侧    -> 顶壁右侧 20.6x6.6 浅槽 + 挡边
-    合盖方式                          -> 前盖带 1.5mm 止口，压入托盘
-
-⚠️ 坐标换算一律走 sketch.modelToSketchSpace()：草图原点不是 plane.geometry.origin，
-   自己推算会整体平移且不报错（上一个项目踩掉十几轮）。
+坐标（沿用 PCB，Y 已平移 -15，板下沿 = Y0）
+    X 0..60  左右      Y 0..80  下上      Z 0..1.6 板厚，**Z+ = ESP32 面 = 正面**
 """
 
 import math
@@ -33,25 +25,25 @@ DOC_TRAY = "MeshCase_Tray"
 DOC_COVER = "MeshCase_Cover"
 
 # --------------------------------------------------------------------------- #
-# 参数
+# 尺寸
 # --------------------------------------------------------------------------- #
-BOARD_W, BOARD_D = 60.0, 80.0
+BOARD_W, BOARD_D, BOARD_T = 60.0, 80.0, 1.6
 WALL = 3.0
-FIT = 0.25                 # 板与内腔单边间隙
-LEDGE = 1.5                # 承板台阶宽
+FIT = 0.25                       # 板与内腔单边间隙
 
-TRAY_Z0, TRAY_Z1 = -13.5, 6.0    # 托盘：底面 -> 接缝（底面要容下背面 470uF 的 10.5mm）
+TRAY_Z0, TRAY_Z1 = -13.5, 6.0    # 托盘：底面 -> 分模面（内部底面 -11，容 470uF 的 10.5）
 FLOOR = 2.5
 SEAM = TRAY_Z1
 
-COVER_LO_Z = 6.4            # 低区（按键上方）内顶面：只需盖过 Pico(5.1)/PDC004(5.5)
-                            # DC 座(约 12mm) 改用局部凸台 DC_BOSS_Z 容纳，见下
-COVER_LO_TOP = 8.9          # 低区外顶面
-COVER_HI_Z = 15.5           # 高区（OLED/GPS）内顶面
-COVER_HI_TOP = 18.0         # 高区外顶面
-STEP_Y = 48.0               # 低/高区分界
+COVER_IN_Z = 15.0                # 前盖内顶面（平）：1.6 板 + 12 OLED + 1.4 余量
+COVER_TOP = COVER_IN_Z + 2.5     # 前盖外顶面
+TONGUE_D, TONGUE_T = 1.5, 1.5    # 止口：插进托盘内腔的一圈舌头
 
-# 底壁开孔
+# PCB 托板（侧边几个小凸台，板搭在上面）
+TAB_LEN, TAB_DEPTH, TAB_TH = 8.0, 1.5, 1.5
+TAB_YS = [8.0, 38.0, 68.0]       # 每侧 3 个
+
+# 底壁开孔（都在托盘的 -Y 壁）
 PD_X, PD_W, PD_Z0, PD_Z1 = 6.99, 10.0, 1.2, 5.0
 DC_X, DC_D, DC_ZC = 20.57, 9.0, 3.2
 PICO_X, PICO_W, PICO_Z0, PICO_Z1 = 46.23, 10.5, 1.2, 4.8
@@ -59,27 +51,16 @@ PICO_X, PICO_W, PICO_Z0, PICO_Z1 = 46.23, 10.5, 1.2, 4.8
 # 前盖
 OLED_X, OLED_Y, OLED_W, OLED_H = 45.98, 65.46, 23.0, 12.0
 BTN_X, BTN_Y, BTN_DX = 46.23, 25.7, 4.25
-PLATE_W, PLATE_H = 7.0, 9.0    # **每块**按键板的尺寸（两个按钮各自独立）
+PLATE_W, PLATE_H = 7.0, 9.0      # **每块**按键板
 SLOT_W = 1.0
 HINGE_T = 1.3
-BUMP_R, BUMP_H = 2.5, 2.0      # 凸起：顶面降到 6.4 后只需 2mm 就够到 Z~4.4 的按键
-
-SENSOR_Y0, SENSOR_Y1, SENSOR_Z0, SENSOR_Z1 = 56.0, 76.0, 2.0, 14.0  # GY-BMP280 会探出板右侧
-
-# DC5521 桶形座高约 12mm，低区顶面只有 6.4 —— 在它正上方做一个凸台，
-# 外侧抬高、内侧挖出凹腔把它罩住（外观像一个小小的接口仓）。
-DC_POCKET_X0, DC_POCKET_X1 = 10.0, 31.0
-DC_POCKET_Y0, DC_POCKET_Y1 = 3.0, 19.0
-DC_POCKET_Z = 13.0          # 凹腔内顶面（DC 高 12 + 1 余量）
-DC_BOSS_Z = 15.0            # 凸台外表面（顶壁留 2mm）
-
-SMA_X, SMA_Z, SMA_D = 15.0, 10.0, 6.0
-GPS_X0, GPS_X1, GPS_Z0, GPS_Z1 = 39.0, 59.0, 7.0, 13.0
-GPS_DEPTH = 1.5
-GPS_LIP = 1.2
-
-TONGUE_D = 1.5              # 前盖止口深度
-TONGUE_T = 1.5              # 止口壁厚
+PLUNGER_R = 2.5
+BTN_TOP_Z = 5.6                  # 板上表面 1.6 + 4mm（用户给的参考）
+PLUNGER_TIP_Z = 7.5              # 尖端到 7.5 -> 与按钮顶留 1.9mm 缝（行程长，不必紧贴）
+SENSOR_Y0, SENSOR_Y1, SENSOR_Z0, SENSOR_Z1 = 56.0, 76.0, 2.0, 14.0
+SMA_X, SMA_Z, SMA_D = 15.0, 11.0, 6.0
+GPS_X0, GPS_X1, GPS_Z0, GPS_Z1 = 39.0, 59.0, 8.0, 14.0
+GPS_DEPTH, GPS_LIP = 1.5, 1.2
 
 # --------------------------------------------------------------------------- #
 app = adsk.core.Application.get()
@@ -111,7 +92,6 @@ def find_doc(name):
 
 
 def fresh(name):
-    """取文档并清空（保留文档身份）；不存在则新建。"""
     doc = find_doc(name)
     if doc is None:
         doc = app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
@@ -123,65 +103,28 @@ def fresh(name):
     if design is None:
         raise RuntimeError("design is None: " + name)
     root = design.rootComponent
-    # ⚠️ 必须删**特征**，不能只删实体：只删实体时实体仍被时间轴特征引用，
-    #    Fusion 会延迟重建 -> 下次统计仍看得到旧实体，体积在两次运行间乱跳。
+    # ⚠️ 必须删特征，不能只删实体（只删实体仍被时间轴引用，体积会在两次运行之间乱跳）
     for i in range(root.features.count - 1, -1, -1):
         try:
             root.features.item(i).deleteMe()
         except Exception:
             pass
-    for i in range(root.bRepBodies.count - 1, -1, -1):
-        try:
-            root.bRepBodies.item(i).deleteMe()
-        except Exception:
-            pass
-    for i in range(root.sketches.count - 1, -1, -1):
-        try:
-            root.sketches.item(i).deleteMe()
-        except Exception:
-            pass
-    for i in range(root.constructionPlanes.count - 1, -1, -1):
-        try:
-            root.constructionPlanes.item(i).deleteMe()
-        except Exception:
-            pass
+    for coll in (root.bRepBodies, root.sketches, root.constructionPlanes):
+        for i in range(coll.count - 1, -1, -1):
+            try:
+                coll.item(i).deleteMe()
+            except Exception:
+                pass
     root.isConstructionFolderLightBulbOn = False
     root.isSketchFolderLightBulbOn = False
     root.isOriginFolderLightBulbOn = False
-    step("[%s] ready (bodies=%d)" % (name, root.bRepBodies.count))
+    step("[%s] ready" % name)
     return doc, design, root
 
 
-def z_plane(root, z, tag):
-    pi = root.constructionPlanes.createInput()
-    pi.setByOffset(root.xYConstructionPlane, V(z))
-    pl = root.constructionPlanes.add(pi)
-    pl.name = "zp_%s" % tag
-    return pl
-
-
 def _sp(sk, x, y, z=0.0):
-    """模型坐标 -> 草图坐标（必须用 Fusion 自己的换算）。"""
+    """模型坐标 -> 草图坐标（必须用 Fusion 自己的换算，自己推会整体平移且不报错）"""
     return sk.modelToSketchSpace(P(x, y, z))
-
-
-def draw_rounded_rect(sk, x0, y0, x1, y1, r):
-    """圆角矩形。
-
-    ⚠️ 四条边按逆时针画，四段弧的**起点必须取对应边的起点**，否则边和弧接不上、
-       profiles.count = 0（报"轮廓未闭合"）。
-    """
-    ln = sk.sketchCurves.sketchLines
-    ar = sk.sketchCurves.sketchArcs
-    p = lambda x, y: _sp(sk, x, y)
-    ln.addByTwoPoints(p(x0 + r, y0), p(x1 - r, y0))          # 下
-    ln.addByTwoPoints(p(x1, y0 + r), p(x1, y1 - r))          # 右
-    ln.addByTwoPoints(p(x1 - r, y1), p(x0 + r, y1))          # 上
-    ln.addByTwoPoints(p(x0, y1 - r), p(x0, y0 + r))          # 左
-    ar.addByCenterStartSweep(p(x1 - r, y0 + r), p(x1 - r, y0), math.radians(90))   # 右下
-    ar.addByCenterStartSweep(p(x1 - r, y1 - r), p(x1, y1 - r), math.radians(90))   # 右上
-    ar.addByCenterStartSweep(p(x0 + r, y1 - r), p(x0 + r, y1), math.radians(90))   # 左上
-    ar.addByCenterStartSweep(p(x0 + r, y0 + r), p(x0, y0 + r), math.radians(90))   # 左下
 
 
 def draw_rect(sk, x0, y0, x1, y1):
@@ -192,21 +135,26 @@ def draw_rect(sk, x0, y0, x1, y1):
     ln.addByTwoPoints(_sp(sk, x0, y1), _sp(sk, x0, y0))
 
 
-def draw_circle(sk, cx, cy, d):
-    sk.sketchCurves.sketchCircles.addByCenterRadius(_sp(sk, cx, cy), d / 2.0 * MM)
+def draw_rounded_rect(sk, x0, y0, x1, y1, r):
+    """圆角矩形：四边逆时针，四段弧的**起点取对应边的起点**，否则接不上、profiles=0"""
+    ln = sk.sketchCurves.sketchLines
+    ar = sk.sketchCurves.sketchArcs
+    p = lambda x, y: _sp(sk, x, y)
+    ln.addByTwoPoints(p(x0 + r, y0), p(x1 - r, y0))
+    ln.addByTwoPoints(p(x1, y0 + r), p(x1, y1 - r))
+    ln.addByTwoPoints(p(x1 - r, y1), p(x0 + r, y1))
+    ln.addByTwoPoints(p(x0, y1 - r), p(x0, y0 + r))
+    ar.addByCenterStartSweep(p(x1 - r, y0 + r), p(x1 - r, y0), math.radians(90))
+    ar.addByCenterStartSweep(p(x1 - r, y1 - r), p(x1, y1 - r), math.radians(90))
+    ar.addByCenterStartSweep(p(x0 + r, y1 - r), p(x0 + r, y1), math.radians(90))
+    ar.addByCenterStartSweep(p(x0 + r, y0 + r), p(x0, y0 + r), math.radians(90))
 
 
 def op_at(root, z_lo, z_hi, draw, operation, name):
-    """在 Z 区间 [z_lo, z_hi] 做一个拉伸/切除。
+    """在 Z 区间 [z_lo, z_hi] 做拉伸/切除。
 
-    ⚠️⚠️ 这个桥/版本里有两个反直觉行为，实测确认：
-
-      1. `setByOffset(xYConstructionPlane, s)` 得到的平面**不影响拉伸的 Z 位置**——
-         拉伸始终相对模型 Z=0 计量（平面在 +40，拉出来的实体却在 -5..0）。
-      2. `setTwoSidesDistanceExtent(a, b)` 的实际区间是 **[-b, +a]**。
-
-    所以配方是：**草图一律画在 XY 平面上**，用 `setTwoSidesDistanceExtent(z_hi, -z_lo)`
-    把操作放到任意 Z 区间（实测 (10, -8) -> 恰好 8..10）。不用构造平面，完全确定。
+    ⚠️ 这个桥里：草图一律画在 XY 平面；`setTwoSidesDistanceExtent(a, b)` 的实际区间是
+       **[-b, +a]**（实测 (10,-8) -> 8..10）。用构造平面偏移**不会**改变拉伸的 Z 位置。
     """
     sk = root.sketches.add(root.xYConstructionPlane)
     sk.name = name + "_sk"
@@ -222,44 +170,29 @@ def op_at(root, z_lo, z_hi, draw, operation, name):
     return f
 
 
-def add_body(root, x0, y0, x1, y1, z_lo, z_hi, r, name):
-    f = op_at(root, z_lo, z_hi,
-              lambda sk: draw_rounded_rect(sk, x0, y0, x1, y1, r),
-              adsk.fusion.FeatureOperations.NewBodyFeatureOperation, name)
+def body_rect(root, x0, y0, x1, y1, z_lo, z_hi, r, name):
+    op_at(root, z_lo, z_hi, lambda sk: draw_rounded_rect(sk, x0, y0, x1, y1, r),
+          adsk.fusion.FeatureOperations.NewBodyFeatureOperation, name)
     b = root.bRepBodies.item(root.bRepBodies.count - 1)
     b.name = name
     return b
 
 
 def cut_rect(root, x0, y0, x1, y1, z_lo, z_hi, name):
-    return op_at(root, z_lo, z_hi,
-                 lambda sk: draw_rect(sk, x0, y0, x1, y1),
-                 adsk.fusion.FeatureOperations.CutFeatureOperation, name)
-
-
-def cut_circle(root, cx, cy, d, z_lo, z_hi, name):
-    return op_at(root, z_lo, z_hi,
-                 lambda sk: draw_circle(sk, cx, cy, d),
+    return op_at(root, z_lo, z_hi, lambda sk: draw_rect(sk, x0, y0, x1, y1),
                  adsk.fusion.FeatureOperations.CutFeatureOperation, name)
 
 
 def join_rect(root, x0, y0, x1, y1, z_lo, z_hi, name):
-    return op_at(root, z_lo, z_hi,
-                 lambda sk: draw_rect(sk, x0, y0, x1, y1),
-                 adsk.fusion.FeatureOperations.JoinFeatureOperation, name)
-
-
-def join_circle(root, cx, cy, d, z_lo, z_hi, name):
-    return op_at(root, z_lo, z_hi,
-                 lambda sk: draw_circle(sk, cx, cy, d),
+    return op_at(root, z_lo, z_hi, lambda sk: draw_rect(sk, x0, y0, x1, y1),
                  adsk.fusion.FeatureOperations.JoinFeatureOperation, name)
 
 
 def cut_circle_y(root, cx, cz, d, y_lo, y_hi, name):
     """沿 **Y** 方向切圆孔（草图画在 XZ 平面）。
 
-    ⚠️ 桶形电源座、USB-C 这类**从侧壁穿出去**的孔，草图必须画在 XZ 平面上；
-       画在 XY 平面上会变成沿 Z 的孔（实测只在外壁上留一条竖线）。
+    ⚠️ 从侧壁穿出去的孔（DC5521、SMA）必须用它。草图画在 XY 平面上会变成沿 Z 的孔，
+       在侧壁上只留下一条竖线（实测踩过两次）。
     """
     sk = root.sketches.add(root.xZConstructionPlane)
     sk.name = name + "_sk"
@@ -276,6 +209,20 @@ def cut_circle_y(root, cx, cz, d, y_lo, y_hi, name):
     return f
 
 
+def join_circle_z(root, cx, cy, d, z_lo, z_hi, name):
+    """沿 Z 方向合并圆柱（按键凸起）。"""
+    sk = root.sketches.add(root.xYConstructionPlane)
+    sk.name = name + "_sk"
+    sk.sketchCurves.sketchCircles.addByCenterRadius(_sp(sk, cx, cy), d / 2.0 * MM)
+    ext = root.features.extrudeFeatures
+    ei = ext.createInput(sk.profiles.item(0), adsk.fusion.FeatureOperations.JoinFeatureOperation)
+    ei.setTwoSidesDistanceExtent(V(z_hi), V(-z_lo))
+    f = ext.add(ei)
+    f.name = name
+    sk.isVisible = False
+    return f
+
+
 def info(root, key):
     b = root.bRepBodies.item(0)
     bb = b.boundingBox
@@ -285,72 +232,75 @@ def info(root, key):
         "bbox_mm": [round((bb.maxPoint.x - bb.minPoint.x) / MM, 1),
                     round((bb.maxPoint.y - bb.minPoint.y) / MM, 1),
                     round((bb.maxPoint.z - bb.minPoint.z) / MM, 1)],
+        "z_range": [round(bb.minPoint.z / MM, 1), round(bb.maxPoint.z / MM, 1)],
         "faces": b.faces.count,
+        "bodies": root.bRepBodies.count,
     }
 
 
 # --------------------------------------------------------------------------- #
-# 背壳托盘
+# 背壳托盘：方盒子 + 底壁三孔 + 侧边托板
 # --------------------------------------------------------------------------- #
 def build_tray():
     doc, design, root = fresh(DOC_TRAY)
-    ox0, oy0 = -WALL, -WALL
-    ox1, oy1 = BOARD_W + WALL, BOARD_D + WALL
+    ox0, oy0, ox1, oy1 = -WALL, -WALL, BOARD_W + WALL, BOARD_D + WALL
+    cx0, cy0, cx1, cy1 = -FIT, -FIT, BOARD_W + FIT, BOARD_D + FIT
 
-    add_body(root, ox0, oy0, ox1, oy1, TRAY_Z0, TRAY_Z1, 4.0, DOC_TRAY)
+    body_rect(root, ox0, oy0, ox1, oy1, TRAY_Z0, TRAY_Z1, 4.0, DOC_TRAY)
     step("托盘外形: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    cx0, cy0, cx1, cy1 = -FIT, -FIT, BOARD_W + FIT, BOARD_D + FIT
-    # Z<0 收 LEDGE -> 留 1.5mm 承板台阶
-    cut_rect(root, cx0 - LEDGE, cy0 - LEDGE, cx1 + LEDGE, cy1 + LEDGE,
-             TRAY_Z0 + FLOOR, 0.0, "cav_low")
-    cut_rect(root, cx0, cy0, cx1, cy1, 0.0, TRAY_Z1 + 1.0, "cav_up")
-    step("内腔+台阶: %.3f cm3" % root.bRepBodies.item(0).volume)
+    # 内腔：从内底面一直到分模面
+    cut_rect(root, cx0, cy0, cx1, cy1, TRAY_Z0 + FLOOR, TRAY_Z1 + 1.0, "cavity")
+    step("内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    wy0, wy1 = oy0 - 1.0, cy0 + 0.25   # 开到板边为止（再多会啃到板沿）
+    # 侧边托板：每侧 3 个，板搭在它们上面（Z = 0 就是板的底面）
+    for y in TAB_YS:
+        ty0, ty1 = y - TAB_LEN / 2, y + TAB_LEN / 2
+        join_rect(root, cx0, ty0, cx0 + TAB_DEPTH, ty1, -TAB_TH, 0.0, "tab_l_%.0f" % y)
+        join_rect(root, cx1 - TAB_DEPTH, ty0, cx1, ty1, -TAB_TH, 0.0, "tab_r_%.0f" % y)
+    # 上下两端各一个，压住板的前后
+    join_rect(root, 12.0, cy0, 48.0, cy0 + TAB_DEPTH, -TAB_TH, 0.0, "tab_b")
+    join_rect(root, 12.0, cy1 - TAB_DEPTH, 48.0, cy1, -TAB_TH, 0.0, "tab_t")
+    step("侧边托板: %.3f cm3" % root.bRepBodies.item(0).volume)
+
+    # 底壁三个开孔（都开在 -Y 壁，切到板边为止）
+    wy0, wy1 = oy0 - 1.0, cy0 + 0.25
     cut_rect(root, PD_X - PD_W / 2, wy0, PD_X + PD_W / 2, wy1, PD_Z0, PD_Z1, "cut_pd")
-    cut_circle_y(root, DC_X, DC_ZC, DC_D, wy0, wy1, "cut_dc")   # 桶形座沿 -Y 穿墙
+    cut_circle_y(root, DC_X, DC_ZC, DC_D, wy0, wy1, "cut_dc")
     cut_rect(root, PICO_X - PICO_W / 2, wy0, PICO_X + PICO_W / 2, wy1,
              PICO_Z0, PICO_Z1, "cut_pico")
     step("底壁三孔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
     info(root, DOC_TRAY)
-    doc.save(doc.name)
     return doc
 
 
 # --------------------------------------------------------------------------- #
-# 前盖
+# 前盖：平板 + 平的内腔 + 各处开窗
 # --------------------------------------------------------------------------- #
 def build_cover():
     doc, design, root = fresh(DOC_COVER)
-    ox0, oy0 = -WALL, -WALL
-    ox1, oy1 = BOARD_W + WALL, BOARD_D + WALL
+    ox0, oy0, ox1, oy1 = -WALL, -WALL, BOARD_W + WALL, BOARD_D + WALL
     cx0, cy0, cx1, cy1 = -FIT, -FIT, BOARD_W + FIT, BOARD_D + FIT
 
-    # 低区整块
-    add_body(root, ox0, oy0, ox1, oy1, SEAM, COVER_LO_TOP, 4.0, DOC_COVER)
-    # 高区抬起
-    join_rect(root, ox0, STEP_Y, ox1, oy1, SEAM, COVER_HI_TOP, "hi_block")
-    step("前盖毛坯: %.3f cm3" % root.bRepBodies.item(0).volume)
+    # 一个方盒子：外廓 66x86，从分模面到平顶
+    body_rect(root, ox0, oy0, ox1, oy1, SEAM, COVER_TOP, 4.0, DOC_COVER)
+    step("前盖外形: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    # 内腔
-    cut_rect(root, cx0, cy0, cx1, cy1, SEAM - 1.0, COVER_LO_Z, "cav_lo")
-    cut_rect(root, cx0, STEP_Y, cx1, cy1, SEAM - 1.0, COVER_HI_Z, "cav_hi")
+    # 平的内腔（到 COVER_IN_Z）
+    cut_rect(root, cx0, cy0, cx1, cy1, SEAM - 1.0, COVER_IN_Z, "cavity")
     step("内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    # 止口（插入托盘内腔的一圈舌头）
-    # ⚠️ join 的上界必须是 SEAM（前盖本体底面）。写成 SEAM-1.0 会与本体差 1mm，
-    #    join 变成无操作、止口整圈消失（日志现象：体积 20.222 -> 20.222 不变）。
+    # 止口：join 必须搭到 SEAM（本体底面），否则是无操作、整圈消失
     join_rect(root, cx0, cy0, cx1, cy1, SEAM - TONGUE_D, SEAM + 0.2, "tongue_out")
     cut_rect(root, cx0 + TONGUE_T, cy0 + TONGUE_T, cx1 - TONGUE_T, cy1 - TONGUE_T,
              SEAM - TONGUE_D - 0.5, SEAM + 0.5, "tongue_in")
     step("止口: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    # OLED 窗口（高区顶面）
+    # OLED 窗口（平顶上开窗）
     cut_rect(root, OLED_X - OLED_W / 2, OLED_Y - OLED_H / 2,
              OLED_X + OLED_W / 2, OLED_Y + OLED_H / 2,
-             COVER_HI_Z - 2.0, COVER_HI_TOP + 1.0, "win_oled")
+             COVER_IN_Z - 2.0, COVER_TOP + 1.0, "win_oled")
     step("OLED 窗口")
 
     # 右侧壁传感器窗口
@@ -358,53 +308,41 @@ def build_cover():
              SENSOR_Z0, SENSOR_Z1, "win_sensor")
     step("传感器窗口")
 
-    # 顶壁 Ø6 SMA 通孔（左上，向上）
-    # ⚠️ 必须用 cut_circle_y（草图画在 XZ 平面）——画在 XY 平面上孔轴会变成 Z，
-    #    在顶壁上留下的是矩形/长条而不是 Ø6 圆孔（用户实测指出的）。
+    # 顶壁左侧：SMA Ø6 圆孔（沿 Y 穿墙）
     cut_circle_y(root, SMA_X, SMA_Z, SMA_D,
                  BOARD_D + FIT - 1.0, BOARD_D + WALL + 1.0, "hole_sma")
-    step("SMA Ø%.1f" % SMA_D)
+    step("SMA Ø%.1f 圆孔" % SMA_D)
 
-    # 顶壁右侧 GPS 贴片浅槽 + 挡边
+    # 顶壁右侧：GPS 陶瓷贴片槽 + 槽底 + 上沿挡边
     wall_in, wall_out = BOARD_D + FIT - 0.5, BOARD_D + WALL
-    # 贯穿顶壁的槽（Z 7..13），X 方向为贴片长度
     cut_rect(root, GPS_X0, wall_in, GPS_X1, wall_out + 1.0, GPS_Z0, GPS_Z1, "pocket_gps")
-    # 槽底托住贴片（贴片躺在 Z=7 上）
     join_rect(root, GPS_X0 - GPS_LIP, wall_in, GPS_X1 + GPS_LIP, wall_out,
               GPS_Z0 - GPS_DEPTH, GPS_Z0, "gps_floor")
-    # 外侧上沿两条挡边，压住贴片不会掉出来
     join_rect(root, GPS_X0 - GPS_LIP, wall_out - GPS_LIP, GPS_X1 + GPS_LIP, wall_out,
               GPS_Z1, GPS_Z1 + GPS_LIP, "gps_tab")
     step("GPS 槽")
 
-    # DC5521 局部加高：外侧凸台 + 内侧凹腔
-    join_rect(root, DC_POCKET_X0, DC_POCKET_Y0, DC_POCKET_X1, DC_POCKET_Y1,
-              COVER_LO_TOP, DC_BOSS_Z, "dc_boss")
-    cut_rect(root, DC_POCKET_X0 + 1.0, DC_POCKET_Y0 + 1.0,
-             DC_POCKET_X1 - 1.0, DC_POCKET_Y1 - 1.0,
-             COVER_LO_Z, DC_POCKET_Z, "dc_pocket")
-    step("DC 凸台 + 凹腔")
-
-    # 两块**互相独立**的按键板：各自三边挖槽、靠顶部 1.3mm 铰链悬臂，内侧各一个凸起。
-    # 之前把两个按钮做成了一整块（用户指出：要能分别控制）——所以中间那道槽必须切开。
+    # 两块独立按键板：各自三边挖槽 + 顶部铰链 + 一个凸起；中间那道槽把两块切开
     py0, py1 = BTN_Y - PLATE_H / 2, BTN_Y + PLATE_H / 2
-    zt0, zt1 = COVER_LO_Z - 1.0, COVER_LO_TOP + 1.0
+    zt0, zt1 = SEAM - 1.0, COVER_TOP + 1.0
     lx0, lx1 = BTN_X - BTN_DX - PLATE_W / 2, BTN_X - BTN_DX + PLATE_W / 2
     rx0, rx1 = BTN_X + BTN_DX - PLATE_W / 2, BTN_X + BTN_DX + PLATE_W / 2
     cut_rect(root, lx0 - SLOT_W, py0 - SLOT_W, lx0, py1 + SLOT_W, zt0, zt1, "slot_l_out")
     cut_rect(root, lx1, py0 - SLOT_W, rx0, py1 + SLOT_W, zt0, zt1, "slot_mid")
     cut_rect(root, rx1, py0 - SLOT_W, rx1 + SLOT_W, py1 + SLOT_W, zt0, zt1, "slot_r_out")
     cut_rect(root, lx0 - SLOT_W, py0 - SLOT_W, rx1 + SLOT_W, py0, zt0, zt1, "slot_bot")
-    hz = COVER_LO_Z + (COVER_LO_TOP - COVER_LO_Z) - HINGE_T
-    cut_rect(root, lx0, py1 - 1.0, lx1, py1 + SLOT_W, COVER_LO_Z, hz, "hinge_l")
-    cut_rect(root, rx0, py1 - 1.0, rx1, py1 + SLOT_W, COVER_LO_Z, hz, "hinge_r")
-    bz0, bz1 = COVER_LO_Z - BUMP_H, COVER_LO_Z + 1.0
-    join_circle(root, BTN_X - BTN_DX, BTN_Y, BUMP_R * 2, bz0, bz1, "bump_a")
-    join_circle(root, BTN_X + BTN_DX, BTN_Y, BUMP_R * 2, bz0, bz1, "bump_b")
-    step("两块独立按键板（各三边挖槽 + 一个凸起）")
+    # ⚠️ 从内顶面（15）**往上**留出 HINGE_T，写成 COVER_IN_Z - HINGE_T 是倒区间、切不到
+    hz = COVER_IN_Z + (COVER_TOP - COVER_IN_Z) - HINGE_T
+    cut_rect(root, lx0, py1 - 1.0, lx1, py1 + SLOT_W, COVER_IN_Z, hz, "hinge_l")
+    cut_rect(root, rx0, py1 - 1.0, rx1, py1 + SLOT_W, COVER_IN_Z, hz, "hinge_r")
+    join_circle_z(root, BTN_X - BTN_DX, BTN_Y, PLUNGER_R * 2, PLUNGER_TIP_Z,
+                  COVER_IN_Z + 1.0, "plunger_a")
+    join_circle_z(root, BTN_X + BTN_DX, BTN_Y, PLUNGER_R * 2, PLUNGER_TIP_Z,
+                  COVER_IN_Z + 1.0, "plunger_b")
+    step("两块独立按键板（尖端 Z=%.1f，按钮顶 Z=%.1f，留缝 %.1f）"
+         % (PLUNGER_TIP_Z, BTN_TOP_Z, PLUNGER_TIP_Z - BTN_TOP_Z))
 
     info(root, DOC_COVER)
-    doc.save(doc.name)
     return doc
 
 
