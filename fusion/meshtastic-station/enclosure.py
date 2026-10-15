@@ -58,7 +58,7 @@ PICO_X, PICO_W, PICO_Z0, PICO_Z1 = 46.23, 10.5, 1.2, 4.8
 # 前盖
 OLED_X, OLED_Y, OLED_W, OLED_H = 45.98, 65.46, 23.0, 12.0
 BTN_X, BTN_Y, BTN_DX = 46.23, 25.7, 4.25
-PLATE_W, PLATE_H = 24.0, 9.0
+PLATE_W, PLATE_H = 7.0, 9.0    # **每块**按键板的尺寸（两个按钮各自独立）
 SLOT_W = 1.0
 HINGE_T = 1.3
 BUMP_R, BUMP_H = 2.5, 7.5      # 凸起要够到 Z~4.2 的按键顶面
@@ -299,7 +299,7 @@ def build_tray():
     cut_rect(root, cx0, cy0, cx1, cy1, 0.0, TRAY_Z1 + 1.0, "cav_up")
     step("内腔+台阶: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    wy0, wy1 = oy0 - 1.0, cy0 + 0.5
+    wy0, wy1 = oy0 - 1.0, cy0 + 0.25   # 开到板边为止（再多会啃到板沿）
     cut_rect(root, PD_X - PD_W / 2, wy0, PD_X + PD_W / 2, wy1, PD_Z0, PD_Z1, "cut_pd")
     cut_circle_y(root, DC_X, DC_ZC, DC_D, wy0, wy1, "cut_dc")   # 桶形座沿 -Y 穿墙
     cut_rect(root, PICO_X - PICO_W / 2, wy0, PICO_X + PICO_W / 2, wy1,
@@ -349,8 +349,10 @@ def build_cover():
     step("传感器窗口")
 
     # 顶壁 Ø6 SMA 通孔（左上，向上）
-    cut_circle(root, SMA_X, (BOARD_D + FIT + BOARD_D + WALL) / 2.0, SMA_D,
-               SMA_Z - 1.0, SMA_Z + 1.0, "hole_sma")
+    # ⚠️ 必须用 cut_circle_y（草图画在 XZ 平面）——画在 XY 平面上孔轴会变成 Z，
+    #    在顶壁上留下的是矩形/长条而不是 Ø6 圆孔（用户实测指出的）。
+    cut_circle_y(root, SMA_X, SMA_Z, SMA_D,
+                 BOARD_D + FIT - 1.0, BOARD_D + WALL + 1.0, "hole_sma")
     step("SMA Ø%.1f" % SMA_D)
 
     # 顶壁右侧 GPS 贴片浅槽 + 挡边
@@ -365,20 +367,23 @@ def build_cover():
               GPS_Z1, GPS_Z1 + GPS_LIP, "gps_tab")
     step("GPS 槽")
 
-    # 连体按键板：三边挖槽 + 内侧两个凸起
-    px0, px1 = BTN_X - PLATE_W / 2, BTN_X + PLATE_W / 2
+    # 两块**互相独立**的按键板：各自三边挖槽、靠顶部 1.3mm 铰链悬臂，内侧各一个凸起。
+    # 之前把两个按钮做成了一整块（用户指出：要能分别控制）——所以中间那道槽必须切开。
     py0, py1 = BTN_Y - PLATE_H / 2, BTN_Y + PLATE_H / 2
     zt0, zt1 = COVER_LO_Z - 1.0, COVER_LO_TOP + 1.0
-    cut_rect(root, px0 - SLOT_W, py0 - SLOT_W, px0, py1 + SLOT_W, zt0, zt1, "slot_l")
-    cut_rect(root, px1, py0 - SLOT_W, px1 + SLOT_W, py1 + SLOT_W, zt0, zt1, "slot_r")
-    cut_rect(root, px0 - SLOT_W, py0 - SLOT_W, px1 + SLOT_W, py0, zt0, zt1, "slot_b")
-    # 铰链减薄（内侧开一道浅槽，留 1.3mm 弹性）
-    cut_rect(root, px0, py1 - 1.0, px1, py1 + SLOT_W, COVER_LO_Z, COVER_LO_Z + (COVER_LO_TOP - COVER_LO_Z) - HINGE_T, "hinge")
-    # 两个凸起，朝内顶到 Pico 的 BOOT / RESET
+    lx0, lx1 = BTN_X - BTN_DX - PLATE_W / 2, BTN_X - BTN_DX + PLATE_W / 2
+    rx0, rx1 = BTN_X + BTN_DX - PLATE_W / 2, BTN_X + BTN_DX + PLATE_W / 2
+    cut_rect(root, lx0 - SLOT_W, py0 - SLOT_W, lx0, py1 + SLOT_W, zt0, zt1, "slot_l_out")
+    cut_rect(root, lx1, py0 - SLOT_W, rx0, py1 + SLOT_W, zt0, zt1, "slot_mid")
+    cut_rect(root, rx1, py0 - SLOT_W, rx1 + SLOT_W, py1 + SLOT_W, zt0, zt1, "slot_r_out")
+    cut_rect(root, lx0 - SLOT_W, py0 - SLOT_W, rx1 + SLOT_W, py0, zt0, zt1, "slot_bot")
+    hz = COVER_LO_Z + (COVER_LO_TOP - COVER_LO_Z) - HINGE_T
+    cut_rect(root, lx0, py1 - 1.0, lx1, py1 + SLOT_W, COVER_LO_Z, hz, "hinge_l")
+    cut_rect(root, rx0, py1 - 1.0, rx1, py1 + SLOT_W, COVER_LO_Z, hz, "hinge_r")
     bz0, bz1 = COVER_LO_Z - BUMP_H, COVER_LO_Z + 1.0
     join_circle(root, BTN_X - BTN_DX, BTN_Y, BUMP_R * 2, bz0, bz1, "bump_a")
     join_circle(root, BTN_X + BTN_DX, BTN_Y, BUMP_R * 2, bz0, bz1, "bump_b")
-    step("按键板 + 两个凸起")
+    step("两块独立按键板（各三边挖槽 + 一个凸起）")
 
     info(root, DOC_COVER)
     doc.save(doc.name)
