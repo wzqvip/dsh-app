@@ -38,6 +38,8 @@ SEAM = TRAY_Z1
 COVER_IN_Z = 15.0                # 前盖内顶面（平）：1.6 板 + 12 OLED + 1.4 余量
 COVER_TOP = COVER_IN_Z + 2.5     # 前盖外顶面
 TONGUE_D, TONGUE_T = 1.5, 1.5    # 止口：插进托盘内腔的一圈舌头
+TONGUE_CLR = 0.35                # 止口外圈与内腔的间隙（否则零配合、插不进去）
+DC_RELIEF_W, DC_RELIEF_Z = 12.0, 10.0   # 前盖底壁给 DC 插头让路的开口
 
 # PCB 托板（侧边几个小凸台，板搭在上面）
 TAB_LEN, TAB_DEPTH, TAB_TH = 8.0, 1.5, 1.5
@@ -259,9 +261,18 @@ def build_tray():
         join_rect(root, cx0, ty0, cx0 + TAB_DEPTH, ty1, -TAB_TH, 0.0, "tab_l_%.0f" % y)
         join_rect(root, cx1 - TAB_DEPTH, ty0, cx1, ty1, -TAB_TH, 0.0, "tab_r_%.0f" % y)
     # 上下两端各一个，压住板的前后
-    join_rect(root, 12.0, cy0, 48.0, cy0 + TAB_DEPTH, -TAB_TH, 0.0, "tab_b")
+    # ⚠️ 前面这条托板必须让开 DC5521 的孔：原来一整条横跨 X12..48，
+    #    Ø9 的孔从中啃出一个缺口（Tray 上肉眼可见的怪东西）。改成左右两段。
+    # 让开 DC 的 X 范围（Ø9 孔占 16.1..25.1），两段都留够宽度，避免出现 0.6mm 薄片
+    join_rect(root, 12.0, cy0, 15.0, cy0 + TAB_DEPTH, -TAB_TH, 0.0, "tab_b1")
+    join_rect(root, 26.0, cy0, 48.0, cy0 + TAB_DEPTH, -TAB_TH, 0.0, "tab_b2")
     join_rect(root, 12.0, cy1 - TAB_DEPTH, 48.0, cy1, -TAB_TH, 0.0, "tab_t")
     step("侧边托板: %.3f cm3" % root.bRepBodies.item(0).volume)
+
+    # 上沿一圈让位：把 4.5..6.2 这一段内腔放大 TONGUE_CLR，前盖的止口才插得进去
+    cut_rect(root, cx0 - TONGUE_CLR, cy0 - TONGUE_CLR, cx1 + TONGUE_CLR, cy1 + TONGUE_CLR,
+             SEAM - TONGUE_D, SEAM + 0.2, "rim_relief")
+    step("上沿让位: %.3f cm3" % root.bRepBodies.item(0).volume)
 
     # 底壁三个开孔（都开在 -Y 壁，切到板边为止）
     wy0, wy1 = oy0 - 1.0, cy0 + 0.25
@@ -292,6 +303,8 @@ def build_cover():
     step("内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
     # 止口：join 必须搭到 SEAM（本体底面），否则是无操作、整圈消失
+    # ⚠️ 止口必须贴着自己的墙（外圈 = 内腔尺寸），否则会脱离本体变成悬空环、
+    #    前盖直接变 2 个实体。配合间隙改由**托盘上沿让位**提供（见 build_tray 的 rim_relief）。
     join_rect(root, cx0, cy0, cx1, cy1, SEAM - TONGUE_D, SEAM + 0.2, "tongue_out")
     cut_rect(root, cx0 + TONGUE_T, cy0 + TONGUE_T, cx1 - TONGUE_T, cy1 - TONGUE_T,
              SEAM - TONGUE_D - 0.5, SEAM + 0.5, "tongue_in")
@@ -302,6 +315,12 @@ def build_cover():
              OLED_X + OLED_W / 2, OLED_Y + OLED_H / 2,
              COVER_IN_Z - 2.0, COVER_TOP + 1.0, "win_oled")
     step("OLED 窗口")
+
+    # 底壁给 DC5521 插头让路：托盘那边的 Ø9 只到 Z=6，而插头外模约 6mm 高、
+    # 需要到 Z~9 才能插到底 —— 前盖壁必须同位置开口。
+    cut_rect(root, DC_X - DC_RELIEF_W / 2, -WALL - 1.0, DC_X + DC_RELIEF_W / 2,
+             cy0 + 0.25, SEAM - 1.0, DC_RELIEF_Z, "dc_relief")
+    step("DC 插头让位口")
 
     # 右侧壁传感器窗口
     cut_rect(root, BOARD_W + FIT - 1.0, SENSOR_Y0, BOARD_W + WALL + 1.0, SENSOR_Y1,
