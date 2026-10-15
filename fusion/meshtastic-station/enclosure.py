@@ -28,8 +28,8 @@ DOC_COVER = "MeshCase_Cover"
 # 尺寸
 # --------------------------------------------------------------------------- #
 BOARD_W, BOARD_D, BOARD_T = 60.0, 80.0, 1.6
-WALL = 3.0
-FIT = 0.25                       # 板与内腔单边间隙
+WALL = 4.0                       # 外廓相对板的外扩量（板 60x80 -> 外廓 68x88）
+FIT = 0.6                        # 板与内腔单边间隙（原来 0.25 太紧，实测很难装）
 
 # 分模面放在**板的下面 1mm**：这样板、屏幕、三个连接器全在**前壳**里（用户要的），
 # 背壳只是一个浅后盖，RF 天线（SMA）穿它的底面。
@@ -39,7 +39,7 @@ TRAY_FLOOR_IN = -11.0
 FLOOR = 2.5
 
 COVER_Z0 = SEAM                  # 前壳从分模面起
-COVER_IN_Z = 15.0                # 前壳内顶面（平）：1.6 板 + 12 OLED + 1.4 余量
+COVER_IN_Z = 16.0                # 前壳内顶面（平）：OLED 实测 14 -> 留 2mm
 COVER_TOP = COVER_IN_Z + 2.5     # 前壳外顶面
 TONGUE_D, TONGUE_T = 1.5, 1.0    # 止口：做成**壁厚内侧**的一圈，不侵占内腔
 TONGUE_CLR = 0.30                # 止口与后壳让位之间的间隙
@@ -50,9 +50,9 @@ TAB_LEN, TAB_DEPTH, TAB_TH = 8.0, 1.5, 1.0    # 托板 1mm 厚（-1..0，板底�
 TAB_YS = [8.0, 38.0, 68.0]       # 每侧 3 个
 
 # 底壁开孔（都在托盘的 -Y 壁）
-PD_X, PD_W, PD_Z0, PD_Z1 = 6.99, 10.0, 1.2, 5.0
-DC_X, DC_D, DC_ZC = 20.57, 9.0, 3.2
-PICO_X, PICO_W, PICO_Z0, PICO_Z1 = 46.23, 10.5, 1.2, 4.8
+PD_X, PD_W, PD_Z0, PD_Z1 = 6.99, 10.0, 1.0, 6.2      # 高度加到 5.2（原 3.8）
+DC_X, DC_D, DC_ZC = 17.57, 9.0, 3.2   # 向 C 口（PD）方向移 3mm：20.57 -> 17.57
+PICO_X, PICO_W, PICO_Z0, PICO_Z1 = 46.23, 10.5, 1.0, 6.0   # 高度加到 5.0（原 3.6）
 
 # 前盖
 OLED_X, OLED_Y, OLED_W, OLED_H = 45.98, 65.46, 23.0, 12.0
@@ -289,8 +289,8 @@ def build_tray():
         ty0, ty1 = y - TAB_LEN / 2, y + TAB_LEN / 2
         join_rect(root, cx0 - 2.0, ty0, cx0 + TAB_DEPTH, ty1, TRAY_Z1 - TAB_TH, 0.0, "tab_l_%.0f" % y)
         join_rect(root, cx1 - TAB_DEPTH, ty0, cx1 + 2.0, ty1, TRAY_Z1 - TAB_TH, 0.0, "tab_r_%.0f" % y)
-    join_rect(root, 12.0, cy0 - 2.0, 15.0, cy0 + TAB_DEPTH, TRAY_Z1 - TAB_TH, 0.0, "tab_b1")
-    join_rect(root, 26.0, cy0 - 2.0, 48.0, cy0 + TAB_DEPTH, TRAY_Z1 - TAB_TH, 0.0, "tab_b2")
+    # DC 圆口（Ø9）占 X 13.1..22.1，前面这条托板整段让开
+    join_rect(root, 23.0, cy0 - 2.0, 48.0, cy0 + TAB_DEPTH, TRAY_Z1 - TAB_TH, 0.0, "tab_b")
     join_rect(root, 12.0, cy1 - TAB_DEPTH, 48.0, cy1 + 2.0, TRAY_Z1 - TAB_TH, 0.0, "tab_t")
     step("PCB 托板: %.3f cm3" % root.bRepBodies.item(0).volume)
 
