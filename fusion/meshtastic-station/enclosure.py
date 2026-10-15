@@ -44,8 +44,9 @@ TRAY_Z0, TRAY_Z1 = -13.5, 6.0    # 托盘：底面 -> 接缝（底面要容下�
 FLOOR = 2.5
 SEAM = TRAY_Z1
 
-COVER_LO_Z = 12.0           # 低区（按键上方）内顶面（要容下 DC 座的 ~12mm）
-COVER_LO_TOP = 14.5         # 低区外顶面
+COVER_LO_Z = 6.4            # 低区（按键上方）内顶面：只需盖过 Pico(5.1)/PDC004(5.5)
+                            # DC 座(约 12mm) 改用局部凸台 DC_BOSS_Z 容纳，见下
+COVER_LO_TOP = 8.9          # 低区外顶面
 COVER_HI_Z = 15.5           # 高区（OLED/GPS）内顶面
 COVER_HI_TOP = 18.0         # 高区外顶面
 STEP_Y = 48.0               # 低/高区分界
@@ -61,9 +62,16 @@ BTN_X, BTN_Y, BTN_DX = 46.23, 25.7, 4.25
 PLATE_W, PLATE_H = 7.0, 9.0    # **每块**按键板的尺寸（两个按钮各自独立）
 SLOT_W = 1.0
 HINGE_T = 1.3
-BUMP_R, BUMP_H = 2.5, 7.5      # 凸起要够到 Z~4.2 的按键顶面
+BUMP_R, BUMP_H = 2.5, 2.0      # 凸起：顶面降到 6.4 后只需 2mm 就够到 Z~4.4 的按键
 
 SENSOR_Y0, SENSOR_Y1, SENSOR_Z0, SENSOR_Z1 = 56.0, 76.0, 2.0, 14.0  # GY-BMP280 会探出板右侧
+
+# DC5521 桶形座高约 12mm，低区顶面只有 6.4 —— 在它正上方做一个凸台，
+# 外侧抬高、内侧挖出凹腔把它罩住（外观像一个小小的接口仓）。
+DC_POCKET_X0, DC_POCKET_X1 = 10.0, 31.0
+DC_POCKET_Y0, DC_POCKET_Y1 = 3.0, 19.0
+DC_POCKET_Z = 13.0          # 凹腔内顶面（DC 高 12 + 1 余量）
+DC_BOSS_Z = 15.0            # 凸台外表面（顶壁留 2mm）
 
 SMA_X, SMA_Z, SMA_D = 15.0, 10.0, 6.0
 GPS_X0, GPS_X1, GPS_Z0, GPS_Z1 = 39.0, 59.0, 7.0, 13.0
@@ -332,9 +340,11 @@ def build_cover():
     step("内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
     # 止口（插入托盘内腔的一圈舌头）
-    join_rect(root, cx0, cy0, cx1, cy1, SEAM - TONGUE_D, SEAM - 1.0, "tongue_out")
+    # ⚠️ join 的上界必须是 SEAM（前盖本体底面）。写成 SEAM-1.0 会与本体差 1mm，
+    #    join 变成无操作、止口整圈消失（日志现象：体积 20.222 -> 20.222 不变）。
+    join_rect(root, cx0, cy0, cx1, cy1, SEAM - TONGUE_D, SEAM + 0.2, "tongue_out")
     cut_rect(root, cx0 + TONGUE_T, cy0 + TONGUE_T, cx1 - TONGUE_T, cy1 - TONGUE_T,
-             SEAM - TONGUE_D - 0.5, SEAM - 1.0, "tongue_in")
+             SEAM - TONGUE_D - 0.5, SEAM + 0.5, "tongue_in")
     step("止口: %.3f cm3" % root.bRepBodies.item(0).volume)
 
     # OLED 窗口（高区顶面）
@@ -366,6 +376,14 @@ def build_cover():
     join_rect(root, GPS_X0 - GPS_LIP, wall_out - GPS_LIP, GPS_X1 + GPS_LIP, wall_out,
               GPS_Z1, GPS_Z1 + GPS_LIP, "gps_tab")
     step("GPS 槽")
+
+    # DC5521 局部加高：外侧凸台 + 内侧凹腔
+    join_rect(root, DC_POCKET_X0, DC_POCKET_Y0, DC_POCKET_X1, DC_POCKET_Y1,
+              COVER_LO_TOP, DC_BOSS_Z, "dc_boss")
+    cut_rect(root, DC_POCKET_X0 + 1.0, DC_POCKET_Y0 + 1.0,
+             DC_POCKET_X1 - 1.0, DC_POCKET_Y1 - 1.0,
+             COVER_LO_Z, DC_POCKET_Z, "dc_pocket")
+    step("DC 凸台 + 凹腔")
 
     # 两块**互相独立**的按键板：各自三边挖槽、靠顶部 1.3mm 铰链悬臂，内侧各一个凸起。
     # 之前把两个按钮做成了一整块（用户指出：要能分别控制）——所以中间那道槽必须切开。
