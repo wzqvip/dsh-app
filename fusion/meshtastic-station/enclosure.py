@@ -31,18 +31,22 @@ BOARD_W, BOARD_D, BOARD_T = 60.0, 80.0, 1.6
 WALL = 3.0
 FIT = 0.25                       # 板与内腔单边间隙
 
-TRAY_Z0, TRAY_Z1 = -13.5, 6.0    # 托盘：底面 -> 分模面（内部底面 -11，容 470uF 的 10.5）
+# 分模面放在**板的下面 1mm**：这样板、屏幕、三个连接器全在**前壳**里（用户要的），
+# 背壳只是一个浅后盖，RF 天线（SMA）穿它的底面。
+SEAM = -1.0
+TRAY_Z0, TRAY_Z1 = -13.5, SEAM   # 背壳（后盖）：内部底面 -11，容 470uF 的 10.5
+TRAY_FLOOR_IN = -11.0
 FLOOR = 2.5
-SEAM = TRAY_Z1
 
-COVER_IN_Z = 15.0                # 前盖内顶面（平）：1.6 板 + 12 OLED + 1.4 余量
-COVER_TOP = COVER_IN_Z + 2.5     # 前盖外顶面
+COVER_Z0 = SEAM                  # 前壳从分模面起
+COVER_IN_Z = 15.0                # 前壳内顶面（平）：1.6 板 + 12 OLED + 1.4 余量
+COVER_TOP = COVER_IN_Z + 2.5     # 前壳外顶面
 TONGUE_D, TONGUE_T = 1.5, 1.5    # 止口：插进托盘内腔的一圈舌头
 TONGUE_CLR = 0.35                # 止口外圈与内腔的间隙（否则零配合、插不进去）
 DC_RELIEF_W, DC_RELIEF_Z = 12.0, 10.0   # 前盖底壁给 DC 插头让路的开口
 
 # PCB 托板（侧边几个小凸台，板搭在上面）
-TAB_LEN, TAB_DEPTH, TAB_TH = 8.0, 1.5, 1.5
+TAB_LEN, TAB_DEPTH, TAB_TH = 8.0, 1.5, 1.0    # 托板 1mm 厚（-1..0，板底面在 0）
 TAB_YS = [8.0, 38.0, 68.0]       # 每侧 3 个
 
 # 底壁开孔（都在托盘的 -Y 壁）
@@ -60,7 +64,7 @@ PLUNGER_R = 2.5
 BTN_TOP_Z = 5.6                  # 板上表面 1.6 + 4mm（用户给的参考）
 PLUNGER_TIP_Z = 7.5              # 尖端到 7.5 -> 与按钮顶留 1.9mm 缝（行程长，不必紧贴）
 SENSOR_Y0, SENSOR_Y1, SENSOR_Z0, SENSOR_Z1 = 56.0, 76.0, 2.0, 14.0
-SMA_X, SMA_Z, SMA_D = 15.0, 11.0, 6.0
+SMA_X, SMA_Y, SMA_D = 15.24, 57.77, 6.0   # 背壳底面，正对 E22 模块（RF 在板的背面）
 GPS_X0, GPS_X1, GPS_Z0, GPS_Z1 = 39.0, 59.0, 8.0, 14.0
 GPS_DEPTH, GPS_LIP = 1.5, 1.2
 
@@ -211,6 +215,22 @@ def cut_circle_y(root, cx, cz, d, y_lo, y_hi, name):
     return f
 
 
+def cut_circle_z(root, cx, cy, d, z_lo, z_hi, name):
+    """沿 **Z** 方向切圆孔（草图画在 XY 平面）。背面的 RF 天线孔用它。"""
+    sk = root.sketches.add(root.xYConstructionPlane)
+    sk.name = name + "_sk"
+    sk.sketchCurves.sketchCircles.addByCenterRadius(_sp(sk, cx, cy), d / 2.0 * MM)
+    if sk.profiles.count < 1:
+        raise RuntimeError("%s: 圆未闭合" % name)
+    ext = root.features.extrudeFeatures
+    ei = ext.createInput(sk.profiles.item(0), adsk.fusion.FeatureOperations.CutFeatureOperation)
+    ei.setTwoSidesDistanceExtent(V(z_hi), V(-z_lo))
+    f = ext.add(ei)
+    f.name = name
+    sk.isVisible = False
+    return f
+
+
 def join_circle_z(root, cx, cy, d, z_lo, z_hi, name):
     """沿 Z 方向合并圆柱（按键凸起）。"""
     sk = root.sketches.add(root.xYConstructionPlane)
@@ -241,7 +261,9 @@ def info(root, key):
 
 
 # --------------------------------------------------------------------------- #
-# 背壳托盘：方盒子 + 底壁三孔 + 侧边托板
+# --------------------------------------------------------------------------- #
+# 背壳（后盖）：浅盒 + 背面 RF 天线孔 + 止口让位
+#   用户明确：DC 和两个 USB-C 属于**屏幕那一半**（前壳），RF 天线在**另外一侧**（背面）
 # --------------------------------------------------------------------------- #
 def build_tray():
     doc, design, root = fresh(DOC_TRAY)
@@ -249,32 +271,57 @@ def build_tray():
     cx0, cy0, cx1, cy1 = -FIT, -FIT, BOARD_W + FIT, BOARD_D + FIT
 
     body_rect(root, ox0, oy0, ox1, oy1, TRAY_Z0, TRAY_Z1, 4.0, DOC_TRAY)
-    step("托盘外形: %.3f cm3" % root.bRepBodies.item(0).volume)
+    step("背壳外形: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    # 内腔：从内底面一直到分模面
-    cut_rect(root, cx0, cy0, cx1, cy1, TRAY_Z0 + FLOOR, TRAY_Z1 + 1.0, "cavity")
-    step("内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
+    # 内腔：从内部底面到分模面（容背面的 470uF 等）
+    cut_rect(root, cx0, cy0, cx1, cy1, TRAY_FLOOR_IN, TRAY_Z1 + 1.0, "cavity")
+    step("背壳内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    # 侧边托板：每侧 3 个，板搭在它们上面（Z = 0 就是板的底面）
-    for y in TAB_YS:
-        ty0, ty1 = y - TAB_LEN / 2, y + TAB_LEN / 2
-        join_rect(root, cx0, ty0, cx0 + TAB_DEPTH, ty1, -TAB_TH, 0.0, "tab_l_%.0f" % y)
-        join_rect(root, cx1 - TAB_DEPTH, ty0, cx1, ty1, -TAB_TH, 0.0, "tab_r_%.0f" % y)
-    # 上下两端各一个，压住板的前后
-    # ⚠️ 前面这条托板必须让开 DC5521 的孔：原来一整条横跨 X12..48，
-    #    Ø9 的孔从中啃出一个缺口（Tray 上肉眼可见的怪东西）。改成左右两段。
-    # 让开 DC 的 X 范围（Ø9 孔占 16.1..25.1），两段都留够宽度，避免出现 0.6mm 薄片
-    join_rect(root, 12.0, cy0, 15.0, cy0 + TAB_DEPTH, -TAB_TH, 0.0, "tab_b1")
-    join_rect(root, 26.0, cy0, 48.0, cy0 + TAB_DEPTH, -TAB_TH, 0.0, "tab_b2")
-    join_rect(root, 12.0, cy1 - TAB_DEPTH, 48.0, cy1, -TAB_TH, 0.0, "tab_t")
-    step("侧边托板: %.3f cm3" % root.bRepBodies.item(0).volume)
-
-    # 上沿一圈让位：把 4.5..6.2 这一段内腔放大 TONGUE_CLR，前盖的止口才插得进去
+    # 前壳止口插进来的让位
     cut_rect(root, cx0 - TONGUE_CLR, cy0 - TONGUE_CLR, cx1 + TONGUE_CLR, cy1 + TONGUE_CLR,
              SEAM - TONGUE_D, SEAM + 0.2, "rim_relief")
-    step("上沿让位: %.3f cm3" % root.bRepBodies.item(0).volume)
+    step("止口让位: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    # 底壁三个开孔（都开在 -Y 壁，切到板边为止）
+    # RF 天线：Ø6 圆孔开在**背面**（-Z 底面），位置正对 E22 模块，天线朝后
+    cut_circle_z(root, SMA_X, SMA_Y, SMA_D, TRAY_Z0 - 1.0, TRAY_FLOOR_IN + 0.01, "hole_sma")
+    step("SMA Ø%.1f 背面圆孔" % SMA_D)
+
+    info(root, DOC_TRAY)
+    return doc
+
+
+# --------------------------------------------------------------------------- #
+# 前壳：收下板 + 屏幕 + 三个连接器（都在这一半）
+# --------------------------------------------------------------------------- #
+def build_cover():
+    doc, design, root = fresh(DOC_COVER)
+    ox0, oy0, ox1, oy1 = -WALL, -WALL, BOARD_W + WALL, BOARD_D + WALL
+    cx0, cy0, cx1, cy1 = -FIT, -FIT, BOARD_W + FIT, BOARD_D + FIT
+
+    body_rect(root, ox0, oy0, ox1, oy1, COVER_Z0, COVER_TOP, 4.0, DOC_COVER)
+    step("前壳外形: %.3f cm3" % root.bRepBodies.item(0).volume)
+
+    # 平的内腔：从分模面一直到内顶面
+    cut_rect(root, cx0, cy0, cx1, cy1, COVER_Z0 - 1.0, COVER_IN_Z, "cavity")
+    step("内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
+
+    # PCB 托板：板搭在 Z=0，托板占 Z -1..0
+    for y in TAB_YS:
+        ty0, ty1 = y - TAB_LEN / 2, y + TAB_LEN / 2
+        join_rect(root, cx0, ty0, cx0 + TAB_DEPTH, ty1, COVER_Z0, 0.0, "tab_l_%.0f" % y)
+        join_rect(root, cx1 - TAB_DEPTH, ty0, cx1, ty1, COVER_Z0, 0.0, "tab_r_%.0f" % y)
+    join_rect(root, 12.0, cy0, 15.0, cy0 + TAB_DEPTH, COVER_Z0, 0.0, "tab_b1")
+    join_rect(root, 26.0, cy0, 48.0, cy0 + TAB_DEPTH, COVER_Z0, 0.0, "tab_b2")
+    join_rect(root, 12.0, cy1 - TAB_DEPTH, 48.0, cy1, COVER_Z0, 0.0, "tab_t")
+    step("PCB 托板: %.3f cm3" % root.bRepBodies.item(0).volume)
+
+    # 止口：往下插进背壳，必须搭到本体的底面（否则无操作、整圈消失）
+    join_rect(root, cx0, cy0, cx1, cy1, SEAM - TONGUE_D, SEAM + 0.2, "tongue_out")
+    cut_rect(root, cx0 + TONGUE_T, cy0 + TONGUE_T, cx1 - TONGUE_T, cy1 - TONGUE_T,
+             SEAM - TONGUE_D - 0.5, SEAM + 0.5, "tongue_in")
+    step("止口: %.3f cm3" % root.bRepBodies.item(0).volume)
+
+    # 底壁三个连接器开口 —— 全部在这一半的底壁（用户：屏幕那一侧的底部）
     wy0, wy1 = oy0 - 1.0, cy0 + 0.25
     cut_rect(root, PD_X - PD_W / 2, wy0, PD_X + PD_W / 2, wy1, PD_Z0, PD_Z1, "cut_pd")
     cut_circle_y(root, DC_X, DC_ZC, DC_D, wy0, wy1, "cut_dc")
@@ -282,57 +329,18 @@ def build_tray():
              PICO_Z0, PICO_Z1, "cut_pico")
     step("底壁三孔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    info(root, DOC_TRAY)
-    return doc
-
-
-# --------------------------------------------------------------------------- #
-# 前盖：平板 + 平的内腔 + 各处开窗
-# --------------------------------------------------------------------------- #
-def build_cover():
-    doc, design, root = fresh(DOC_COVER)
-    ox0, oy0, ox1, oy1 = -WALL, -WALL, BOARD_W + WALL, BOARD_D + WALL
-    cx0, cy0, cx1, cy1 = -FIT, -FIT, BOARD_W + FIT, BOARD_D + FIT
-
-    # 一个方盒子：外廓 66x86，从分模面到平顶
-    body_rect(root, ox0, oy0, ox1, oy1, SEAM, COVER_TOP, 4.0, DOC_COVER)
-    step("前盖外形: %.3f cm3" % root.bRepBodies.item(0).volume)
-
-    # 平的内腔（到 COVER_IN_Z）
-    cut_rect(root, cx0, cy0, cx1, cy1, SEAM - 1.0, COVER_IN_Z, "cavity")
-    step("内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
-
-    # 止口：join 必须搭到 SEAM（本体底面），否则是无操作、整圈消失
-    # ⚠️ 止口必须贴着自己的墙（外圈 = 内腔尺寸），否则会脱离本体变成悬空环、
-    #    前盖直接变 2 个实体。配合间隙改由**托盘上沿让位**提供（见 build_tray 的 rim_relief）。
-    join_rect(root, cx0, cy0, cx1, cy1, SEAM - TONGUE_D, SEAM + 0.2, "tongue_out")
-    cut_rect(root, cx0 + TONGUE_T, cy0 + TONGUE_T, cx1 - TONGUE_T, cy1 - TONGUE_T,
-             SEAM - TONGUE_D - 0.5, SEAM + 0.5, "tongue_in")
-    step("止口: %.3f cm3" % root.bRepBodies.item(0).volume)
-
-    # OLED 窗口（平顶上开窗）
+    # OLED 窗口
     cut_rect(root, OLED_X - OLED_W / 2, OLED_Y - OLED_H / 2,
              OLED_X + OLED_W / 2, OLED_Y + OLED_H / 2,
              COVER_IN_Z - 2.0, COVER_TOP + 1.0, "win_oled")
     step("OLED 窗口")
-
-    # 底壁给 DC5521 插头让路：托盘那边的 Ø9 只到 Z=6，而插头外模约 6mm 高、
-    # 需要到 Z~9 才能插到底 —— 前盖壁必须同位置开口。
-    cut_rect(root, DC_X - DC_RELIEF_W / 2, -WALL - 1.0, DC_X + DC_RELIEF_W / 2,
-             cy0 + 0.25, SEAM - 1.0, DC_RELIEF_Z, "dc_relief")
-    step("DC 插头让位口")
 
     # 右侧壁传感器窗口
     cut_rect(root, BOARD_W + FIT - 1.0, SENSOR_Y0, BOARD_W + WALL + 1.0, SENSOR_Y1,
              SENSOR_Z0, SENSOR_Z1, "win_sensor")
     step("传感器窗口")
 
-    # 顶壁左侧：SMA Ø6 圆孔（沿 Y 穿墙）
-    cut_circle_y(root, SMA_X, SMA_Z, SMA_D,
-                 BOARD_D + FIT - 1.0, BOARD_D + WALL + 1.0, "hole_sma")
-    step("SMA Ø%.1f 圆孔" % SMA_D)
-
-    # 顶壁右侧：GPS 陶瓷贴片槽 + 槽底 + 上沿挡边
+    # 顶壁右侧：GPS 陶瓷贴片槽 + 槽底 + 挡边
     wall_in, wall_out = BOARD_D + FIT - 0.5, BOARD_D + WALL
     cut_rect(root, GPS_X0, wall_in, GPS_X1, wall_out + 1.0, GPS_Z0, GPS_Z1, "pocket_gps")
     join_rect(root, GPS_X0 - GPS_LIP, wall_in, GPS_X1 + GPS_LIP, wall_out,
@@ -341,16 +349,15 @@ def build_cover():
               GPS_Z1, GPS_Z1 + GPS_LIP, "gps_tab")
     step("GPS 槽")
 
-    # 两块独立按键板：各自三边挖槽 + 顶部铰链 + 一个凸起；中间那道槽把两块切开
+    # 两块独立按键板
     py0, py1 = BTN_Y - PLATE_H / 2, BTN_Y + PLATE_H / 2
-    zt0, zt1 = SEAM - 1.0, COVER_TOP + 1.0
+    zt0, zt1 = COVER_Z0 - 1.0, COVER_TOP + 1.0
     lx0, lx1 = BTN_X - BTN_DX - PLATE_W / 2, BTN_X - BTN_DX + PLATE_W / 2
     rx0, rx1 = BTN_X + BTN_DX - PLATE_W / 2, BTN_X + BTN_DX + PLATE_W / 2
     cut_rect(root, lx0 - SLOT_W, py0 - SLOT_W, lx0, py1 + SLOT_W, zt0, zt1, "slot_l_out")
     cut_rect(root, lx1, py0 - SLOT_W, rx0, py1 + SLOT_W, zt0, zt1, "slot_mid")
     cut_rect(root, rx1, py0 - SLOT_W, rx1 + SLOT_W, py1 + SLOT_W, zt0, zt1, "slot_r_out")
     cut_rect(root, lx0 - SLOT_W, py0 - SLOT_W, rx1 + SLOT_W, py0, zt0, zt1, "slot_bot")
-    # ⚠️ 从内顶面（15）**往上**留出 HINGE_T，写成 COVER_IN_Z - HINGE_T 是倒区间、切不到
     hz = COVER_IN_Z + (COVER_TOP - COVER_IN_Z) - HINGE_T
     cut_rect(root, lx0, py1 - 1.0, lx1, py1 + SLOT_W, COVER_IN_Z, hz, "hinge_l")
     cut_rect(root, rx0, py1 - 1.0, rx1, py1 + SLOT_W, COVER_IN_Z, hz, "hinge_r")
