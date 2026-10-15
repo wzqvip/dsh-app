@@ -41,8 +41,8 @@ FLOOR = 2.5
 COVER_Z0 = SEAM                  # 前壳从分模面起
 COVER_IN_Z = 15.0                # 前壳内顶面（平）：1.6 板 + 12 OLED + 1.4 余量
 COVER_TOP = COVER_IN_Z + 2.5     # 前壳外顶面
-TONGUE_D, TONGUE_T = 1.5, 1.5    # 止口：插进托盘内腔的一圈舌头
-TONGUE_CLR = 0.35                # 止口外圈与内腔的间隙（否则零配合、插不进去）
+TONGUE_D, TONGUE_T = 1.5, 1.0    # 止口：做成**壁厚内侧**的一圈，不侵占内腔
+TONGUE_CLR = 0.30                # 止口与后壳让位之间的间隙
 DC_RELIEF_W, DC_RELIEF_Z = 12.0, 10.0   # 前盖底壁给 DC 插头让路的开口
 
 # PCB 托板（侧边几个小凸台，板搭在上面）
@@ -64,7 +64,7 @@ PLUNGER_R = 2.5
 BTN_TOP_Z = 5.6                  # 板上表面 1.6 + 4mm（用户给的参考）
 PLUNGER_TIP_Z = 7.5              # 尖端到 7.5 -> 与按钮顶留 1.9mm 缝（行程长，不必紧贴）
 SENSOR_Y0, SENSOR_Y1, SENSOR_Z0, SENSOR_Z1 = 56.0, 76.0, 2.0, 14.0
-SMA_X, SMA_Y, SMA_D = 15.24, 57.77, 6.0   # 背壳底面，正对 E22 模块（RF 在板的背面）
+SMA_X, SMA_Z, SMA_D = 15.24, -4.0, 6.0   # 后壳**顶部壁**（+Y），贴 E22 模块的高度
 GPS_X0, GPS_X1, GPS_Z0, GPS_Z1 = 39.0, 59.0, 8.0, 14.0
 GPS_DEPTH, GPS_LIP = 1.5, 1.2
 
@@ -271,20 +271,33 @@ def build_tray():
     cx0, cy0, cx1, cy1 = -FIT, -FIT, BOARD_W + FIT, BOARD_D + FIT
 
     body_rect(root, ox0, oy0, ox1, oy1, TRAY_Z0, TRAY_Z1, 4.0, DOC_TRAY)
-    step("背壳外形: %.3f cm3" % root.bRepBodies.item(0).volume)
+    step("后壳外形: %.3f cm3" % root.bRepBodies.item(0).volume)
 
     # 内腔：从内部底面到分模面（容背面的 470uF 等）
     cut_rect(root, cx0, cy0, cx1, cy1, TRAY_FLOOR_IN, TRAY_Z1 + 1.0, "cavity")
     step("背壳内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    # 前壳止口插进来的让位
-    cut_rect(root, cx0 - TONGUE_CLR, cy0 - TONGUE_CLR, cx1 + TONGUE_CLR, cy1 + TONGUE_CLR,
+    # 前壳止口插进来的让位：止口在壁厚内侧（cx0-TONGUE_T .. cx0），
+    # 所以这里要把对应位置挖开一点
+    cut_rect(root, cx0 - TONGUE_T - TONGUE_CLR, cy0 - TONGUE_T - TONGUE_CLR,
+             cx1 + TONGUE_T + TONGUE_CLR, cy1 + TONGUE_T + TONGUE_CLR,
              SEAM - TONGUE_D, SEAM + 0.2, "rim_relief")
     step("止口让位: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    # RF 天线：Ø6 圆孔开在**背面**（-Z 底面），位置正对 E22 模块，天线朝后
-    cut_circle_z(root, SMA_X, SMA_Y, SMA_D, TRAY_Z0 - 1.0, TRAY_FLOOR_IN + 0.01, "hole_sma")
-    step("SMA Ø%.1f 背面圆孔" % SMA_D)
+    # PCB 托板：从分模面往上涨到 Z=0，托住板（放在后壳，前壳内腔才通畅）
+    for y in TAB_YS:
+        ty0, ty1 = y - TAB_LEN / 2, y + TAB_LEN / 2
+        join_rect(root, cx0 - 2.0, ty0, cx0 + TAB_DEPTH, ty1, TRAY_Z1 - TAB_TH, 0.0, "tab_l_%.0f" % y)
+        join_rect(root, cx1 - TAB_DEPTH, ty0, cx1 + 2.0, ty1, TRAY_Z1 - TAB_TH, 0.0, "tab_r_%.0f" % y)
+    join_rect(root, 12.0, cy0 - 2.0, 15.0, cy0 + TAB_DEPTH, TRAY_Z1 - TAB_TH, 0.0, "tab_b1")
+    join_rect(root, 26.0, cy0 - 2.0, 48.0, cy0 + TAB_DEPTH, TRAY_Z1 - TAB_TH, 0.0, "tab_b2")
+    join_rect(root, 12.0, cy1 - TAB_DEPTH, 48.0, cy1 + 2.0, TRAY_Z1 - TAB_TH, 0.0, "tab_t")
+    step("PCB 托板: %.3f cm3" % root.bRepBodies.item(0).volume)
+
+    # RF 天线：Ø6 圆孔开在**后壳顶部壁（+Y）**，天线从顶部出去
+    cut_circle_y(root, SMA_X, SMA_Z, SMA_D,
+                 BOARD_D + FIT - 1.0, BOARD_D + WALL + 1.0, "hole_sma")
+    step("SMA Ø%.1f 顶部圆孔" % SMA_D)
 
     info(root, DOC_TRAY)
     return doc
@@ -305,20 +318,17 @@ def build_cover():
     cut_rect(root, cx0, cy0, cx1, cy1, COVER_Z0 - 1.0, COVER_IN_Z, "cavity")
     step("内腔: %.3f cm3" % root.bRepBodies.item(0).volume)
 
-    # PCB 托板：板搭在 Z=0，托板占 Z -1..0
-    for y in TAB_YS:
-        ty0, ty1 = y - TAB_LEN / 2, y + TAB_LEN / 2
-        join_rect(root, cx0, ty0, cx0 + TAB_DEPTH, ty1, COVER_Z0, 0.0, "tab_l_%.0f" % y)
-        join_rect(root, cx1 - TAB_DEPTH, ty0, cx1, ty1, COVER_Z0, 0.0, "tab_r_%.0f" % y)
-    join_rect(root, 12.0, cy0, 15.0, cy0 + TAB_DEPTH, COVER_Z0, 0.0, "tab_b1")
-    join_rect(root, 26.0, cy0, 48.0, cy0 + TAB_DEPTH, COVER_Z0, 0.0, "tab_b2")
-    join_rect(root, 12.0, cy1 - TAB_DEPTH, 48.0, cy1, COVER_Z0, 0.0, "tab_t")
-    step("PCB 托板: %.3f cm3" % root.bRepBodies.item(0).volume)
+    # ⚠️ 前壳内腔**不放任何托板**：板要从 -Z 侧整体放进这个腔，
+    #    腔里只要多出 1mm 就会把板挡住（原来 8 个内侧托板就是这么挡的）。
+    #    托板改到后壳上，从分模面往上涨到 Z=0（见 build_tray）。
 
     # 止口：往下插进背壳，必须搭到本体的底面（否则无操作、整圈消失）
-    join_rect(root, cx0, cy0, cx1, cy1, SEAM - TONGUE_D, SEAM + 0.2, "tongue_out")
-    cut_rect(root, cx0 + TONGUE_T, cy0 + TONGUE_T, cx1 - TONGUE_T, cy1 - TONGUE_T,
-             SEAM - TONGUE_D - 0.5, SEAM + 0.5, "tongue_in")
+    # ⚠️ 止口必须在**壁厚里**（cx0-TONGUE_T .. cx0），不能伸进内腔 ——
+    #    之前做成 cx0..cx0+TONGUE_T，等于在内腔里加了一圈 1.5mm 的收口，
+    #    板只比内腔小 0.25mm，根本放不进去（用户实测）。
+    join_rect(root, cx0 - TONGUE_T, cy0 - TONGUE_T, cx1 + TONGUE_T, cy1 + TONGUE_T,
+              SEAM - TONGUE_D, SEAM + 0.2, "tongue_out")
+    cut_rect(root, cx0, cy0, cx1, cy1, SEAM - TONGUE_D - 0.5, SEAM + 0.5, "tongue_in")
     step("止口: %.3f cm3" % root.bRepBodies.item(0).volume)
 
     # 底壁三个连接器开口 —— 全部在这一半的底壁（用户：屏幕那一侧的底部）
