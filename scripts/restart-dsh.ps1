@@ -31,12 +31,35 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
-# dsh entry: prefer the current install location, fall back to the npx cache path
-$binCandidates = @(
+# dsh entry: resolve dynamically, never hard-code one machine's layout.
+#
+# 2026-10-25 修：此前这里写死了 `C:\Users\WANGZ\node_modules\...\bin.js`（主目录的本地依赖）。
+# 后来 dsh 改为**全局安装**（`npm i -g`），主目录那份被清理掉 → 两个候选路径全部失效，
+# 脚本会直接 `ERROR: no dsh entry point found` 并 exit 3。
+# 现在按"最可能正确"的顺序解析：全局安装 → npm 全局前缀 → 旧位置（兼容）→ npx 缓存。
+$binCandidates = @()
+# ① npm 全局安装（`npm i -g @deepseek-ai/dsh` 的标准落位）
+if ($env:APPDATA) {
+  $binCandidates += (Join-Path $env:APPDATA 'npm\node_modules\@deepseek-ai\dsh\lib\bin.js')
+}
+# ② 由 npm 自己报告全局前缀（用户改过 prefix 时也能找到）
+try {
+  $globalPrefix = (& npm prefix -g 2>$null | Select-Object -First 1)
+  if ($globalPrefix) {
+    $binCandidates += (Join-Path $globalPrefix.Trim() 'node_modules\@deepseek-ai\dsh\lib\bin.js')
+  }
+} catch { }
+# ③ 当前 node 解析到的模块（若 PATH 里能 require 到 dsh）
+try {
+  $resolved = (& node -e "try{console.log(require.resolve('@deepseek-ai/dsh/lib/bin.js'))}catch{}" 2>$null | Select-Object -First 1)
+  if ($resolved) { $binCandidates += $resolved.Trim() }
+} catch { }
+# ④ 旧位置与 npx 缓存（兼容历史环境，放在最后）
+$binCandidates += @(
   'C:\Users\WANGZ\node_modules\@deepseek-ai\dsh\lib\bin.js',
   'C:\Users\WANGZ\AppData\Local\npm-cache\_npx\1e7f6d9597241db0\node_modules\@deepseek-ai\dsh\lib\bin.js'
 )
-$bin = $binCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+$bin = $binCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 
 $log = Join-Path $PSScriptRoot ('..\restart-dsh-{0}.log' -f $Port)
 $outLog = Join-Path $PSScriptRoot ('..\restart-dsh-{0}.stdout.log' -f $Port)
