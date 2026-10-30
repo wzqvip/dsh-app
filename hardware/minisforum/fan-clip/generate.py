@@ -128,6 +128,73 @@ def build(fan: int, w: float, d: float, h: float, clear: float = CLEAR) -> trime
     return part
 
 
+# ---------------- 上下双风扇（叠装） ----------------
+TRAY_T = 4.0     # 底板厚
+PLENUM = 10.0    # 底板与机身之间的静压腔
+
+
+def build_tray(fan: int, w: float, d: float, clear: float = CLEAR) -> trimesh.Trimesh:
+    """下风扇底板：托住机身、自带 10mm 静压腔，风扇装在底板下方。"""
+    tw = w + 2 * clear - 0.6
+    td = d + 2 * clear - 0.6
+    plate = rounded_rect_prism(tw, td, 5.0, 0.0, TRAY_T)
+
+    bore_r = 58.0 if fan == 120 else 69.0
+    spacing = 105.0 if fan == 120 else 124.5
+    cutters = [cyl(bore_r, -1, TRAY_T + 1)]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cutters.append(cyl(3.9 / 2, -1, TRAY_T + 1, sx * spacing / 2, sy * spacing / 2))
+    plate = plate.difference(trimesh.boolean.union(cutters, engine="manifold"))
+
+    # 四个支撑柱：把机身抬到 10mm 静压腔之上
+    posts = []
+    px, py = tw / 2 - 14, td / 2 - 14
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            posts.append(cyl(6.0, TRAY_T, TRAY_T + PLENUM, sx * px, sy * py))
+    return trimesh.boolean.union([plate, *posts], engine="manifold")
+
+
+def build_stack_clip(fan: int, w: float, d: float, h: float, clear: float = CLEAR) -> trimesh.Trimesh:
+    """叠装用上夹：竖壁一直伸到托盘底面，倒钩勾住托盘。"""
+    pw = w + 2 * clear + 2 * WALL
+    pd = d + 2 * clear + 2 * WALL
+    z_plate0 = TRAY_T + PLENUM + h + GAP
+    z_plate1 = z_plate0 + PLATE_T
+
+    plate = rounded_rect_prism(pw, pd, CORNER_R, z_plate0, z_plate1)
+    bore_r = 58.0 if fan == 120 else 69.0
+    spacing = 105.0 if fan == 120 else 124.5
+    cutters = [cyl(bore_r, z_plate0 - 1, z_plate1 + 1)]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cxx, cyy = sx * spacing / 2, sy * spacing / 2
+            cutters.append(cyl(SCREW_D / 2, z_plate0 - 1, z_plate1 + 1, cxx, cyy))
+            cutters.append(cyl(SCREW_HEAD_D / 2, z_plate1 - SCREW_HEAD_H, z_plate1 + 1, cxx, cyy))
+    plate = plate.difference(trimesh.boolean.union(cutters, engine="manifold"))
+
+    x_in = w / 2 + clear
+    parts = [plate]
+    for sign in (-1, 1):
+        xa, xb = sorted((sign * x_in, sign * (x_in + WALL)))
+        parts.append(box(xa, xb, -pd / 2, pd / 2, -(LIP_L + LIP_TIP), z_plate1))
+        lip_pts = [
+            (sign * x_in, 0.0),
+            (sign * (x_in - LIP_L), 0.0),
+            (sign * (x_in - LIP_L), -LIP_TIP),
+            (sign * x_in, -(LIP_L + LIP_TIP)),
+        ]
+        parts.append(prism_xz(lip_pts, -pd / 2, pd / 2))
+    return trimesh.boolean.union(parts, engine="manifold")
+
+
+def to_print_pose(part: trimesh.Trimesh) -> trimesh.Trimesh:
+    part.apply_transform(trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0]))
+    part.apply_translation((0, 0, -part.bounds[0][2]))
+    return part
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--fan", type=int, choices=(120, 140), default=140)
@@ -135,19 +202,28 @@ def main() -> int:
     ap.add_argument("--d", type=float, default=DEV_D)
     ap.add_argument("--h", type=float, default=DEV_H)
     ap.add_argument("--clear", type=float, default=CLEAR)
+    ap.add_argument("--mode", choices=("top", "stack"), default="top",
+                    help="top=单件上夹；stack=上下双风扇（上夹 + 托盘）")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
-    part = build(args.fan, args.w, args.d, args.h, args.clear)
-    out = args.out or f"fan-clip-{args.fan}.stl"
-    part.export(out)
+    def report(name, part):
+        part.export(name)
+        ext = part.extents
+        print(f"{name}: {ext[0]:.1f} x {ext[1]:.1f} x {ext[2]:.1f} mm")
+        print(
+            f"  watertight={part.is_watertight} volume={part.volume/1000:.1f} cm3 "
+            f"PETG~{part.volume/1000*1.27:.0f} g solid"
+        )
 
-    ext = part.extents
-    print(f"{out}: {ext[0]:.1f} x {ext[1]:.1f} x {ext[2]:.1f} mm")
-    print(
-        f"  watertight={part.is_watertight} volume={part.volume/1000:.1f} cm3 "
-        f"ABS~{part.volume/1000*1.04:.0f} g PETG~{part.volume/1000*1.27:.0f} g"
-    )
+    if args.mode == "top":
+        report(args.out or f"fan-clip-{args.fan}.stl",
+               build(args.fan, args.w, args.d, args.h, args.clear))
+    else:
+        report(args.out or f"fan-clip-{args.fan}-stack.stl",
+               to_print_pose(build_stack_clip(args.fan, args.w, args.d, args.h, args.clear)))
+        report(f"fan-tray-{args.fan}.stl",
+               build_tray(args.fan, args.w, args.d, args.clear))
     return 0
 
 
