@@ -81,13 +81,14 @@ def cyl(radius: float, z0: float, z1: float, cx=0.0, cy=0.0) -> trimesh.Trimesh:
     return m.apply_translation((cx, cy, (z0 + z1) / 2))
 
 
-def build_use(fan: int, w: float, d: float, h: float, clear: float = CLEAR) -> trimesh.Trimesh:
+def build_use(fan: int, w: float, d: float, h: float, clear: float = CLEAR,
+              lip_l: float = LIP_L, back_stop: bool = False) -> trimesh.Trimesh:
     # ---------- 使用姿态坐标：z=0 是机器底面 ----------
     pw = w + 2 * clear + 2 * WALL
     pd = d + 2 * clear + 2 * WALL
     z_plate0 = h + GAP
     z_plate1 = z_plate0 + PLATE_T
-    z_lip_bot = -(LIP_L + LIP_TIP)
+    z_lip_bot = -(lip_l + LIP_TIP)
 
     plate = rounded_rect_prism(pw, pd, CORNER_R, z_plate0, z_plate1)
 
@@ -106,23 +107,29 @@ def build_use(fan: int, w: float, d: float, h: float, clear: float = CLEAR) -> t
     for sign in (-1, 1):
         xa, xb = sorted((sign * x_in, sign * (x_in + WALL)))
         parts.append(box(xa, xb, -pd / 2, pd / 2, z_lip_bot, z_plate1))
-        # 倒钩：贴机身底面(z=0)内伸 LIP_L，尖端 1.5mm 竖直面，回程 45°
+        # 倒钩：贴机身底面(z=0)内伸 lip_l，尖端 1.5mm 竖直面，回程 45°
         lip_pts = [
             (sign * x_in, 0.0),
-            (sign * (x_in - LIP_L), 0.0),
-            (sign * (x_in - LIP_L), -LIP_TIP),
-            (sign * x_in, -(LIP_L + LIP_TIP)),
+            (sign * (x_in - lip_l), 0.0),
+            (sign * (x_in - lip_l), -LIP_TIP),
+            (sign * x_in, -(lip_l + LIP_TIP)),
         ]
         parts.append(prism_xz(lip_pts, -pd / 2, pd / 2))
+
+    if back_stop:
+        # 后端止挡：从前面滑入到底，机身背面顶住它，不会再往后跑
+        yb = d / 2 + clear - 1.0
+        parts.append(box(-x_in, x_in, yb - 3.0, yb, 0.0, 16.0))
 
     part = trimesh.boolean.union(parts, engine="manifold")
 
     return part
 
 
-def build(fan: int, w: float, d: float, h: float, clear: float = CLEAR) -> trimesh.Trimesh:
+def build(fan: int, w: float, d: float, h: float, clear: float = CLEAR,
+          grip: bool = False) -> trimesh.Trimesh:
     """打印姿态：顶板贴床、竖壁朝上。"""
-    part = build_use(fan, w, d, h, clear)
+    part = build_use(fan, w, d, h, clear, lip_l=(8.0 if grip else LIP_L), back_stop=grip)
     part.apply_transform(trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0]))
     part.apply_translation((0, 0, -part.bounds[0][2]))
     return part
@@ -189,6 +196,31 @@ def build_stack_clip(fan: int, w: float, d: float, h: float, clear: float = CLEA
     return trimesh.boolean.union(parts, engine="manifold")
 
 
+def build_hat(fan: int, w: float, d: float, h: float, skirt: float = 14.0,
+              clear: float = 0.5) -> trimesh.Trimesh:
+    """帽子式：不加倒钩，直接坐在机器顶面，靠裙边定位（最省事、可随时拿走）。"""
+    pw = w + 2 * clear + 2 * WALL
+    pd = d + 2 * clear + 2 * WALL
+    plate = rounded_rect_prism(pw, pd, CORNER_R, h, h + PLATE_T)
+
+    bore_r = 58.0 if fan == 120 else 69.0
+    spacing = 105.0 if fan == 120 else 124.5
+    cutters = [cyl(bore_r, h - 1, h + PLATE_T + 1)]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cxx, cyy = sx * spacing / 2, sy * spacing / 2
+            cutters.append(cyl(SCREW_D / 2, h - 1, h + PLATE_T + 1, cxx, cyy))
+            cutters.append(cyl(SCREW_HEAD_D / 2, h + PLATE_T - SCREW_HEAD_H, h + PLATE_T + 1, cxx, cyy))
+    plate = plate.difference(trimesh.boolean.union(cutters, engine="manifold"))
+
+    x_in = w / 2 + clear
+    parts = [plate]
+    for sign in (-1, 1):
+        xa, xb = sorted((sign * x_in, sign * (x_in + WALL)))
+        parts.append(box(xa, xb, -pd / 2, pd / 2, h - skirt, h + PLATE_T))
+    return trimesh.boolean.union(parts, engine="manifold")
+
+
 def to_print_pose(part: trimesh.Trimesh) -> trimesh.Trimesh:
     part.apply_transform(trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0]))
     part.apply_translation((0, 0, -part.bounds[0][2]))
@@ -202,8 +234,8 @@ def main() -> int:
     ap.add_argument("--d", type=float, default=DEV_D)
     ap.add_argument("--h", type=float, default=DEV_H)
     ap.add_argument("--clear", type=float, default=CLEAR)
-    ap.add_argument("--mode", choices=("top", "stack"), default="top",
-                    help="top=单件上夹；stack=上下双风扇（上夹 + 托盘）")
+    ap.add_argument("--mode", choices=("top", "grip", "hat", "stack"), default="top",
+                    help="top=单件上夹；grip=加后止挡+8mm 倒钩；hat=直接坐在顶面；stack=上下双风扇")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -216,9 +248,14 @@ def main() -> int:
             f"PETG~{part.volume/1000*1.27:.0f} g solid"
         )
 
-    if args.mode == "top":
-        report(args.out or f"fan-clip-{args.fan}.stl",
-               build(args.fan, args.w, args.d, args.h, args.clear))
+    if args.mode in ("top", "grip"):
+        suffix = "" if args.mode == "top" else "-grip"
+        report(
+            args.out or f"fan-clip-{args.fan}{suffix}.stl",
+            build(args.fan, args.w, args.d, args.h, args.clear, grip=(args.mode == "grip")),
+        )
+    elif args.mode == "hat":
+        report(f"fan-hat-{args.fan}.stl", to_print_pose(build_hat(args.fan, args.w, args.d, args.h)))
     else:
         report(args.out or f"fan-clip-{args.fan}-stack.stl",
                to_print_pose(build_stack_clip(args.fan, args.w, args.d, args.h, args.clear)))
