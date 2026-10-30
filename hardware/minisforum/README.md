@@ -26,7 +26,7 @@
 |---|---|---|
 | 平台 | AM5 插槽，R7 8700G / R5 8600G / R5 7600，后续可升 Zen 5 | [IT之家/PC Watch](https://digi.ithome.com/archiver/775/404.htm) |
 | 内存 | 2× DDR5 SO-DIMM，最高 96GB | 同上 |
-| 存储 | 支持 U.2，最多 4 块 M.2 | 同上 |
+| 存储 | 早期宣传「支持 U.2，最多 4 块 M.2」；**维护者手上的后期版本已砍掉 U.2 支持**（2026-10-30 确认），实际按「纯 M.2」规划 | [IT之家/PC Watch](https://digi.ithome.com/archiver/775/404.htm) + 维护者确认 |
 | 外接显卡 | **OCuLink（PCIe 4.0 x4）** | 同上 |
 | 网络 / 供电 | 双 2.5GbE；DC5525 19V 12.6A | 同上 |
 | 注意 | **MS-A1 没有内部 PCIe 插槽**（这点和 MS-01 不同） | Chiphell 讨论 |
@@ -321,3 +321,56 @@ ORICO 9558RU3、TerraMaster D5-300、Yottamaster 五盘位这类**具体型号�
   - 905P 温度/拆壳实测：<https://www.vgover.com/news/237932>、<https://www.chiphell.com/thread-2512017-1-340.html>
   - DEG1 规格：<https://www.notebookcheck.net/Minisforum-DEG1-Docking-station-for-eGPUs-promises-great-extra-performance-for-laptops-and-mini-PCs.844928.0.html>
   - MS-A1 规格：<https://digi.ithome.com/archiver/775/404.htm>
+
+---
+
+## 8. 第二轮更新（2026-10-30 晚）
+
+### 8.1 采集通道：Cloudflare 已绕过
+
+- 在 **ubuntu-gpu（192.168.3.30）** 上用 Docker 部署了 **FlareSolverr**：
+
+  ```bash
+  docker run -d --name flaresolverr --restart unless-stopped \
+    -p 8191:8191 -e LOG_LEVEL=info ghcr.io/flaresolverr/flaresolverr:latest
+  ```
+
+  调用方式（返回渲染后的 HTML）：
+
+  ```bash
+  curl -s -X POST http://192.168.3.30:8191/v1 -H 'Content-Type: application/json' \
+    -d '{"cmd":"request.get","url":"https://makerworld.com/en/models/942817","maxTimeout":90000}'
+  ```
+
+- **makerworld.com 已能正常读**；**makerworld.com.cn 仍是更硬的挑战**（FlareSolverr 停在「正在进行安全验证」），需要人工浏览器或换更强的浏览器指纹方案。
+- 图片 CDN（`makerworld.bblmw.com`）在 Windows 本机直接拉经常 403，但**在 ubuntu-gpu 上 `curl` 直接 200** —— 拉图/大文件走服务器，再 `scp` 回来。
+
+### 8.2 用真实页面核对后的修正
+
+| 项 | 之前 | 现在（已核实） |
+|---|---|---|
+| MS-A1 的 U.2 | 官方宣传支持 | **后期版本已砍掉**，按纯 M.2 规划 → 905P 只能进 MS-01 |
+| Dopins 外壳体量 | 「很大」 | 打印 **25.3h / 6 盘 / ABS 606g + PETG 47g（≈0.65kg）**，v1.1 加宽了 OCuLink 口、加长挡板锁；GPU 长度仍只在图里 |
+| MS-01 14cm 换壳 | 只见到标题 | **1403142**：2×140mm Noctua NF-A14，**用 MS-01 的 USB-A 5V 供电**（需转接 + 分线），免螺丝卡扣、PLA 可打 —— 与 5V USB 风扇完全对上；**1719223**：2×140mm + 双槽显卡位，12V 1A 供电，M5/M3 五金 |
+| 15mm U.2 散热 | 只知型号 | **1585889**：45×45×10 风扇 + 100×60×10 散热片，作者称 25W 盘也压得住；**1329055**：15mm U.2 散热器 + 单槽涡轮风扇（PLB07016B12H） |
+| 905P 容量 | 未定 | **960GB** |
+
+### 8.3 修正后的方案
+
+**MS-01（905P 960G）**
+- 用 14cm 换壳（1403142 或 1719223）解决机箱风道 + 5V USB 风扇供电；
+- 15mm 厚度仍要单独确认：换壳只保证「外壳更大」，**不等于 U.2 托盘位置多了 7.5mm**；如果不让位，就叠 718278 的加高件或自己在托盘上加垫块；
+- 盘体贴 1585889 或 1329055 主动散热。
+
+**MS-A1 + 显卡坞（显卡 319mm / 双槽半）**
+- 结论：**全封闭壳不划算**。Dopins 壳 0.65kg 料 + 25h 打印，且三风扇 319mm 卡本来就要改 STEP；
+- 改为「**半开放组合**」，三条可选：
+  1. **半壳**：只罩 ATX 电源 + 坞板，显卡完全裸露，12cm USB 风扇斜吹显卡背板与坞板；
+  2. **立式塔**：显卡竖装，坞板在背面，电源在下，MS-A1 置顶，整体约 330×200×250mm；
+  3. **10 寸机架**：MS-A1 + 坞板上 2U/3U 托盘，前面 12cm 风扇。
+- 需要先量的 5 个数：ATX 电源长×宽×高、坞板外形与孔位、显卡长/厚/挡板宽度、MS-A1 三围与脚垫孔距、桌面可用面积。
+
+### 8.4 还要你确认
+
+1. MS-01 那个「15cm+ 风扇的外壳」具体是哪个模型（1403142 / 1719223 / 其它）？我可以按它的内部高度判断 15mm 盘要不要加垫。
+2. 显卡坞这边，接受「显卡裸露的半开放」吗？接受的话我按上面 5 个尺寸出一版参数化支架（本仓库有 `fusion/` 的脚本化建模流程，也可以先出 OpenSCAD 草模）。
