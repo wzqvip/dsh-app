@@ -137,15 +137,12 @@ def build(fan: int, w: float, d: float, h: float, clear: float = CLEAR,
 
 # ---------------- 上下双风扇（叠装） ----------------
 TRAY_T = 4.0     # 顶板厚
-BOX_H = 30.0     # 箱体高度 = 风扇 25mm + 5mm 离地
-INSET = 10.0     # 箱壁相对顶板内缩：留出上夹倒钩的位置
+FOOT_H = 30.0    # 脚高：风扇 25mm + 5mm 离地
+FOOT_R = 10.0    # 圆柱脚半径
 
 
 def build_tray(fan: int, w: float, d: float, clear: float = CLEAR) -> trimesh.Trimesh:
-    """下风扇箱：顶板承托机身，箱壁当脚把风扇垫离地面，风扇挂在顶板下方。
-
-    打印姿态是「顶板贴床、箱壁朝上」的开箱，翻过来用。
-    """
+    """下风扇托盘：一块平板 + 四只圆柱脚，四周全开、不挡风。"""
     tw = w + 2 * clear - 0.6
     td = d + 2 * clear - 0.6
     plate = rounded_rect_prism(tw, td, 5.0, 0.0, TRAY_T)
@@ -160,13 +157,13 @@ def build_tray(fan: int, w: float, d: float, clear: float = CLEAR) -> trimesh.Tr
                                sx * spacing / 2, sy * spacing / 2))
     plate = plate.difference(trimesh.boolean.union(cutters, engine="manifold"))
 
-    # 箱壁：内缩 10mm，给上夹倒钩让位；同时是四只「脚」
-    bw = tw - 2 * INSET
-    bd = td - 2 * INSET
-    outer = rounded_rect_prism(bw, bd, 3.0, -BOX_H, 0.0)
-    inner = rounded_rect_prism(bw - 2 * WALL, bd - 2 * WALL, 2.0, -BOX_H - 1, 1.0)
-    box_walls = outer.difference(inner)
-    return trimesh.boolean.union([plate, box_walls], engine="manifold")
+    # 四只圆柱脚：撑起 30mm 让下方风扇离地进气；四周不围，气流不受阻
+    feet = []
+    fx, fy = tw / 2 - 22.0, td / 2 - 22.0
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            feet.append(cyl(FOOT_R, -FOOT_H, 0.0, sx * fx, sy * fy))
+    return trimesh.boolean.union([plate, *feet], engine="manifold")
 
 
 def build_stack_clip(fan: int, w: float, d: float, h: float, clear: float = CLEAR) -> trimesh.Trimesh:
