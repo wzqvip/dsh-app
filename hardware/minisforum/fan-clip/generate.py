@@ -136,12 +136,16 @@ def build(fan: int, w: float, d: float, h: float, clear: float = CLEAR,
 
 
 # ---------------- 上下双风扇（叠装） ----------------
-TRAY_T = 4.0     # 底板厚
-PLENUM = 10.0    # 底板与机身之间的静压腔
+TRAY_T = 4.0     # 顶板厚
+BOX_H = 30.0     # 箱体高度 = 风扇 25mm + 5mm 离地
+INSET = 10.0     # 箱壁相对顶板内缩：留出上夹倒钩的位置
 
 
 def build_tray(fan: int, w: float, d: float, clear: float = CLEAR) -> trimesh.Trimesh:
-    """下风扇底板：托住机身、自带 10mm 静压腔，风扇装在底板下方。"""
+    """下风扇箱：顶板承托机身，箱壁当脚把风扇垫离地面，风扇挂在顶板下方。
+
+    打印姿态是「顶板贴床、箱壁朝上」的开箱，翻过来用。
+    """
     tw = w + 2 * clear - 0.6
     td = d + 2 * clear - 0.6
     plate = rounded_rect_prism(tw, td, 5.0, 0.0, TRAY_T)
@@ -152,22 +156,24 @@ def build_tray(fan: int, w: float, d: float, clear: float = CLEAR) -> trimesh.Tr
     for sx in (-1, 1):
         for sy in (-1, 1):
             cutters.append(cyl(3.9 / 2, -1, TRAY_T + 1, sx * spacing / 2, sy * spacing / 2))
+            cutters.append(cyl(SCREW_HEAD_D / 2, TRAY_T - SCREW_HEAD_H, TRAY_T + 1,
+                               sx * spacing / 2, sy * spacing / 2))
     plate = plate.difference(trimesh.boolean.union(cutters, engine="manifold"))
 
-    # 四个支撑柱：把机身抬到 10mm 静压腔之上
-    posts = []
-    px, py = tw / 2 - 14, td / 2 - 14
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            posts.append(cyl(6.0, TRAY_T, TRAY_T + PLENUM, sx * px, sy * py))
-    return trimesh.boolean.union([plate, *posts], engine="manifold")
+    # 箱壁：内缩 10mm，给上夹倒钩让位；同时是四只「脚」
+    bw = tw - 2 * INSET
+    bd = td - 2 * INSET
+    outer = rounded_rect_prism(bw, bd, 3.0, -BOX_H, 0.0)
+    inner = rounded_rect_prism(bw - 2 * WALL, bd - 2 * WALL, 2.0, -BOX_H - 1, 1.0)
+    box_walls = outer.difference(inner)
+    return trimesh.boolean.union([plate, box_walls], engine="manifold")
 
 
 def build_stack_clip(fan: int, w: float, d: float, h: float, clear: float = CLEAR) -> trimesh.Trimesh:
     """叠装用上夹：竖壁一直伸到托盘底面，倒钩勾住托盘。"""
     pw = w + 2 * clear + 2 * WALL
     pd = d + 2 * clear + 2 * WALL
-    z_plate0 = TRAY_T + PLENUM + h + GAP
+    z_plate0 = TRAY_T + h + GAP
     z_plate1 = z_plate0 + PLATE_T
 
     plate = rounded_rect_prism(pw, pd, CORNER_R, z_plate0, z_plate1)
@@ -259,8 +265,7 @@ def main() -> int:
     else:
         report(args.out or f"fan-clip-{args.fan}-stack.stl",
                to_print_pose(build_stack_clip(args.fan, args.w, args.d, args.h, args.clear)))
-        report(f"fan-tray-{args.fan}.stl",
-               build_tray(args.fan, args.w, args.d, args.clear))
+        report(f"fan-tray-{args.fan}.stl", to_print_pose(build_tray(args.fan, args.w, args.d, args.clear)))
     return 0
 
 
