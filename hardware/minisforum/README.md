@@ -418,7 +418,7 @@ ORICO 9558RU3、TerraMaster D5-300、Yottamaster 五盘位这类**具体型号�
 | 2 | MS-01 替换面板 + 脚垫（薄 120mm 风扇） | [MS-01 Fan Panel With Feet](https://www.printables.com/model/1268196-ms-01-fan-panel-with-feet)（ArtisanalTechie） | Printables | ✅ 已确认，需打印 |
 | 3 | 905P 机内散热（可选） | [U.2 SSD Cooler 15mm](https://makerworld.com/en/models/1585889-u-2-ssd-cooler-for-15mm-ssd-with-fan) | MakerWorld | 视机内空间再用 |
 | 4 | 显卡坞组合托架 | **自研**（本仓库出图） | — | ⏳ 待尺寸 |
-| 5 | 25mm 风扇转接垫环 | **自研**（把 25mm 风扇接在 1268196 面板上） | — | ⏳ 待定 |
+| 5 | 12/14cm 夹式风扇支架 | **自研**：[`fan-clip/`](fan-clip/)（STL 已出） | 本仓库 | ✅ 可打印 |
 
 **不用的**：Dopins 全套外壳（0.65kg/25h，且你嫌大）、各种「整机塞进去」的替换机箱（1403142 / 1719223）、拆 905P 外壳。
 

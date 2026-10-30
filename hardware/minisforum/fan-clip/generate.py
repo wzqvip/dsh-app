@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""生成 MS-01 / MS-A1 的夹式风扇支架（clip-on fan bracket）。
+
+结构（按"使用姿态"描述，脚本最后会翻转到打印姿态）：
+
+    顶板 ────────────── 开风扇孔，风扇装在外侧朝机器吹
+     │ 10mm 静压腔（风从四周缝隙散开，避免把顶面封死）
+     │
+    机 身 196×189×48
+     │
+     └─ 两侧竖壁下探，末端 6mm 内折倒钩，45° 斜面便于压入
+        靠 0.4mm 过盈夹住机身
+
+打印姿态：顶板贴床，竖壁向上，倒钩在顶部（斜面 45°，免支撑）。
+
+用法：
+    python generate.py --fan 120
+    python generate.py --fan 140
+"""
+
+from __future__ import annotations
+
+import argparse
+import math
+
+import numpy as np
+import trimesh
+from shapely.geometry import Polygon
+
+# ---- 默认整机尺寸（MS-01；MS-A1 大致相同，按实测改 -w/-d/-h） ----
+DEV_W = 196.0
+DEV_D = 189.0
+DEV_H = 48.0
+
+# ---- 结构参数 ----
+CLEAR = -0.2      # 每侧过盈量：负=夹紧（-0.2 → 内宽比机身小 0.4mm）
+WALL = 3.2        # 竖壁厚
+PLATE_T = 4.0     # 顶板厚
+GAP = 10.0        # 顶板与机器顶面的静压腔
+LIP_L = 6.0       # 倒钩内伸长度
+LIP_TIP = 1.5     # 倒钩尖端竖直面
+CORNER_R = 6.0    # 顶板圆角
+SCREW_D = 4.4     # 风扇螺丝孔
+SCREW_HEAD_D = 8.6
+SCREW_HEAD_H = 2.0
+
+
+def rounded_rect_prism(w: float, d: float, r: float, z0: float, z1: float) -> trimesh.Trimesh:
+    w2, d2 = w / 2, d / 2
+    pts = []
+    corners = [
+        (w2 - r, -d2 + r, -90, 0),
+        (w2 - r, d2 - r, 0, 90),
+        (-w2 + r, d2 - r, 90, 180),
+        (-w2 + r, -d2 + r, 180, 270),
+    ]
+    for cx, cy, a0, a1 in corners:
+        for i in range(9):
+            a = math.radians(a0 + (a1 - a0) * i / 8)
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    m = trimesh.creation.extrude_polygon(Polygon(pts), height=z1 - z0)
+    return m.apply_translation((0, 0, z0))
+
+
+def box(x0, x1, y0, y1, z0, z1) -> trimesh.Trimesh:
+    m = trimesh.creation.box(extents=(abs(x1 - x0), abs(y1 - y0), abs(z1 - z0)))
+    m.apply_translation(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2))
+    return m
+
+
+def prism_xz(pts_xz, y0: float, y1: float) -> trimesh.Trimesh:
+    """XZ 平面截面沿 Y 拉伸（extrude_polygon 只能沿 Z，所以先画 (x,-z) 再绕 X 转）。"""
+    poly = Polygon([(x, -z) for x, z in pts_xz])
+    m = trimesh.creation.extrude_polygon(poly, height=abs(y1 - y0))
+    m.apply_transform(trimesh.transformations.rotation_matrix(-math.pi / 2, [1, 0, 0]))
+    return m.apply_translation((0, min(y0, y1), 0))
+
+
+def cyl(radius: float, z0: float, z1: float, cx=0.0, cy=0.0) -> trimesh.Trimesh:
+    m = trimesh.creation.cylinder(radius=radius, height=abs(z1 - z0), sections=96)
+    return m.apply_translation((cx, cy, (z0 + z1) / 2))
+
+
+def build_use(fan: int, w: float, d: float, h: float, clear: float = CLEAR) -> trimesh.Trimesh:
+    # ---------- 使用姿态坐标：z=0 是机器底面 ----------
+    pw = w + 2 * clear + 2 * WALL
+    pd = d + 2 * clear + 2 * WALL
+    z_plate0 = h + GAP
+    z_plate1 = z_plate0 + PLATE_T
+    z_lip_bot = -(LIP_L + LIP_TIP)
+
+    plate = rounded_rect_prism(pw, pd, CORNER_R, z_plate0, z_plate1)
+
+    bore_r = 58.0 if fan == 120 else 69.0
+    cutters = [cyl(bore_r, z_plate0 - 1, z_plate1 + 1)]
+    spacing = 105.0 if fan == 120 else 124.5
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cxx, cyy = sx * spacing / 2, sy * spacing / 2
+            cutters.append(cyl(SCREW_D / 2, z_plate0 - 1, z_plate1 + 1, cxx, cyy))
+            cutters.append(cyl(SCREW_HEAD_D / 2, z_plate1 - SCREW_HEAD_H, z_plate1 + 1, cxx, cyy))
+    plate = plate.difference(trimesh.boolean.union(cutters, engine="manifold"))
+
+    x_in = w / 2 + clear  # 竖壁内表面
+    parts = [plate]
+    for sign in (-1, 1):
+        xa, xb = sorted((sign * x_in, sign * (x_in + WALL)))
+        parts.append(box(xa, xb, -pd / 2, pd / 2, z_lip_bot, z_plate1))
+        # 倒钩：贴机身底面(z=0)内伸 LIP_L，尖端 1.5mm 竖直面，回程 45°
+        lip_pts = [
+            (sign * x_in, 0.0),
+            (sign * (x_in - LIP_L), 0.0),
+            (sign * (x_in - LIP_L), -LIP_TIP),
+            (sign * x_in, -(LIP_L + LIP_TIP)),
+        ]
+        parts.append(prism_xz(lip_pts, -pd / 2, pd / 2))
+
+    part = trimesh.boolean.union(parts, engine="manifold")
+
+    return part
+
+
+def build(fan: int, w: float, d: float, h: float, clear: float = CLEAR) -> trimesh.Trimesh:
+    """打印姿态：顶板贴床、竖壁朝上。"""
+    part = build_use(fan, w, d, h, clear)
+    part.apply_transform(trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0]))
+    part.apply_translation((0, 0, -part.bounds[0][2]))
+    return part
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--fan", type=int, choices=(120, 140), default=140)
+    ap.add_argument("--w", type=float, default=DEV_W)
+    ap.add_argument("--d", type=float, default=DEV_D)
+    ap.add_argument("--h", type=float, default=DEV_H)
+    ap.add_argument("--clear", type=float, default=CLEAR)
+    ap.add_argument("--out", default=None)
+    args = ap.parse_args()
+
+    part = build(args.fan, args.w, args.d, args.h, args.clear)
+    out = args.out or f"fan-clip-{args.fan}.stl"
+    part.export(out)
+
+    ext = part.extents
+    print(f"{out}: {ext[0]:.1f} x {ext[1]:.1f} x {ext[2]:.1f} mm")
+    print(
+        f"  watertight={part.is_watertight} volume={part.volume/1000:.1f} cm3 "
+        f"ABS~{part.volume/1000*1.04:.0f} g PETG~{part.volume/1000*1.27:.0f} g"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
