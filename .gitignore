@@ -101,3 +101,7 @@ msg75.tmp
 exports/
 msg76.tmp
 msg77.tmp
+
+# Python
+__pycache__/
+*.pyc
