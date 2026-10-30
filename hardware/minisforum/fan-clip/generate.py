@@ -199,6 +199,69 @@ def build_stack_clip(fan: int, w: float, d: float, h: float, clear: float = CLEA
     return trimesh.boolean.union(parts, engine="manifold")
 
 
+def cyl_x(radius: float, x0: float, x1: float, cy: float = 0.0, cz: float = 0.0,
+          sections: int = 96) -> trimesh.Trimesh:
+    """轴线沿 X 的圆柱。"""
+    m = trimesh.creation.cylinder(radius=radius, height=abs(x1 - x0), sections=sections)
+    m.apply_transform(trimesh.transformations.rotation_matrix(math.pi / 2, [0, 1, 0]))
+    return m.apply_translation(((x0 + x1) / 2, cy, cz))
+
+
+def build_stand(fan: int, w: float, d: float, h: float, clear: float = 0.3) -> trimesh.Trimesh:
+    """竖放底座：主机立在中间，两侧各一块风扇板（夹心式）。
+
+    坐标：x = 厚度方向（立起来后的前后），y = 深度，z = 高度。
+    w = 立起来后的高度（196），d = 深度（189），h = 厚度（48；装 718278 后 56）。
+    """
+    slot = h + 2 * clear           # 机身槽宽
+    wall = 5.0                     # 风扇板厚
+    base_t = 5.0                   # 底板厚
+    base_w = slot + 2 * wall
+    base_d = d + 20.0
+    frame = 170.0 if fan == 140 else 150.0   # 风扇板边长
+    z0 = base_t
+    z1 = base_t + frame
+    cz = (z0 + z1) / 2             # 风扇中心高度
+
+    parts = [box(-base_w / 2, base_w / 2, -base_d / 2, base_d / 2, 0.0, base_t)]
+
+    # 四只脚
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            parts.append(cyl(6.0, -4.0, 0.0, sx * (base_w / 2 - 10), sy * (base_d / 2 - 12)))
+
+    # 前后挡边：主机立在里面不会前后滑
+    for sy in (-1, 1):
+        ys = sy * (d / 2 + 3.0)
+        parts.append(box(-slot / 2, slot / 2, ys - 2.0, ys + 2.0, base_t, base_t + 15.0))
+
+    # 两侧风扇板 + 斜撑
+    bore_r = 58.0 if fan == 120 else 69.0
+    spacing = 105.0 if fan == 120 else 124.5
+    for sx in (-1, 1):
+        xi, xo = sorted((sx * slot / 2, sx * (slot / 2 + wall)))
+        frame_mesh = box(xi, xo, -frame / 2, frame / 2, z0, z1)
+        holes = [cyl_x(bore_r, xi - 1, xo + 1, 0.0, cz)]
+        for sy in (-1, 1):
+            for sz in (-1, 1):
+                holes.append(cyl_x(SCREW_D / 2, xi - 1, xo + 1,
+                                   sy * spacing / 2, cz + sz * spacing / 2))
+        parts.append(frame_mesh.difference(trimesh.boolean.union(holes, engine="manifold")))
+
+        # 外侧三角斜撑（两处），防止 5mm 板从底板上掰断
+        x_out = max(xi, xo)
+        for sy in (-1, 1):
+            yc = sy * (frame / 2 - 14)
+            tri = [
+                (x_out, z0),
+                (x_out + sx * 18.0, z0),
+                (x_out, z0 + 50.0),
+            ]
+            parts.append(prism_xz(tri, yc - 2.0, yc + 2.0))
+
+    return trimesh.boolean.union(parts, engine="manifold")
+
+
 def build_hat(fan: int, w: float, d: float, h: float, skirt: float = 14.0,
               clear: float = 0.5) -> trimesh.Trimesh:
     """帽子式：不加倒钩，直接坐在机器顶面，靠裙边定位（最省事、可随时拿走）。"""
@@ -237,8 +300,8 @@ def main() -> int:
     ap.add_argument("--d", type=float, default=DEV_D)
     ap.add_argument("--h", type=float, default=DEV_H)
     ap.add_argument("--clear", type=float, default=CLEAR)
-    ap.add_argument("--mode", choices=("top", "grip", "hat", "stack"), default="top",
-                    help="top=单件上夹；grip=加后止挡+8mm 倒钩；hat=直接坐在顶面；stack=上下双风扇")
+    ap.add_argument("--mode", choices=("top", "grip", "hat", "stack", "stand"), default="top",
+                    help="top=上夹；grip=加止挡；hat=坐顶面；stack=上下双风扇；stand=竖放底座")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -259,6 +322,8 @@ def main() -> int:
         )
     elif args.mode == "hat":
         report(f"fan-hat-{args.fan}.stl", to_print_pose(build_hat(args.fan, args.w, args.d, args.h)))
+    elif args.mode == "stand":
+        report(f"fan-stand-{args.fan}.stl", build_stand(args.fan, args.w, args.d, args.h))
     else:
         report(args.out or f"fan-clip-{args.fan}-stack.stl",
                to_print_pose(build_stack_clip(args.fan, args.w, args.d, args.h, args.clear)))
