@@ -249,12 +249,13 @@ def build_stand(fan: int, w: float, d: float, h: float, clear: float = 0.3) -> t
         parts.append(frame_mesh.difference(trimesh.boolean.union(holes, engine="manifold")))
 
         # 外侧三角斜撑（两处），防止 5mm 板从底板上掰断
-        x_out = max(xi, xo)
+        x_out = sx * (slot / 2 + wall)
         for sy in (-1, 1):
             yc = sy * (frame / 2 - 14)
+            # 斜撑底边落到脚垫底面（-4），整个底面共面，不平的地方不会翘
             tri = [
-                (x_out, z0),
-                (x_out + sx * 18.0, z0),
+                (x_out, -4.0),
+                (x_out + sx * 18.0, -4.0),
                 (x_out, z0 + 50.0),
             ]
             parts.append(prism_xz(tri, yc - 2.0, yc + 2.0))
