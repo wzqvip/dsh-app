@@ -1,0 +1,24 @@
+{
+  "name": "dsh-assistant",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "个人助理产品线：把课程/邮件/日程归一成 DDL 事项，并主动提醒（DSH 插件，P0 数据层）",
+  "main": "src/index.js",
+  "files": [
+    "src",
+    "test",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "personal-assistant",
+    "canvas",
+    "deadline"
+  ]
+}
