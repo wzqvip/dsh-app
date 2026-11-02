@@ -1,6 +1,6 @@
 # 个人助理产品线（DSH Assistant）
 
-> 状态：**P0 进行中**（数据层） · 分支 `feat/personal-assistant` · 2026-11-02
+> 状态：**P0 + P1 完成**（数据层 + classpipe 适配器 + 轮询） · 分支 `feat/personal-assistant` · 2026-11-02
 > 与 `packages/dsh-efficiency`（桌宠/提问触达）、`hardware/`（3D 打印）是**三条独立产品线**。
 
 ## 1. 定位
@@ -144,7 +144,7 @@ Canvas/Outlook 的 ICS 常用 **Windows 时区名**（`Eastern Time (US & Canada
 
 | skill | 类型 | 依赖 |
 |---|---|---|
-| `canvas` | ICS 订阅（**零 token**）+ Announcements API | `CANVAS_ICS_URL`；可选 `CANVAS_TOKEN` |
+| `canvas` | **复用 classpipe** 的 `GET /canvas/all_tasks`（已验证，见 §11）；无 classpipe 时回落 ICS | classpipe 在跑；或 `CANVAS_ICS_URL` |
 | `gmail` | IMAP 只读 + 规则优先、LLM 兜底 | 应用专用密码 |
 | `outlook` | Microsoft Graph（OAuth） | 需注册应用 |
 | `research` | `web_search` / `web_fetch` + 摘要 | DSH 内置 |
@@ -154,11 +154,16 @@ Canvas/Outlook 的 ICS 常用 **Windows 时区名**（`Eastern Time (US & Canada
 
 | 阶段 | 交付 | 验收标准 | 状态 |
 |---|---|---|---|
-| **P0** | `Item` 模型 + 去重 + 提醒计划（纯函数）+ 单测 | `node --test` 全绿；无需 DSH 即可测 | **进行中** |
-| **P1** | Canvas ICS 摄取（含时区告警）+ 每日摘要 | 真 ICS 解析出正确 DDL；重跑幂等 | 待做 |
-| **P2** | DSH 插件外壳（tool 注册）+ 文件持久化 + 常驻调度 | 沙箱里能 `assistant.items` 增删查、能定时推送 | 待做 |
+| **P0** | `Item` 模型 + 去重 + 提醒计划（纯函数）+ 单测 | `node --test` 全绿；无需 DSH 即可测 | ✅ 完成（23 用例） |
+| **P1** | classpipe 适配器 + 轮询循环（定时主动查看 → 通知） | 真实数据 391 条「映射 0 拒收、复跑幂等」 | ✅ 完成（45 用例 + 实测） |
+| **P2** | DSH 插件外壳（tool 注册）+ 文件持久化 + 常驻调度 | 沙箱里能 `assistant.*` 增删查、能定时推送 | 待做 |
 | **P3** | 接入 `dsh-im` 主动投递 → 端到端"早上 8 点收到本周 DDL" | 手机上真收到 | 待做 |
 | P4 | 邮件 / Graph / mika skill | 各自单测 + 真实账号验证 | 待做 |
+
+> **P1 的路线被实测改掉了**：原计划"自己解析 Canvas ICS"，但维护者已有 `classpipe`
+> （FastAPI + SQLite），Canvas 认证、课程关联、作业/测验/公告同步都做完了。
+> 改成**只读它一个接口** `/canvas/all_tasks`，我们这边专心做归一、去重、提醒与通知。
+> ICS 保留为"没装 classpipe 时"的回落路径。
 
 ## 9. 明确不做
 
@@ -172,3 +177,39 @@ Canvas/Outlook 的 ICS 常用 **Windows 时区名**（`Eastern Time (US & Canada
 Mika 是**手机上"点 App、看屏幕"的执行器**（Android，5k★）。
 本产品线的 `mika` skill 只是其中一个执行后端：需要"在手机上点一下"时调它，
 其余（Canvas/邮件/日程/研究）都在本机完成。**两者互补，不互相替代。**
+
+---
+
+## 11. 实测记录（2026-11-02）
+
+### classpipe 契约（用真实数据核对，不是看文档）
+
+`GET http://127.0.0.1:8000/canvas/all_tasks` → 实测 **作业 235 / 测验 81 / 公告 75**。
+
+```
+{ success, total_assignments, total_quizzes, total_announcements,
+  assignments:   [{ id, course_id, canvas_id, name, due_at, html_url, course_name, course_code, … }],
+  quizzes:       [{ id, course_id, canvas_id, title, due_at, html_url, … }],
+  announcements: [{ id, course_id, canvas_id, title, posted_at, html_url, … }] }
+```
+
+- `due_at` / `posted_at` = **ISO 8601 UTC**（`2026-09-18T03:59:59Z`）或 `null`
+- 适配器把 `course_code` 优先当课程名（`TLIELP 5050 AU2026 (12129)`），为空才回落 `course_name`
+- `sourceId` = `${course_id}:${canvas_id}`，`canvas_id` 缺失时用 `local:${id}`
+
+**实测结果**：391 条映射，**0 条被拒**；复跑 `unchanged 391 / inserted 0`（幂等成立）；
+159 条有截止（其中 12 条在未来），7 天内将触发 14 条提醒。
+
+### 一个差点写错解析器的坑（值得记）
+
+用 PowerShell `ConvertFrom-Json` 看这个接口时，`due_at` 显示成 `01/17/2026 04:59:59`，
+**看起来像是非 ISO 的本地格式** —— 差点据此写一个 US 格式解析器。
+核对 SQLite 原始值才发现库里就是 `2026-09-18T03:59:59Z`：
+是 **PowerShell 把 ISO 字符串自动转成了 `DateTime` 并按本地文化渲染**。
+
+→ 教训：判断线上数据格式要读**原始字节**（DB / 原始 body），不要读经过一层工具渲染的视图。
+
+### classpipe 没有调度器
+
+`app/*.py` 里没有 APScheduler / `while True` / `BackgroundTasks` —— 它只在被调用时同步。
+所以**"定时主动查看"必须由我们这侧提供**（`createPoller`），这也正是本产品线存在的理由。

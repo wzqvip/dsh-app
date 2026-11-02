@@ -1,10 +1,12 @@
 /**
- * 公开 API（P0：纯数据层，尚不是 DSH 插件）。
+ * 公开 API。
  *
- * 为什么先做数据层：整个产品的正确性几乎全压在
- * 「同一份来源重复摄取不能重复插入 / 不能复活已完成事项 / 提醒不能重发」这三件事上。
- * 这三件都能用纯函数表达，也都能脱离 DSH 单测 —— 先把它们钉死，
- * 再接 ICS、再接插件外壳，才不会在宿主里调试业务逻辑。
+ * P0：数据层 —— 归一化 / 去重 / 提醒
+ * P1：classpipe 适配器 + 轮询循环（定时主动查看 → 通知）
+ *
+ * 仍**不是** DSH 插件 —— 插件外壳（tool 注册 + 持久化 + 常驻调度）在 P2。
+ * 这样安排是为了让全部业务逻辑都能用 `node --test` 秒级验证，
+ * 而不是在宿主进程里调试。
  */
 
 export {
@@ -31,3 +33,11 @@ export {
   reminderKey,
   reminderText,
 } from './reminders.js';
+
+export { DEFAULT_NOTIFY_KINDS, createPoller, formatDue, pollOnce } from './poll.js';
+
+export {
+  CLASSPIPE_DEFAULT_BASE,
+  fetchClasspipeTasks,
+  mapClasspipeTasks,
+} from './sources/classpipe.js';

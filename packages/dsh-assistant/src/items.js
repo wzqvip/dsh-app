@@ -11,8 +11,15 @@ import { createHash } from 'node:crypto';
 
 /** 允许的来源；新增来源要同时改这里与 docs 里的表 */
 export const SOURCES = Object.freeze(['canvas', 'gmail', 'outlook', 'manual']);
-/** 事项类型 */
-export const KINDS = Object.freeze(['assignment', 'announcement', 'email', 'event', 'note']);
+/** 事项类型；`quiz` 与 `assignment` 都算"有截止的事项"，但来源与语义不同 */
+export const KINDS = Object.freeze([
+  'assignment',
+  'quiz',
+  'announcement',
+  'email',
+  'event',
+  'note',
+]);
 /** 用户可见状态 */
 export const STATUSES = Object.freeze(['open', 'done', 'dropped']);
 
@@ -100,6 +107,8 @@ export function normalizeItem(raw, now = new Date()) {
     title,
     course: typeof raw.course === 'string' && raw.course.trim() ? raw.course.trim() : null,
     dueAt: toIso(raw.dueAt),
+    // 公告类没有截止，但有发布时间（用于"今天有什么新公告"摘要）
+    postedAt: toIso(raw.postedAt),
     // 只有显式 true 才算全天；缺失/非布尔一律按"有具体时刻"处理（更保守）
     allDay: raw.allDay === true,
     // TZID 解析不了时由解析层置 true —— 这里只透传，不猜
