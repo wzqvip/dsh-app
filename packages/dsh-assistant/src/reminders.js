@@ -99,12 +99,31 @@ export function reminderText(entry) {
   return `⏰ ${entry.title} — ${entry.offsetLabel}到期\n截止：${dueText}${warn}`;
 }
 
-/** 取出"现在就该发"的提醒（不早于 at，且未发送） */
-export function dueReminders(plan, now = new Date(), sent = new Set()) {
+/**
+ * 取出"现在就该发"的提醒（已到点、未发送、且不是太久以前）。
+ *
+ * ⚠️ `maxAgeMs` 是**防刷屏**的关键：守护进程第一次启动、或停机几天后重启时，
+ * 计划里会积压大量"早已到点"的提醒。若全补发，用户会被几十条消息淹没。
+ * 默认只补发 12 小时内到点的（再早的视为错过，不再打扰）。
+ *
+ * @param {object[]} plan
+ * @param {Date|string|number} [now]
+ * @param {Set<string>} [sent]
+ * @param {object} [options]
+ * @param {number} [options.maxAgeMs] 允许补发的最大延迟，默认 12 小时
+ */
+export function dueReminders(
+  plan,
+  now = new Date(),
+  sent = new Set(),
+  { maxAgeMs = 12 * HOUR } = {},
+) {
   const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now));
   return (plan ?? []).filter((entry) => {
     if (sent.has(entry.key)) return false;
     const atMs = Date.parse(entry.at);
-    return Number.isFinite(atMs) && atMs <= nowMs;
+    if (!Number.isFinite(atMs)) return false;
+    if (atMs > nowMs) return false;
+    return nowMs - atMs <= maxAgeMs;
   });
 }

@@ -86,6 +86,37 @@ npm test          # node --test
 **45 个用例**：幂等、DDL 改期、done 不复活、坏时间降级、提醒不补发/不重发、
 classpipe 字段映射与异常（非 200 / success=false / 超时）、轮询单飞。
 
+## 真跑：守护进程（P3）
+
+```sh
+# 1) 先看它会推什么（不需要投递目标）
+node scripts/run-assistant.mjs --dry --once
+
+# 2) 真发：先在 DSH 设置 → IM机器人 → 新建投递目标，拿到 botId / targetId
+node scripts/run-assistant.mjs --bot-id telegram_xxx --target-id assistant-ddl --once
+
+# 3) 常驻，每 45 分钟看一次
+node scripts/run-assistant.mjs --bot-id telegram_xxx --target-id assistant-ddl --interval 45
+```
+
+状态落在 `~/.dsh-assistant/state.json`（`--state` 可覆盖）。
+
+### 三个防"劝退/丢消息"的设计
+
+| 机制 | 解决的问题 |
+|---|---|
+| **首次静默播种** | 第一次启动不会把你这学期全部未到期作业一次性推给你（实测静默导入 391 条） |
+| **持久发送队列** | 失败的通知留在队列里下轮重试；否则 Telegram 抖一次，「新截止」就永久丢了（下一轮它已是 unchanged） |
+| **补发窗口 12h** | 停机几天后重启，只补最近 12 小时内到点的提醒，不刷屏 |
+
+实测（真实数据）：
+
+```
+第 1 次：事项 0 → 391（新增 391）  【首次播种：静默导入，不推送】
+第 2 次：事项 391 → 391（新增 0）  提醒计划 35（到期 0）  已发 0 / 待发 0
+删掉一条后：新增 1 → [dry] 会推送：🆕 新截止：[OPCA] Potential Topic Considerations  截止 11/4 23:59
+```
+
 ## 下一步
 
 | 阶段 | 内容 |

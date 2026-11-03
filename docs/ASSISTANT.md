@@ -1,6 +1,6 @@
 # 个人助理产品线（DSH Assistant）
 
-> 状态：**P0 + P1 完成**（数据层 + classpipe 适配器 + 轮询） · 分支 `feat/personal-assistant` · 2026-11-02
+> 状态：**P0/P1/P3 代码完成**（数据层 + classpipe 适配器 + 轮询 + dsh-im 投递；等一个 UI 动作） · 分支 `feat/personal-assistant` · 2026-11-02
 > 与 `packages/dsh-efficiency`（桌宠/提问触达）、`hardware/`（3D 打印）是**三条独立产品线**。
 
 ## 1. 定位
@@ -157,7 +157,7 @@ Canvas/Outlook 的 ICS 常用 **Windows 时区名**（`Eastern Time (US & Canada
 | **P0** | `Item` 模型 + 去重 + 提醒计划（纯函数）+ 单测 | `node --test` 全绿；无需 DSH 即可测 | ✅ 完成（23 用例） |
 | **P1** | classpipe 适配器 + 轮询循环（定时主动查看 → 通知） | 真实数据 391 条「映射 0 拒收、复跑幂等」 | ✅ 完成（45 用例 + 实测） |
 | **P2** | DSH 插件外壳（tool 注册）+ 文件持久化 + 常驻调度 | 沙箱里能 `assistant.*` 增删查、能定时推送 | 待做 |
-| **P3** | 接入 `dsh-im` 主动投递 → 端到端"早上 8 点收到本周 DDL" | 手机上真收到 | 待做 |
+| **P3** | dsh-im 主动投递 + 守护进程（播种/队列/补发窗口） | 代码完成、dry-run 通过；**待 UI 建目标后真发** | 🟡 代码完成 |
 | P4 | 邮件 / Graph / mika skill | 各自单测 + 真实账号验证 | 待做 |
 
 > **P1 的路线被实测改掉了**：原计划"自己解析 Canvas ICS"，但维护者已有 `classpipe`
@@ -213,3 +213,38 @@ Mika 是**手机上"点 App、看屏幕"的执行器**（Android，5k★）。
 
 `app/*.py` 里没有 APScheduler / `while True` / `BackgroundTasks` —— 它只在被调用时同步。
 所以**"定时主动查看"必须由我们这侧提供**（`createPoller`），这也正是本产品线存在的理由。
+
+---
+
+## 12. 投递通道：复用 dsh-im，不 fork
+
+`@xmanrui/dsh-im` 已经提供我们要的主动投递，**不需要 fork**：
+
+```
+POST http://127.0.0.1:3080/api/dsh-im/delivery/messages
+{ "botId": "telegram_…", "targetId": "<你起的别名>", "text": "…", "format": "plain|markdown" }
+→ { "sent": true }
+```
+
+事实核对（包内 `PROACTIVE_DELIVERY.md` + 实测）：
+
+- 路径固定，复用 DSH Host 的 WebServer，**不另开端口**
+- **无鉴权、无 CORS** → 只能本机/可信网络用
+- `targetId` 是**调用方自定义的稳定别名**（不是 Telegram chat id），
+  需先在「设置 → IM机器人 → 新建投递目标」创建，保存后不可改
+- 实测空 body → `400 bad-request`（说明路由在、校验生效）
+
+本机已配好两个 bot（`@tacoin_deepseek_bot` 大肥鱼 / `@tacoin_dsh_bot` 大肥鱼2号），
+但**还没有投递目标** —— 这是 P3 唯一剩下的人工步骤。
+
+**为什么先不 fork**：fork 一份要跟着上游升级、还要处理它的渠道矩阵；
+我们只需要"发一条消息"这一个能力，用官方接口成本最低。
+只有将来需要它没有的能力（例如定制消息模板/多目标广播）才考虑 fork。
+
+### 投递层的三个保护（都有单测/实测）
+
+| 机制 | 为什么 |
+|---|---|
+| **首次静默播种** | 第一次启动不能把整学期未到期作业全推给人（实测静默导入 391 条） |
+| **持久发送队列** | 失败留在队列下轮重试；否则 Telegram 抖动一次，「新截止」永久丢失（下轮已是 unchanged） |
+| **12h 补发窗口** | 停机几天后重启只补最近 12h 到点的提醒，不刷屏 |

@@ -41,3 +41,10 @@ export {
   fetchClasspipeTasks,
   mapClasspipeTasks,
 } from './sources/classpipe.js';
+
+export {
+  DSH_IM_DEFAULT_BASE,
+  DSH_IM_DELIVERY_PATH,
+  createDshImNotifier,
+  sendDelivery,
+} from './notify/dsh-im.js';
