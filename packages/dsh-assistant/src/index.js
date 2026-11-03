@@ -42,6 +42,8 @@ export {
   mapClasspipeTasks,
 } from './sources/classpipe.js';
 
+export { listLocalCourses, syncAllCourses } from './sources/classpipe-sync.js';
+
 export {
   DSH_IM_DEFAULT_BASE,
   DSH_IM_DELIVERY_PATH,

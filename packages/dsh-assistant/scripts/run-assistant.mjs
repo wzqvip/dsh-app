@@ -43,6 +43,7 @@ import {
   pollOnce,
   reminderText,
 } from '../src/index.js';
+import { syncAllCourses } from '../src/sources/classpipe-sync.js';
 import { sendDelivery } from '../src/notify/dsh-im.js';
 import { maskToken, sendTelegramMessage } from '../src/notify/telegram.js';
 
@@ -68,6 +69,9 @@ const once = flag('once', false) === true;
 const digestOnly = flag('digest-only', false) === true;
 const maxAgeHours = Number(flag('max-age-hours', 12));
 const alertCooldownHours = Number(flag('alert-cooldown-hours', 6));
+// 同步开关：默认**开**。关掉它助理就只会读快照（classpipe 自己不会定时同步）。
+const syncEnabled = flag('no-sync', false) !== true;
+const syncMaxAgeHours = Number(flag('sync-max-age-hours', 6));
 const logPath = flag('log-file', join(homedir(), '.dsh-assistant', 'run.log'));
 const useLock = flag('no-lock', false) !== true;
 const lockPath = join(dirname(statePath), 'run.lock');
@@ -299,6 +303,35 @@ async function tick() {
   // 否则用户第一次启动就会收到"你这学期全部未到期作业"，直接把人劝退。
   // 播种之后只推**真正的变化**（新增/改期）与到点提醒。
   const isSeed = before === 0;
+
+  // 0) 按需触发 classpipe 同步。
+  //    ⚠️ classpipe 自己**没有调度器**，不触发它就永远是上次手动同步的快照。
+  //    同步失败不阻断本轮：至少还能读库里已有的数据。
+  if (syncEnabled) {
+    const staleMs = syncMaxAgeHours * 3600_000;
+    const lastSync = state.lastSyncAt ? Date.parse(state.lastSyncAt) : NaN;
+    if (!Number.isFinite(lastSync) || now.getTime() - lastSync >= staleMs) {
+      try {
+        const sync = await syncAllCourses({ baseUrl: classpipeBase });
+        log(
+          `同步 classpipe：${sync.synced.length}/${sync.listed} 门课成功` +
+            (sync.failed.length ? `，失败 ${sync.failed.length}` : '') +
+            `（${Math.round(sync.durationMs / 1000)}s）`,
+        );
+        if (sync.failed.length > 0) {
+          logError(
+            `同步失败明细：${sync.failed
+              .slice(0, 3)
+              .map((f) => `${f.id}: ${f.error}`)
+              .join('; ')}`,
+          );
+        }
+        state.lastSyncAt = now.toISOString();
+      } catch (error) {
+        logError(`同步异常（继续用库里数据）：${error.message}`);
+      }
+    }
+  }
 
   // 1) 拉取 + 合并（**不让 pollOnce 直接发**，改成入队，才能失败重试）
   let pollResult;

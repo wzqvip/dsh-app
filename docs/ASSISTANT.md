@@ -296,3 +296,38 @@ POST http://127.0.0.1:3080/api/dsh-im/delivery/messages
 
 - Gmail **应用专用密码**（不是账号密码）
 - 是否允许"自动标记已读/归档"这类**低风险写操作**（建议一开始全部关闭）
+
+---
+
+## 14. 部署与同步（2026-11-03 实测）
+
+### 跑在哪里：`ubuntu-gpu`（Docker）
+
+| 组件 | 位置 | 形态 |
+|---|---|---|
+| classpipe | `ubuntu-gpu` | 容器，`-p 8000:8000`，`data/`（DB + `.app_secret`）挂 volume |
+| dsh-assistant | `ubuntu-gpu` | 容器（`node:22-slim`），`data/`（凭据/状态/日志）挂 volume |
+| 投递 | Telegram Bot API | 直连，不需要 dsh-im |
+
+- 环境：Ubuntu 24.04 · Docker 29.8 · Compose v5.5.1 · **Node 18.19.1 → 22.23.4**（NodeSource）
+- classpipe 是**私有仓库**：从 Windows 用 `git archive HEAD` 打包源码上传；
+  `data/classpipe.db` 与 `data/.app_secret` 手动搬运（都被 gitignore 排除，
+  且 **必须成对**，否则 DB 里的 Canvas token 解不开）
+- 实测：ubuntu 上 `/canvas/all_tasks` 与 Windows **完全一致**（235/81/75），
+  Canvas token 解密成功（`user_name: John Wang`）
+
+### ⚠️ 必须触发的同步（本轮发现的硬伤）
+
+classpipe **没有任何调度器** —— 不调用 `POST /canvas/courses/{id}/sync` 就永远是快照。
+助理会在每轮 poll 前：`GET /courses` → 逐课 `POST …/sync` → 再读 `/all_tasks`。
+
+- 只同步已导入课程，不用 `/import_all`（会新建课程）
+- 串行（Canvas 限流）、单课失败不阻断
+- 默认 6 小时一次（`--sync-max-age-hours`），`--no-sync` 可关
+- 实测：13/13 门课 33–47s；事项 **391 → 400**（真的抓到新数据）
+
+### 迁移时踩到的一个 bug
+
+`createPoller` 里 `timer.unref()` 让常驻模式**启动即退出**（定时器不持有事件循环）。
+之前只测过 `--once` 所以没暴露。已改为 `createPoller({ unref })`，
+守护进程显式传 `unref: false`。

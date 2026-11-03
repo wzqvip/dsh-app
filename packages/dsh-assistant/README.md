@@ -86,7 +86,59 @@ npm test          # node --test
 **45 个用例**：幂等、DDL 改期、done 不复活、坏时间降级、提醒不补发/不重发、
 classpipe 字段映射与异常（非 200 / success=false / 超时）、轮询单飞。
 
-## 真跑：守护进程（P3）
+## 部署（Docker，推荐 24/7 跑在 Linux 上）
+
+在目标机器（例如 `ubuntu-gpu`）上：
+
+```bash
+mkdir -p ~/dsh-assistant/data && cd ~/dsh-assistant
+# 1) 放源码（tar 或 git）与凭据
+cp telegram.json data/ && chmod 600 data/telegram.json
+# 2) 起容器（镜像自带 node:22，不依赖宿主 Node）
+docker compose up -d --build
+docker compose logs -f
+```
+
+前提：**classpipe 在同一台宿主机上**（容器用 `host.docker.internal:8000` 访问）。
+classpipe 在别的机器上就改 compose 里 `--classpipe` 的地址。
+
+| 文件 | 作用 |
+|---|---|
+| `Dockerfile` | `node:22-slim`，只拷 src/scripts/package.json，`/data` 为 volume |
+| `docker-compose.yml` | `restart: unless-stopped`；`host.docker.internal` 指向宿主 classpipe；容器日志限 5m×2 |
+| `.dockerignore` | 排除 `data/`（凭据）、`test/` |
+
+> **为什么用容器**：目标机自带 Node 18（已 EOL），容器自带运行时，
+> 部署不依赖宿主版本，也不和其它项目抢 node。
+
+### 换宿主机 / 更新代码
+
+```bash
+cd ~/dsh-assistant
+docker compose down
+# 覆盖源码后
+docker compose up -d --build
+```
+
+状态在 `data/state.json`，凭据在 `data/telegram.json` —— 重建容器不丢。
+
+## 关于 classpipe 的同步（重要）
+
+**classpipe 自己没有调度器**（`app/*.py` 里没有 APScheduler / 定时任务），
+它只在被调用时同步。所以如果只读 `/canvas/all_tasks`，
+读到的永远是"上次有人手动点同步时的快照"。
+
+本守护进程因此**每轮先触发同步**：`GET /courses` → 对每个已有课程
+`POST /canvas/courses/{id}/sync` → 再读 `/canvas/all_tasks`。
+
+- 只同步**已导入**的课程，不调 `/import_all`（那个会新建课程）
+- 串行执行（Canvas 有速率限制）
+- 单课失败不阻断其余
+- 默认最多每 **6 小时**同步一次（`--sync-max-age-hours`），可用 `--no-sync` 关掉
+
+实测：13 门课同步 33–47s，事项数从 391 变成 400（真的抓到了新数据）。
+
+## 真跑：单机（Windows / 临时调试）
 
 ```sh
 # 0) 配凭据（只存在用户目录，不进仓库）
