@@ -366,6 +366,8 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 | [COMMIT-IDENTITY.md](docs/COMMIT-IDENTITY.md) | 提交署名与头像的来龙去脉（含历史重写记录） |
 | [EXECUTION.md](docs/EXECUTION.md) | 实施顺序与阶段拆分 |
 | [ASSISTANT.md](docs/ASSISTANT.md) | **个人助理产品线**（新）：主从 agent、DDL 数据模型、提醒与调度、skill 布局 |
+| [UBUNTU-DEPLOYMENT.md](docs/UBUNTU-DEPLOYMENT.md) | ubuntu-gpu 部署与运维：访问方式、git pull 工作流、备份、一次性配置 |
+| [OUTLOOK-WITHOUT-API.md](docs/OUTLOOK-WITHOUT-API.md) | 学校 Outlook 无 API 时的四条路（转发+IMAP / 浏览器会话 / 手机 / Graph） |
 | [CHANGELOG.md](docs/CHANGELOG.md) | 面向发布的变化记录 |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | 贡献指南与**许可/署名必读** |
 | [`research/`](research/) | 源码级调研报告：插件架构、嵌入方案、局域网安全、响应式、显示模式 |
