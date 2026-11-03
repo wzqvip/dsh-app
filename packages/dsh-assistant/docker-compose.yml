@@ -15,6 +15,11 @@ services:
     build: .
     container_name: dsh-assistant
     restart: unless-stopped
+    networks:
+      - dsh-net
+    # 只在本机回环发布一个调试端口；容器间访问走 dsh-net 的服务名，不暴露到局域网
+    ports:
+      - "127.0.0.1:18787:8787"
     # 让容器能用 host.docker.internal 指回宿主机（classpipe 的端口映射在宿主上）
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -28,6 +33,10 @@ services:
       - scripts/run-assistant.mjs
       - --interval
       - "45"
+      - --api-port
+      - "8787"
+      - --api-host
+      - "0.0.0.0"
       - --classpipe
       - http://host.docker.internal:8000
       - --tz
@@ -48,3 +57,7 @@ services:
       options:
         max-size: "5m"
         max-file: "2"
+
+networks:
+  dsh-net:
+    external: true

@@ -43,6 +43,7 @@ import {
   pollOnce,
   reminderText,
 } from '../src/index.js';
+import { startApiServer } from '../src/http/api.js';
 import { syncAllCourses } from '../src/sources/classpipe-sync.js';
 import { sendDelivery } from '../src/notify/dsh-im.js';
 import { maskToken, sendTelegramMessage } from '../src/notify/telegram.js';
@@ -75,6 +76,18 @@ const syncMaxAgeHours = Number(flag('sync-max-age-hours', 6));
 // 每日摘要：容器模式下没有 cron/计划任务，所以放进守护进程里自己判断。
 const digestEnabled = flag('no-digest', false) !== true;
 const digestAt = String(flag('digest-at', '08:00'));
+// assistant 侧 HTTP：供 tg 网关查询/回写（Docker 内监听 0.0.0.0，不 publish 到公网）
+const apiPort = Number(flag('api-port', 8787));
+const apiHost = String(flag('api-host', '0.0.0.0'));
+const apiToken = String(
+  flag(
+    'api-token',
+    process.env.DSH_ASSISTANT_API_TOKEN ??
+      (existsSync(join(dirname(flag('state', join(homedir(), '.dsh-assistant', 'state.json'))), 'token.txt'))
+        ? readFileSync(join(dirname(flag('state', join(homedir(), '.dsh-assistant', 'state.json'))), 'token.txt'), 'utf8').trim()
+        : ''),
+  ) ?? '',
+);
 const logPath = flag('log-file', join(homedir(), '.dsh-assistant', 'run.log'));
 const useLock = flag('no-lock', false) !== true;
 const lockPath = join(dirname(statePath), 'run.lock');
@@ -196,7 +209,27 @@ if (!dry && !hasTelegram && !hasDshIm) {
 
 // ---------------- 状态持久化 ----------------
 
-const EMPTY_STATE = { version: 1, items: [], pending: [], sentReminders: [], lastTickAt: null, lastError: null };
+const EMPTY_STATE = {
+  version: 1,
+  items: [],
+  pending: [],
+  sentReminders: [],
+  // 用户手动标记的状态（来自 tg 网关的 /done 等）。
+  // ⚠️ 必须单独存：tick 用 tick 开始时的 state 快照做 merge，
+  //    若用户在中途标了 done，直接改 state.items 会被下一次 merge 覆盖回 open。
+  overrides: {},
+  lastTickAt: null,
+  lastError: null,
+};
+
+/** 把用户覆盖状态套到合并结果上（覆盖优先于来源） */
+function applyOverrides(items) {
+  const overrides = state.overrides ?? {};
+  return items.map((item) => {
+    const override = overrides[item.id];
+    return override && override.status !== item.status ? { ...item, status: override.status } : item;
+  });
+}
 
 function loadState() {
   if (!existsSync(statePath)) return { ...EMPTY_STATE };
@@ -208,6 +241,7 @@ function loadState() {
       items: Array.isArray(parsed.items) ? parsed.items : [],
       pending: Array.isArray(parsed.pending) ? parsed.pending : [],
       sentReminders: Array.isArray(parsed.sentReminders) ? parsed.sentReminders : [],
+      overrides: parsed.overrides && typeof parsed.overrides === 'object' ? parsed.overrides : {},
     };
   } catch (error) {
     // 状态坏了不能静默清空（会重复推送）；但也不能让守护进程起不来。
@@ -360,7 +394,7 @@ async function tick() {
     return;
   }
 
-  state.items = pollResult.items;
+  // 套用用户手动标记的状态（/done 等）——必须在 merge 之后，否则会被来源数据覆盖\n  state.items = applyOverrides(pollResult.items);
   state.lastError = null;
 
   if (!isSeed) {
@@ -517,6 +551,66 @@ async function main() {
   }
 
   process.on('exit', releaseLock);
+
+  // assistant 侧 HTTP：tg 网关通过它查询事项、回写 /done
+  let api = null;
+  if (!digestOnly) {
+    try {
+      api = await startApiServer({
+        port: apiPort,
+        host: apiHost,
+        token: apiToken,
+        stats: () => ({
+          items: state.items.length,
+          open: state.items.filter((item) => item.status === 'open').length,
+          pending: state.pending.length,
+          lastTickAt: state.lastTickAt,
+          lastSyncAt: state.lastSyncAt ?? null,
+        }),
+        listItems: (statusFilter, limit) => {
+          // 排序规则（直接影响 /next、/list 的可读性）：
+          //   1) 未到期  → 按截止时间升序（最近要交的在前）
+          //   2) 无截止  → 排在未到期之后
+          //   3) 已过期  → 最后，且**最近的在前**
+          // ⚠️ 不能直接用 dueAt 升序：Canvas 里有 2017 年就没关闭的作业，
+          //    那样 /next 会翻出九年前的过期项当"下一个截止"（实测踩到）。
+          const nowMs = Date.now();
+          const bucketOf = (item) => {
+            if (!item.dueAt) return 2;
+            const dueMs = Date.parse(item.dueAt);
+            if (!Number.isFinite(dueMs)) return 2;
+            return dueMs > nowMs ? 0 : 1;
+          };
+          return state.items
+            .filter((item) => (statusFilter === 'all' ? true : item.status === statusFilter))
+            .sort((a, b) => {
+              const ba = bucketOf(a);
+              const bb = bucketOf(b);
+              if (ba !== bb) return ba - bb;
+              const am = a.dueAt ? Date.parse(a.dueAt) : Number.POSITIVE_INFINITY;
+              const bm = b.dueAt ? Date.parse(b.dueAt) : Number.POSITIVE_INFINITY;
+              if (ba === 1) return bm - am; // 过期组：最近的在前
+              return am - bm || String(a.title).localeCompare(String(b.title));
+            })
+            .slice(0, limit);
+        },
+        setItemStatus: (id, nextStatus) => {
+          const item = state.items.find((entry) => entry.id === id);
+          if (!item) return { ok: false, error: 'item not found' };
+          // 写覆盖表 + 同步内存，保证 /items 立刻反映；tick 之后也不会被来源覆盖回去
+          state.overrides = state.overrides ?? {};
+          state.overrides[id] = { status: nextStatus, at: new Date().toISOString() };
+          item.status = nextStatus;
+          saveState(state);
+          log(`用户标记 ${id} → ${nextStatus}（来自 HTTP）`);
+          return { ok: true };
+        },
+      });
+      log(`API 已启动 http://${apiHost}:${api.port}${apiToken ? '（需 x-dsh-token）' : '（⚠️ 未设 token）'}`);
+    } catch (error) {
+      logError(`API 启动失败（不影响数据管线）：${error.message}`);
+    }
+  }
 
   try {
     log(`classpipe=${classpipeBase}  dsh=${dshBase}  时区=${timeZone}`);
