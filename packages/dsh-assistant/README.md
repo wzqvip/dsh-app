@@ -107,6 +107,41 @@ node scripts/run-assistant.mjs --interval 45
 优先级：**Telegram 直连 > dsh-im**。
 
 状态落在 `~/.dsh-assistant/state.json`（`--state` 可覆盖）。
+日志：`~/.dsh-assistant/run.log`；单实例锁：`~/.dsh-assistant/run.lock`。
+
+## 常驻：Windows 计划任务（推荐）
+
+```powershell
+# 安装（每 45 分钟轮询 + 每天 08:00 摘要）
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-schedule.ps1
+
+# 立即验证一次
+Start-ScheduledTask -TaskName DshAssistant-Poll
+Get-Content $env:USERPROFILE\.dsh-assistant\run.log -Tail 10
+
+# 卸载
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-schedule.ps1 -Remove
+```
+
+| 任务 | 频率 | 命令 |
+|---|---|---|
+| `DshAssistant-Poll` | 每 45 分钟 | `run-assistant.mjs --once` |
+| `DshAssistant-Digest` | 每天 08:00 | `run-assistant.mjs --digest-only` |
+
+**为什么用计划任务而不是常驻进程**：常驻进程关机就没了，而"定时提醒"最怕**悄悄停了**。
+计划任务由系统托管、重启后仍在，每轮是独立进程（状态落磁盘，天然可恢复）。
+
+**为什么两个任务**：提醒要高频（45 分钟），摘要要固定时刻（早 8 点）。混在一起会让摘要时间漂移。
+
+### 加固措施（都有实测）
+
+| 机制 | 实测结果 |
+|---|---|
+| **单实例锁** | 新鲜锁 → `另一个助理进程正在运行，本轮跳过`；31 分钟前的僵死锁 → 自动接管 |
+| **文件日志 + 轮转** | 每轮完整写入 `run.log`，超过 1 MiB 轮转到 `.1` |
+| **失败告警限频** | classpipe 挂时告诉你，但 6 小时内只吼一次（可 `--alert-cooldown-hours` 调） |
+
+实测计划任务：`LastTaskResult=0`，日志完整记录 `事项 391 → 391（新增 0）… --once 完成`。
 
 ### 三个防"劝退/丢消息"的设计
 

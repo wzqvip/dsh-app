@@ -1,26 +1,37 @@
 /**
  * 个人助理守护进程：**定时主动查看 → 推送**。
  *
- * 这是 P3 的可运行入口（还不是 DSH 插件；P2 才做成插件）。
- * 本轮先把闭环跑通，等确认可用再决定要不要搬进 DSH。
+ * 两种运行方式：
+ *   · `--once`：跑一轮就退出（**Windows 计划任务用这个**，最稳，重启后仍在）
+ *   · 不加 `--once`：常驻 setInterval（关终端就没了，只适合临时调试）
  *
  * 用法：
- *   # 只看会推什么，不真的发（安全检查）
- *   node scripts/run-assistant.mjs --dry --once
+ *   node scripts/run-assistant.mjs --dry --once          # 只看会推什么
+ *   node scripts/run-assistant.mjs --once                 # 真跑一轮（计划任务调这个）
+ *   node scripts/run-assistant.mjs --once --digest        # 跑一轮 + 发本周摘要
+ *   node scripts/run-assistant.mjs --digest-only          # 只发摘要（每日早报）
+ *   node scripts/run-assistant.mjs --interval 45          # 常驻调试
  *
- *   # 真发（需要先在 DSH 设置里创建投递目标，拿到 targetId）
- *   node scripts/run-assistant.mjs --bot-id telegram_xxx --target-id assistant-ddl
+ * 状态：`~/.dsh-assistant/state.json`；日志：`~/.dsh-assistant/run.log`；
+ * 单实例锁：`~/.dsh-assistant/run.lock`（防计划任务与手动执行撞车重复发消息）。
  *
- *   # 常驻，每 45 分钟看一次
- *   node scripts/run-assistant.mjs --bot-id … --target-id … --interval 45
- *
- * 状态默认落在 ~/.dsh-assistant/state.json（可 --state 覆盖）。
- *
- * ⚠️ 设计要点：**通知先进持久队列，发成功才出队**。
- *   否则 Telegram 抖动一次，那条「新截止」就永久丢了（因为下一轮 poll 已把它当 unchanged）。
+ * ⚠️ 三个设计要点：
+ *   1. **通知先进持久队列，发成功才出队** —— 否则 Telegram 抖动一次，
+ *      那条「新截止」就永久丢了（下一轮它已是 unchanged）。
+ *   2. **单实例锁** —— 计划任务 + 手动执行同时跑会重复推送。
+ *   3. **失败告警限频** —— classpipe 挂了要告诉你，但不能每 45 分钟吼一次。
  */
 
-import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync } from 'node:fs';
+import {
+  readFileSync,
+  writeFileSync,
+  renameSync,
+  mkdirSync,
+  existsSync,
+  appendFileSync,
+  statSync,
+  unlinkSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -54,7 +65,90 @@ const timeZone = flag('tz', Intl.DateTimeFormat().resolvedOptions().timeZone);
 const statePath = flag('state', join(homedir(), '.dsh-assistant', 'state.json'));
 const dry = flag('dry', false) === true;
 const once = flag('once', false) === true;
+const digestOnly = flag('digest-only', false) === true;
 const maxAgeHours = Number(flag('max-age-hours', 12));
+const alertCooldownHours = Number(flag('alert-cooldown-hours', 6));
+const logPath = flag('log-file', join(homedir(), '.dsh-assistant', 'run.log'));
+const useLock = flag('no-lock', false) !== true;
+const lockPath = join(dirname(statePath), 'run.lock');
+const LOCK_STALE_MS = 30 * 60_000;
+
+// ---------------- 日志（控制台 + 文件，便于计划任务排查） ----------------
+
+const LOG_MAX_BYTES = 1 * 1024 * 1024;
+
+function rotateLogIfNeeded() {
+  try {
+    if (existsSync(logPath) && statSync(logPath).size > LOG_MAX_BYTES) {
+      renameSync(logPath, `${logPath}.1`); // 只保留一份旧档，够排查了
+    }
+  } catch {
+    /* 日志轮转失败不该影响主流程 */
+  }
+}
+
+function log(message) {
+  const line = `[${new Date().toISOString()}] ${message}`;
+  console.log(message);
+  try {
+    mkdirSync(dirname(logPath), { recursive: true });
+    rotateLogIfNeeded();
+    appendFileSync(logPath, `${line}\n`);
+  } catch {
+    /* 写日志失败也不该让助理停摆 */
+  }
+}
+
+function logError(message) {
+  const line = `[${new Date().toISOString()}] ERROR ${message}`;
+  console.error(message);
+  try {
+    mkdirSync(dirname(logPath), { recursive: true });
+    appendFileSync(logPath, `${line}\n`);
+  } catch {
+    /* ignore */
+  }
+}
+
+// ---------------- 单实例锁 ----------------
+//
+// 为什么需要：计划任务每 45 分钟跑一次 **同时** 你可能手动执行一次，
+// 两个进程读同一份 state → 各自把同一条「新截止」入队 → 用户收到重复消息。
+// 锁文件记录 pid + 时间；超过 30 分钟的锁视为僵死（进程被强杀时不会留死锁）。
+
+function acquireLock() {
+  if (!useLock) return { ok: true };
+  try {
+    if (existsSync(lockPath)) {
+      const holder = JSON.parse(readFileSync(lockPath, 'utf8'));
+      const age = Date.now() - Date.parse(holder.at);
+      if (Number.isFinite(age) && age < LOCK_STALE_MS) {
+        return { ok: false, holder };
+      }
+      log(`检测到僵死锁（${Math.round(age / 60_000)} 分钟前，pid ${holder.pid}），接管`);
+    }
+  } catch {
+    /* 锁文件坏了就当没有 */
+  }
+  try {
+    mkdirSync(dirname(lockPath), { recursive: true });
+    writeFileSync(lockPath, JSON.stringify({ pid: process.pid, at: new Date().toISOString() }));
+    return { ok: true };
+  } catch (error) {
+    log(`⚠️ 无法创建锁文件（继续执行）：${error.message}`);
+    return { ok: true };
+  }
+}
+
+function releaseLock() {
+  if (!useLock) return;
+  try {
+    const holder = JSON.parse(readFileSync(lockPath, 'utf8'));
+    if (holder.pid === process.pid) unlinkSync(lockPath);
+  } catch {
+    /* ignore */
+  }
+}
 
 // ---- 投递凭据：优先 Telegram 直连，其次 dsh-im ----
 const tgConfigPath = flag('tg-config', join(homedir(), '.dsh-assistant', 'telegram.json'));
@@ -163,7 +257,7 @@ async function flushPending() {
       }
     } catch (error) {
       failed += 1;
-      console.error(`[assistant] ❌ 投递失败（保留在队列）：${error.message}`);
+      logError(`❌ 投递失败（保留在队列）：${error.message}`);
       remaining.push(entry);
     }
   }
@@ -173,6 +267,30 @@ async function flushPending() {
 }
 
 // ---------------- 一轮 ----------------
+
+/**
+ * 拉取失败时告诉用户（但要限频）。
+ * 为什么限频：classpipe 挂了以后每 45 分钟一条"拉取失败"等于自己变成噪音源。
+ */
+async function alertFailure(error, now) {
+  const cooldownMs = alertCooldownHours * 3600_000;
+  const last = state.lastAlertAt ? Date.parse(state.lastAlertAt) : NaN;
+  if (Number.isFinite(last) && now.getTime() - last < cooldownMs) {
+    log(`（失败告警冷却中，${alertCooldownHours}h 内不再提醒）`);
+    return;
+  }
+  const text =
+    `⚠️ 助理拉取失败\n\n` +
+    `${String(error.message).split('\n')[0]}\n\n` +
+    `classpipe: ${classpipeBase}\n` +
+    `会继续重试；${alertCooldownHours} 小时内不再重复提醒。`;
+  try {
+    await deliver(text);
+    state.lastAlertAt = now.toISOString();
+  } catch (sendError) {
+    logError(`告警也发不出去：${sendError.message}`);
+  }
+}
 
 async function tick() {
   const now = new Date();
@@ -193,7 +311,8 @@ async function tick() {
     });
   } catch (error) {
     state.lastError = `${now.toISOString()} poll: ${error.message}`;
-    console.error(`[assistant] ❌ 拉取失败：${error.message}`);
+    logError(`❌ 拉取失败：${error.message}`);
+    await alertFailure(error, now);
     saveState(state);
     return;
   }
@@ -225,8 +344,8 @@ async function tick() {
   state.lastTickAt = now.toISOString();
   saveState(state);
 
-  console.log(
-    `[assistant] ${now.toISOString()}  事项 ${before} → ${state.items.length}` +
+  log(
+    `事项 ${before} → ${state.items.length}` +
       `（新增 ${pollResult.result.inserted.length} / 更新 ${pollResult.result.updated.length}）` +
       (isSeed
         ? `  【首次播种：静默导入，不推送】`
@@ -285,35 +404,69 @@ async function sendDigest({ days = 7, limit = 12 } = {}) {
 
 // ---------------- 主流程 ----------------
 
-console.log(`[assistant] classpipe=${classpipeBase}  dsh=${dshBase}  时区=${timeZone}`);
-console.log(
-  `[assistant] 投递=${
-    hasTelegram
-      ? `telegram(chat ${tgChat}, bot ${maskToken(tgToken)})`
-      : hasDshIm
-        ? `dsh-im(bot ${botId}, target ${targetId})`
-        : '未配置'
-  }`,
-);
-console.log(`[assistant] 状态=${statePath}  间隔=${intervalMin} 分钟  补发窗口=${maxAgeHours}h${dry ? '  [dry-run]' : ''}`);
-console.log(`[assistant] 已有 ${state.items.length} 条事项、${state.pending.length} 条待发、${state.sentReminders.length} 条已发提醒`);
-
-if (once) {
-  await tick();
-  if (flag('digest', false) === true) {
-    const result = await sendDigest({ days: Number(flag('digest-days', 7)) });
-    console.log(`[assistant] 摘要已发送（${result.count} 条截止）`);
+/** 主流程：先抢锁，再按模式跑，任何退出路径都释放锁 */
+async function main() {
+  const lock = acquireLock();
+  if (!lock.ok) {
+    // 另一个进程正在跑：**静默成功退出**（计划任务重入是正常情况，不该算失败）
+    log(
+      `另一个助理进程正在运行（pid ${lock.holder?.pid}，${lock.holder?.at}），本轮跳过`,
+    );
+    return;
   }
-  console.log('[assistant] --once 完成');
-} else {
-  await tick(); // 先立刻跑一次，不等第一个间隔
-  const poller = createPoller({ intervalMs: intervalMin * 60_000, run: tick });
-  poller.start();
-  console.log(`[assistant] 常驻中（Ctrl+C 退出）`);
-  process.on('SIGINT', () => {
-    poller.stop();
-    saveState(state);
-    console.log('\n[assistant] 已退出，状态已保存');
-    process.exit(0);
-  });
+
+  process.on('exit', releaseLock);
+
+  try {
+    log(`classpipe=${classpipeBase}  dsh=${dshBase}  时区=${timeZone}`);
+    log(
+      `投递=${
+        hasTelegram
+          ? `telegram(chat ${tgChat}, bot ${maskToken(tgToken)})`
+          : hasDshIm
+            ? `dsh-im(bot ${botId}, target ${targetId})`
+            : '未配置'
+      }`,
+    );
+    log(
+      `状态=${statePath}  日志=${logPath}  间隔=${intervalMin} 分钟  补发窗口=${maxAgeHours}h${dry ? '  [dry-run]' : ''}`,
+    );
+    log(
+      `已有 ${state.items.length} 条事项、${state.pending.length} 条待发、${state.sentReminders.length} 条已发提醒`,
+    );
+
+    if (digestOnly) {
+      const result = await sendDigest({ days: Number(flag('digest-days', 7)) });
+      log(`摘要已发送（${result.count} 条截止）`);
+      return;
+    }
+
+    if (once) {
+      await tick();
+      if (flag('digest', false) === true) {
+        const result = await sendDigest({ days: Number(flag('digest-days', 7)) });
+        log(`摘要已发送（${result.count} 条截止）`);
+      }
+      log('--once 完成');
+      return;
+    }
+
+    await tick(); // 先立刻跑一次，不等第一个间隔
+    const poller = createPoller({ intervalMs: intervalMin * 60_000, run: tick });
+    poller.start();
+    log('常驻中（Ctrl+C 退出）');
+
+    process.on('SIGINT', () => {
+      poller.stop();
+      saveState(state);
+      log('已退出，状态已保存');
+      releaseLock();
+      process.exit(0);
+    });
+  } finally {
+    // --once 路径在这里释放；常驻路径由 SIGINT 处理
+    if (once || digestOnly) releaseLock();
+  }
 }
+
+await main();

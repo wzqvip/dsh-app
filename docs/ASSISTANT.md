@@ -1,6 +1,6 @@
 # 个人助理产品线（DSH Assistant）
 
-> 状态：**P0/P1/P3 代码完成**（数据层 + classpipe 适配器 + 轮询 + dsh-im 投递；等一个 UI 动作） · 分支 `feat/personal-assistant` · 2026-11-02
+> 状态：**P0/P1/P3 全部完成**（数据层 + classpipe 适配器 + 轮询 + Telegram 投递 + 计划任务常驻） · 分支 `feat/personal-assistant` · 2026-11-03
 > 与 `packages/dsh-efficiency`（桌宠/提问触达）、`hardware/`（3D 打印）是**三条独立产品线**。
 
 ## 1. 定位
@@ -157,7 +157,7 @@ Canvas/Outlook 的 ICS 常用 **Windows 时区名**（`Eastern Time (US & Canada
 | **P0** | `Item` 模型 + 去重 + 提醒计划（纯函数）+ 单测 | `node --test` 全绿；无需 DSH 即可测 | ✅ 完成（23 用例） |
 | **P1** | classpipe 适配器 + 轮询循环（定时主动查看 → 通知） | 真实数据 391 条「映射 0 拒收、复跑幂等」 | ✅ 完成（45 用例 + 实测） |
 | **P2** | DSH 插件外壳（tool 注册）+ 文件持久化 + 常驻调度 | 沙箱里能 `assistant.*` 增删查、能定时推送 | 待做 |
-| **P3** | dsh-im 主动投递 + 守护进程（播种/队列/补发窗口） | 代码完成、dry-run 通过；**待 UI 建目标后真发** | 🟡 代码完成 |
+| **P3** | Telegram 投递 + 守护进程 + **Windows 计划任务常驻** | 真机已收到 2 条；计划任务 `LastTaskResult=0` | ✅ 完成 |
 | P4 | 邮件 / Graph / mika skill | 各自单测 + 真实账号验证 | 待做 |
 
 > **P1 的路线被实测改掉了**：原计划"自己解析 Canvas ICS"，但维护者已有 `classpipe`
