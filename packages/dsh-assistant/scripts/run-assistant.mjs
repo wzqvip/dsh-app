@@ -72,6 +72,9 @@ const alertCooldownHours = Number(flag('alert-cooldown-hours', 6));
 // 同步开关：默认**开**。关掉它助理就只会读快照（classpipe 自己不会定时同步）。
 const syncEnabled = flag('no-sync', false) !== true;
 const syncMaxAgeHours = Number(flag('sync-max-age-hours', 6));
+// 每日摘要：容器模式下没有 cron/计划任务，所以放进守护进程里自己判断。
+const digestEnabled = flag('no-digest', false) !== true;
+const digestAt = String(flag('digest-at', '08:00'));
 const logPath = flag('log-file', join(homedir(), '.dsh-assistant', 'run.log'));
 const useLock = flag('no-lock', false) !== true;
 const lockPath = join(dirname(statePath), 'run.lock');
@@ -126,10 +129,17 @@ function acquireLock() {
     if (existsSync(lockPath)) {
       const holder = JSON.parse(readFileSync(lockPath, 'utf8'));
       const age = Date.now() - Date.parse(holder.at);
-      if (Number.isFinite(age) && age < LOCK_STALE_MS) {
+      // ⚠️ 容器特有陷阱：容器里的主进程永远是 pid 1，
+      //    上一次容器留下的锁也是 pid 1 —— 若只按"时间新鲜"判断，
+      //    新容器会一直认为"另一个进程在跑"而**每轮静默跳过**（等于助理失效）。
+      //    并发进程不可能拥有同一个 pid，所以 pid 相同必然是上一代的残留。
+      if (holder.pid === process.pid) {
+        log(`检测到上一代进程残留的锁（pid ${holder.pid} 与当前相同），接管`);
+      } else if (Number.isFinite(age) && age < LOCK_STALE_MS) {
         return { ok: false, holder };
+      } else {
+        log(`检测到僵死锁（${Math.round(age / 60_000)} 分钟前，pid ${holder.pid}），接管`);
       }
-      log(`检测到僵死锁（${Math.round(age / 60_000)} 分钟前，pid ${holder.pid}），接管`);
     }
   } catch {
     /* 锁文件坏了就当没有 */
@@ -374,6 +384,9 @@ async function tick() {
   // 3) 投递
   const flushed = await flushPending();
 
+  // 4) 每日摘要（到点且今天还没发过才发；播种轮跳过，免得刚部署就打扰）
+  if (!isSeed) await maybeSendMorningDigest(now);
+
   state.lastTickAt = now.toISOString();
   saveState(state);
 
@@ -433,6 +446,61 @@ async function sendDigest({ days = 7, limit = 12 } = {}) {
 
   await deliver(text);
   return { sent: 1, count: upcoming.length };
+}
+
+// ---------------- 每日摘要（容器模式没有 cron，自己判断） ----------------
+
+/** 取指定时区下的本地日期/时间分量（不依赖进程 TZ，容器里通常是 UTC） */
+function localParts(date, timeZoneName) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timeZoneName,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = {};
+  for (const part of formatter.formatToParts(date)) {
+    if (part.type !== 'literal') parts[part.type] = part.value;
+  }
+  return parts;
+}
+
+/**
+ * 到点就发当日摘要（每天最多一次，按**配置时区**判断）。
+ *
+ * 为什么放进守护进程而不是另配一个 cron：
+ *   容器里没有 cron；再起一个容器又要共享同一份 state（容易撞锁）。
+ *   一个进程里判断最省事，且 `lastDigestDate` 持久化后重启不会重发。
+ */
+async function maybeSendMorningDigest(now) {
+  if (!digestEnabled) return false;
+
+  const match = /^(\d{1,2}):(\d{2})$/.exec(digestAt);
+  if (!match) {
+    logError(`--digest-at 格式应为 HH:mm，收到 ${JSON.stringify(digestAt)}，跳过摘要`);
+    return false;
+  }
+  const targetMinutes = Number(match[1]) * 60 + Number(match[2]);
+
+  const parts = localParts(now, timeZone);
+  const todayKey = `${parts.year}-${parts.month}-${parts.day}`;
+  const nowMinutes = Number(parts.hour) * 60 + Number(parts.minute);
+
+  if (nowMinutes < targetMinutes) return false;
+  if (state.lastDigestDate === todayKey) return false;
+
+  try {
+    const result = await sendDigest({ days: Number(flag('digest-days', 7)) });
+    state.lastDigestDate = todayKey;
+    log(`每日摘要已发送（${todayKey} ${digestAt}，${result.count} 条截止）`);
+    return true;
+  } catch (error) {
+    logError(`每日摘要发送失败：${error.message}`);
+    return false;
+  }
 }
 
 // ---------------- 主流程 ----------------

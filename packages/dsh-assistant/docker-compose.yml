@@ -32,6 +32,10 @@ services:
       - http://host.docker.internal:8000
       - --tz
       - America/New_York
+      - --digest-at
+      - "08:00"
+      - --sync-max-age-hours
+      - "6"
       - --tg-config
       - /data/telegram.json
       - --state
