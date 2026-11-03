@@ -236,6 +236,53 @@ async function tick() {
   );
 }
 
+// ---------------- 摘要（digest） ----------------
+
+/**
+ * 发一条"未来 N 天截止"的摘要。
+ * 与逐条提醒互补：提醒是"这一条要到期了"，摘要是"这周整体长什么样"。
+ */
+async function sendDigest({ days = 7, limit = 12 } = {}) {
+  const now = Date.now();
+  const horizon = now + days * 24 * 3600 * 1000;
+
+  const upcoming = state.items
+    .filter((item) => item.status === 'open' && item.dueAt)
+    .map((item) => ({ item, dueMs: Date.parse(item.dueAt) }))
+    .filter(({ dueMs }) => Number.isFinite(dueMs) && dueMs > now && dueMs <= horizon)
+    .sort((a, b) => a.dueMs - b.dueMs);
+
+  const total = state.items.filter((item) => item.status === 'open').length;
+
+  if (upcoming.length === 0) {
+    const text = `📋 未来 ${days} 天没有新的截止。\n仓库中共 ${total} 条进行中的事项。`;
+    await deliver(text);
+    return { sent: 1, count: 0 };
+  }
+
+  const lines = upcoming.slice(0, limit).map(({ item, dueMs }) => {
+    const when = new Date(dueMs).toLocaleString('zh-CN', {
+      timeZone,
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const course = item.course ? `（${item.course}）` : '';
+    return `· ${when}  ${item.title}${course}`;
+  });
+
+  const more = upcoming.length > limit ? `\n…还有 ${upcoming.length - limit} 条` : '';
+  const text =
+    `📋 未来 ${days} 天有 ${upcoming.length} 个截止：\n\n` +
+    `${lines.join('\n')}${more}\n\n` +
+    `仓库中共 ${total} 条进行中的事项。`;
+
+  await deliver(text);
+  return { sent: 1, count: upcoming.length };
+}
+
 // ---------------- 主流程 ----------------
 
 console.log(`[assistant] classpipe=${classpipeBase}  dsh=${dshBase}  时区=${timeZone}`);
@@ -253,6 +300,10 @@ console.log(`[assistant] 已有 ${state.items.length} 条事项、${state.pendin
 
 if (once) {
   await tick();
+  if (flag('digest', false) === true) {
+    const result = await sendDigest({ days: Number(flag('digest-days', 7)) });
+    console.log(`[assistant] 摘要已发送（${result.count} 条截止）`);
+  }
   console.log('[assistant] --once 完成');
 } else {
   await tick(); // 先立刻跑一次，不等第一个间隔
