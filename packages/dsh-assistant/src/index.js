@@ -14,10 +14,12 @@ export {
   KINDS,
   SOURCES,
   STATUSES,
+  STALE_OVERRIDE_REASON,
   contentHash,
   itemId,
   mergeItems,
   normalizeItem,
+  planStaleDrops,
   setStatus,
   toIso,
 } from './items.js';

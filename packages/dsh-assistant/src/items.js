@@ -189,3 +189,37 @@ export function setStatus(items, id, status) {
   if (!STATUSES.includes(status)) throw new Error(`unknown status "${status}"`);
   return (items ?? []).map((item) => (item.id === id ? { ...item, status } : item));
 }
+
+/** 自动过期的原因标记（写进 override，便于日后区分"用户手动丢"与"系统判定过期"） */
+export const STALE_OVERRIDE_REASON = 'stale';
+
+/**
+ * 找出「早就过期且一直没完成」的事项，建议标记为 dropped。
+ *
+ * 为什么需要：Canvas 里有 2017 年就没关闭的作业，status 永远是 open。
+ * 不清理的话 `/list` 会一直很吵，而且"400 条未完成"这个数字会让人放弃看它。
+ *
+ * 纯函数：只**建议**要丢哪些 id，不修改输入。调用方负责把它们写进 overrides
+ * （必须走 override，否则下一次摄取会把它们复活成 open）。
+ *
+ * @param {object[]} items
+ * @param {object} [options]
+ * @param {Date|string|number} [options.now]
+ * @param {number} [options.days] 超过多少天算陈旧，默认 30
+ * @returns {string[]} 需要标记为 dropped 的 item id
+ */
+export function planStaleDrops(items, { now = new Date(), days = 30 } = {}) {
+  const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now));
+  if (!Number.isFinite(nowMs)) throw new Error('planStaleDrops: invalid `now`');
+  if (!Number.isFinite(days) || days <= 0) throw new Error('planStaleDrops: days must be > 0');
+
+  const cutoff = nowMs - days * 24 * 60 * 60 * 1000;
+  const stale = [];
+  for (const item of items ?? []) {
+    if (!item || item.status !== 'open' || !item.dueAt) continue;
+    const dueMs = Date.parse(item.dueAt);
+    if (!Number.isFinite(dueMs)) continue;
+    if (dueMs < cutoff) stale.push(item.id);
+  }
+  return stale;
+}

@@ -44,6 +44,7 @@ import {
   reminderText,
 } from '../src/index.js';
 import { startApiServer } from '../src/http/api.js';
+import { STALE_OVERRIDE_REASON, planStaleDrops } from '../src/items.js';
 import { syncAllCourses } from '../src/sources/classpipe-sync.js';
 import { sendDelivery } from '../src/notify/dsh-im.js';
 import { maskToken, sendTelegramMessage } from '../src/notify/telegram.js';
@@ -76,6 +77,9 @@ const syncMaxAgeHours = Number(flag('sync-max-age-hours', 6));
 // 每日摘要：容器模式下没有 cron/计划任务，所以放进守护进程里自己判断。
 const digestEnabled = flag('no-digest', false) !== true;
 const digestAt = String(flag('digest-at', '08:00'));
+// 自动过期：截止超过 N 天仍未完成 → 标记 dropped（走 overrides，防复活）
+const staleDropEnabled = flag('no-stale-drop', false) !== true;
+const staleDropDays = Number(flag('stale-drop-days', 30));
 // assistant 侧 HTTP：供 tg 网关查询/回写（Docker 内监听 0.0.0.0，不 publish 到公网）
 const apiPort = Number(flag('api-port', 8787));
 const apiHost = String(flag('api-host', '0.0.0.0'));
@@ -394,7 +398,27 @@ async function tick() {
     return;
   }
 
-  // 套用用户手动标记的状态（/done 等）——必须在 merge 之后，否则会被来源数据覆盖\n  state.items = applyOverrides(pollResult.items);
+  // 套用用户手动标记的状态（/done 等）——必须在 merge 之后，否则会被来源数据覆盖
+  state.items = applyOverrides(pollResult.items);
+
+  // 自动过期：截止超过 N 天仍未完成 → 写 overrides 标 dropped（同样不会被下次摄取复活）
+  if (staleDropEnabled) {
+    const staleIds = planStaleDrops(state.items, { now, days: staleDropDays });
+    if (staleIds.length > 0) {
+      state.overrides = state.overrides ?? {};
+      const at = now.toISOString();
+      let changed = 0;
+      for (const id of staleIds) {
+        if (state.overrides[id]?.status === 'dropped') continue;
+        state.overrides[id] = { status: 'dropped', at, reason: STALE_OVERRIDE_REASON };
+        changed += 1;
+      }
+      if (changed > 0) {
+        state.items = applyOverrides(state.items);
+        log(`自动过期：${changed} 条超过 ${staleDropDays} 天的未完成事项 → dropped`);
+      }
+    }
+  }
   state.lastError = null;
 
   if (!isSeed) {
