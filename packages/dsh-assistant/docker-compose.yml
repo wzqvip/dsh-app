@@ -45,6 +45,8 @@ services:
       - "08:00"
       - --sync-max-age-hours
       - "6"
+      - --tg-gateway
+      - http://dsh-tg:8788
       - --tg-config
       - /data/telegram.json
       - --state

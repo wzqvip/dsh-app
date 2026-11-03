@@ -48,6 +48,7 @@ import { STALE_OVERRIDE_REASON, planStaleDrops } from '../src/items.js';
 import { syncAllCourses } from '../src/sources/classpipe-sync.js';
 import { sendDelivery } from '../src/notify/dsh-im.js';
 import { maskToken, sendTelegramMessage } from '../src/notify/telegram.js';
+import { sendViaGateway } from '../src/notify/tg-gateway.js';
 
 // ---------------- CLI ----------------
 
@@ -80,6 +81,8 @@ const digestAt = String(flag('digest-at', '08:00'));
 // 自动过期：截止超过 N 天仍未完成 → 标记 dropped（走 overrides，防复活）
 const staleDropEnabled = flag('no-stale-drop', false) !== true;
 const staleDropDays = Number(flag('stale-drop-days', 30));
+// 推送优先经 dsh-tg 网关（TG 链路的唯一所有者）；空串表示禁用，退回直连
+const tgGatewayBase = String(flag('tg-gateway', process.env.DSH_TG_GATEWAY ?? ''));
 // assistant 侧 HTTP：供 tg 网关查询/回写（Docker 内监听 0.0.0.0，不 publish 到公网）
 const apiPort = Number(flag('api-port', 8787));
 const apiHost = String(flag('api-host', '0.0.0.0'));
@@ -274,16 +277,31 @@ function enqueue(key, text) {
   state.pending.push({ key, text, queuedAt: new Date().toISOString() });
 }
 
-/** 发送一条；dry 模式只打印。优先 Telegram 直连，其次 dsh-im。 */
+/** 发送一条；dry 模式只打印。优先级：dsh-tg 网关 → 直连 Bot API → dsh-im。 */
 async function deliver(text) {
   if (dry) {
     console.log(`[dry] 会推送：\n${text.replace(/^/gm, '        ')}`);
     return;
   }
+
+  // 1) 优先经 dsh-tg 网关 —— Telegram 链路（发送/限流/重试/告警）的唯一所有者
+  if (tgGatewayBase) {
+    try {
+      await sendViaGateway({ baseUrl: tgGatewayBase, token: apiToken, text });
+      return;
+    } catch (error) {
+      // ⚠️ 不静默：网关挂了仍要尽量把提醒送出去（宁可重复一条，也别错过 deadline）
+      logError(`经网关投递失败，尝试直连兜底：${error.message}`);
+    }
+  }
+
+  // 2) 直连 Bot API（兜底）
   if (hasTelegram) {
     await sendTelegramMessage({ token: tgToken, chatId: tgChat, text });
     return;
   }
+
+  // 3) dsh-im 通道（再兜底）
   await sendDelivery({ botId, targetId, baseUrl: dshBase, text });
 }
 
@@ -640,11 +658,13 @@ async function main() {
     log(`classpipe=${classpipeBase}  dsh=${dshBase}  时区=${timeZone}`);
     log(
       `投递=${
-        hasTelegram
-          ? `telegram(chat ${tgChat}, bot ${maskToken(tgToken)})`
-          : hasDshIm
-            ? `dsh-im(bot ${botId}, target ${targetId})`
-            : '未配置'
+        tgGatewayBase
+          ? `gateway(${tgGatewayBase})${hasTelegram ? ' + 直连兜底' : ''}`
+          : hasTelegram
+            ? `telegram 直连(chat ${tgChat}, bot ${maskToken(tgToken)})`
+            : hasDshIm
+              ? `dsh-im(bot ${botId}, target ${targetId})`
+              : '未配置'
       }`,
     );
     log(
