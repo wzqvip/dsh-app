@@ -55,10 +55,12 @@ services:
       - START_URL=${START_URL:-about:blank}
       - LOG_LEVEL=info
     ports:
-      # 只发布 noVNC 这一个端口。绑定范围见文档 §4：
-      # 默认 0.0.0.0（私网 eth0 / NAT 后面），要收紧就改成
-      #   "127.0.0.1:16080:6080"（配 SSH 隧道）或 "100.x.x.x:16080:6080"（Tailscale）
-      - "16080:6080"
+      # 只发布 noVNC 这一个端口。绑定范围由 VNC_BIND 控制（写进 .env）：
+      #   0.0.0.0        = 所有网卡（含 WSL / VMware / docker 网桥）—— 默认，但暴露面最大
+      #   192.168.x.x    = 只绑局域网那张网卡（推荐）
+      #   127.0.0.1      = 只本机，配 SSH 隧道访问
+      #   100.x.x.x      = 只绑 Tailscale（需 tailscaled 已登录）
+      - "${VNC_BIND:-0.0.0.0}:16080:6080"
     healthcheck:
       test:
         - CMD
