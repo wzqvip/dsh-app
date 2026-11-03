@@ -158,12 +158,17 @@ export async function pollOnce({
  * 为什么需要单飞：拉取可能比间隔还慢（几百条任务 + 网络慢），
  * 没有保护就会叠加请求，最终把自己打挂。
  *
+ * ⚠️ `unref` 的陷阱：默认 `unref: true` 是为了让测试/短脚本不被定时器拖住退出；
+ * 但**常驻守护进程必须传 `unref: false`** —— 否则定时器不持有事件循环，
+ * Node 会在 main() 返回后立刻退出（看起来"启动了但马上没了"）。实测踩过。
+ *
  * @param {object} options
  * @param {number} options.intervalMs
  * @param {() => Promise<void>|void} options.run
+ * @param {boolean} [options.unref] 是否 unref 定时器（常驻进程设为 false）
  * @param {{info?:Function,warn?:Function,error?:Function}} [options.logger]
  */
-export function createPoller({ intervalMs, run, logger = console } = {}) {
+export function createPoller({ intervalMs, run, unref = true, logger = console } = {}) {
   if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
     throw new Error('createPoller: intervalMs must be a positive number');
   }
@@ -190,11 +195,11 @@ export function createPoller({ intervalMs, run, logger = console } = {}) {
   }
 
   return {
-    /** 启动（`unref` 避免拖住进程退出） */
+    /** 启动（`unref: true` 时不会拖住进程退出；常驻守护进程要传 `unref: false`） */
     start() {
       if (timer) return;
       timer = setInterval(tick, intervalMs);
-      if (typeof timer.unref === 'function') timer.unref();
+      if (unref && typeof timer.unref === 'function') timer.unref();
     },
     stop() {
       if (timer) clearInterval(timer);

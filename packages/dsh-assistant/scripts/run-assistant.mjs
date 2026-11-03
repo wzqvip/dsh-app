@@ -452,7 +452,7 @@ async function main() {
     }
 
     await tick(); // 先立刻跑一次，不等第一个间隔
-    const poller = createPoller({ intervalMs: intervalMin * 60_000, run: tick });
+    const poller = createPoller({ intervalMs: intervalMin * 60_000, run: tick, unref: false });
     poller.start();
     log('常驻中（Ctrl+C 退出）');
 

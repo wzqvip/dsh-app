@@ -1,0 +1,46 @@
+# dsh-assistant —— 单容器部署
+#
+# 前提：classpipe 在**同一台宿主机**上跑（默认 8000 端口）。容器通过
+# host.docker.internal 访问它，不需要把 classpipe 或本服务暴露到公网。
+#
+# 用法（在 ubuntu-gpu 上）：
+#   mkdir -p data && cp telegram.json data/     # 凭据放 data/，不进镜像
+#   docker compose up -d --build
+#   docker compose logs -f
+#
+# classpipe 在别的机器上就改 --classpipe 的地址。
+
+services:
+  assistant:
+    build: .
+    container_name: dsh-assistant
+    restart: unless-stopped
+    # 让容器能用 host.docker.internal 指回宿主机（classpipe 的端口映射在宿主上）
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # 凭据 / 状态 / 日志都在这一个目录里；容器重建不丢
+      - ./data:/data
+    environment:
+      - TZ=America/New_York
+    command:
+      - node
+      - scripts/run-assistant.mjs
+      - --interval
+      - "45"
+      - --classpipe
+      - http://host.docker.internal:8000
+      - --tz
+      - America/New_York
+      - --tg-config
+      - /data/telegram.json
+      - --state
+      - /data/state.json
+      - --log-file
+      - /data/run.log
+    logging:
+      # 容器日志别无限涨；真正的运行日志在 /data/run.log
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"

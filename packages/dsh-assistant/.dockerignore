@@ -1,0 +1,13 @@
+# 运行时数据与本地凭据：绝不打进镜像
+data/
+**/.secrets/
+telegram.json
+node_modules/
+npm-debug.log*
+
+# 测试与文档：容器里不需要
+test/
+README.md
+Dockerfile
+docker-compose.yml
+.dockerignore
