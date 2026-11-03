@@ -108,3 +108,8 @@ __pycache__/
 msg78.tmp
 msg79.tmp
 msg80.tmp
+
+# 本地投递凭据（真实 bot token 绝不入库；正常位置在 ~/.dsh-assistant/）
+telegram.local.json
+packages/dsh-assistant/.secrets/
+msg81.tmp

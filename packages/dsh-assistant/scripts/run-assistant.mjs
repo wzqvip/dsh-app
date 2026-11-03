@@ -33,6 +33,7 @@ import {
   reminderText,
 } from '../src/index.js';
 import { sendDelivery } from '../src/notify/dsh-im.js';
+import { maskToken, sendTelegramMessage } from '../src/notify/telegram.js';
 
 // ---------------- CLI ----------------
 
@@ -55,15 +56,33 @@ const dry = flag('dry', false) === true;
 const once = flag('once', false) === true;
 const maxAgeHours = Number(flag('max-age-hours', 12));
 
+// ---- 投递凭据：优先 Telegram 直连，其次 dsh-im ----
+const tgConfigPath = flag('tg-config', join(homedir(), '.dsh-assistant', 'telegram.json'));
+let tgToken = process.env.DSH_ASSISTANT_TG_TOKEN ?? '';
+let tgChat = String(flag('tg-chat', process.env.DSH_ASSISTANT_TG_CHAT ?? '') ?? '');
+
+if ((!tgToken || !tgChat) && existsSync(tgConfigPath)) {
+  try {
+    const tgConfig = JSON.parse(readFileSync(tgConfigPath, 'utf8'));
+    tgToken = tgToken || tgConfig.token || '';
+    tgChat = tgChat || String(tgConfig.chatId ?? '');
+  } catch (error) {
+    console.error(`[assistant] ⚠️ 读取 ${tgConfigPath} 失败：${error.message}`);
+  }
+}
+
+const hasTelegram = Boolean(tgToken && tgChat);
+const hasDshIm = Boolean(botId && targetId);
+
 if (!Number.isFinite(intervalMin) || intervalMin <= 0) {
   console.error('[assistant] --interval 必须是正数（分钟）');
   process.exit(2);
 }
-if (!dry && (!botId || !targetId)) {
-  console.error('[assistant] 缺少投递配置。');
-  console.error('  需先在 DSH 设置 → IM机器人 里「新建投递目标」，拿到 botId 与 targetId，然后：');
-  console.error('    node scripts/run-assistant.mjs --bot-id <botId> --target-id <targetId>');
-  console.error('  或先用 --dry 看它会推什么（不需要目标）。');
+if (!dry && !hasTelegram && !hasDshIm) {
+  console.error('[assistant] 缺少投递配置。二选一：');
+  console.error(`  ① Telegram 直连：把 {"token":"…","chatId":"…"} 写进 ${tgConfigPath}`);
+  console.error('  ② dsh-im：先在 DSH 设置里新建投递目标，再用 --bot-id/--target-id');
+  console.error('  或先用 --dry 看它会推什么（不需要凭据）。');
   process.exit(2);
 }
 
@@ -109,10 +128,14 @@ function enqueue(key, text) {
   state.pending.push({ key, text, queuedAt: new Date().toISOString() });
 }
 
-/** 发送一条；dry 模式只打印 */
+/** 发送一条；dry 模式只打印。优先 Telegram 直连，其次 dsh-im。 */
 async function deliver(text) {
   if (dry) {
     console.log(`[dry] 会推送：\n${text.replace(/^/gm, '        ')}`);
+    return;
+  }
+  if (hasTelegram) {
+    await sendTelegramMessage({ token: tgToken, chatId: tgChat, text });
     return;
   }
   await sendDelivery({ botId, targetId, baseUrl: dshBase, text });
@@ -216,6 +239,15 @@ async function tick() {
 // ---------------- 主流程 ----------------
 
 console.log(`[assistant] classpipe=${classpipeBase}  dsh=${dshBase}  时区=${timeZone}`);
+console.log(
+  `[assistant] 投递=${
+    hasTelegram
+      ? `telegram(chat ${tgChat}, bot ${maskToken(tgToken)})`
+      : hasDshIm
+        ? `dsh-im(bot ${botId}, target ${targetId})`
+        : '未配置'
+  }`,
+);
 console.log(`[assistant] 状态=${statePath}  间隔=${intervalMin} 分钟  补发窗口=${maxAgeHours}h${dry ? '  [dry-run]' : ''}`);
 console.log(`[assistant] 已有 ${state.items.length} 条事项、${state.pending.length} 条待发、${state.sentReminders.length} 条已发提醒`);
 

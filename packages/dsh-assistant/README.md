@@ -89,15 +89,22 @@ classpipe 字段映射与异常（非 200 / success=false / 超时）、轮询�
 ## 真跑：守护进程（P3）
 
 ```sh
-# 1) 先看它会推什么（不需要投递目标）
+# 0) 配凭据（只存在用户目录，不进仓库）
+#    ~/.dsh-assistant/telegram.json → {"token":"<bot token>","chatId":"<chat id>"}
+node scripts/send-test.mjs        # 连通性自检：能收到就说明链路通
+
+# 1) 先看它会推什么（不需要凭据）
 node scripts/run-assistant.mjs --dry --once
 
-# 2) 真发：先在 DSH 设置 → IM机器人 → 新建投递目标，拿到 botId / targetId
-node scripts/run-assistant.mjs --bot-id telegram_xxx --target-id assistant-ddl --once
+# 2) 真跑（自动读上面的凭据）
+node scripts/run-assistant.mjs --once
 
 # 3) 常驻，每 45 分钟看一次
-node scripts/run-assistant.mjs --bot-id telegram_xxx --target-id assistant-ddl --interval 45
+node scripts/run-assistant.mjs --interval 45
 ```
+
+也支持 dsh-im 通道：`--bot-id <botId> --target-id <targetId>`。
+优先级：**Telegram 直连 > dsh-im**。
 
 状态落在 `~/.dsh-assistant/state.json`（`--state` 可覆盖）。
 

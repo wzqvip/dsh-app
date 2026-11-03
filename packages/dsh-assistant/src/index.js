@@ -48,3 +48,10 @@ export {
   createDshImNotifier,
   sendDelivery,
 } from './notify/dsh-im.js';
+
+export {
+  TELEGRAM_API_BASE,
+  createTelegramNotifier,
+  maskToken,
+  sendTelegramMessage,
+} from './notify/telegram.js';
