@@ -67,7 +67,7 @@ mkdir -p ~/dsh-browser && cd ~/dsh-browser
 # 2) 环境变量（.env 不入库）
 cp .env.example .env
 #    必填 VNC_PASSWORD（x11vnc 的 RFB 密码**最多 8 字符**，超出部分会被静默忽略）
-#    可选 NOVNC_BASIC_AUTH=user:pass（noVNC 的 HTTP Basic 鉴权）
+#    NOVNC_BASIC_AUTH 留空即可 —— 实测它只拦 WS 握手，反而会让 noVNC 连不上（§4.1）
 VNC_PW=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9' | head -c 8)
 sed -i "s/^VNC_PASSWORD=.*/VNC_PASSWORD=$VNC_PW/" .env
 chmod 600 .env && echo "VNC 密码：$VNC_PW"
