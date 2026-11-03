@@ -47,6 +47,10 @@ services:
       - "6"
       - --tg-gateway
       - http://dsh-tg:8788
+      - --browser-base
+      - http://dsh-browser:8789
+      - --session-check-minutes
+      - "15"
       - --tg-config
       - /data/telegram.json
       - --state

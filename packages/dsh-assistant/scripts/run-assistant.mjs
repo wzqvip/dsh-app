@@ -44,6 +44,8 @@ import {
   reminderText,
 } from '../src/index.js';
 import { startApiServer } from '../src/http/api.js';
+import { snapshotBrowser } from '../src/browser/client.js';
+import { decideSession, shouldCheck } from '../src/session/decide.js';
 import { STALE_OVERRIDE_REASON, planStaleDrops } from '../src/items.js';
 import { syncAllCourses } from '../src/sources/classpipe-sync.js';
 import { sendDelivery } from '../src/notify/dsh-im.js';
@@ -83,6 +85,9 @@ const staleDropEnabled = flag('no-stale-drop', false) !== true;
 const staleDropDays = Number(flag('stale-drop-days', 30));
 // 推送优先经 dsh-tg 网关（TG 链路的唯一所有者）；空串表示禁用，退回直连
 const tgGatewayBase = String(flag('tg-gateway', process.env.DSH_TG_GATEWAY ?? ''));
+// 浏览器会话监控：定时看学校邮箱是否被要求重新登录（维护者 2026-11-03 要求）
+const browserBase = String(flag('browser-base', process.env.DSH_BROWSER_BASE ?? ''));
+const sessionCheckMinutes = Number(flag('session-check-minutes', 15));
 // assistant 侧 HTTP：供 tg 网关查询/回写（Docker 内监听 0.0.0.0，不 publish 到公网）
 const apiPort = Number(flag('api-port', 8787));
 const apiHost = String(flag('api-host', '0.0.0.0'));
@@ -225,6 +230,8 @@ const EMPTY_STATE = {
   // ⚠️ 必须单独存：tick 用 tick 开始时的 state 快照做 merge，
   //    若用户在中途标了 done，直接改 state.items 会被下一次 merge 覆盖回 open。
   overrides: {},
+  // 浏览器会话状态（见 src/session/decide.js）
+  session: null,
   lastTickAt: null,
   lastError: null,
 };
@@ -463,6 +470,9 @@ async function tick() {
   // 4) 每日摘要（到点且今天还没发过才发；播种轮跳过，免得刚部署就打扰）
   if (!isSeed) await maybeSendMorningDigest(now);
 
+  // 5) 浏览器会话巡检（登录是否过期）
+  await checkBrowserSession(now);
+
   state.lastTickAt = now.toISOString();
   saveState(state);
 
@@ -576,6 +586,36 @@ async function maybeSendMorningDigest(now) {
   } catch (error) {
     logError(`每日摘要发送失败：${error.message}`);
     return false;
+  }
+}
+
+// ---------------- 浏览器会话监控 ----------------
+
+/**
+ * 定时看一次学校邮箱是不是又要人登录了。
+ *
+ * 为什么要它：Outlook 会话会静默过期。没有监控的话，表现是"助理突然不推邮件了"，
+ * 而人不会想到是登录过期 —— 会把"管道断了"误解成"这周没邮件"。
+ */
+async function checkBrowserSession(now) {
+  if (!browserBase) return;
+  if (!shouldCheck(state.session, now, sessionCheckMinutes)) return;
+
+  const snap = await snapshotBrowser({ baseUrl: browserBase, token: apiToken });
+  if (!snap.ok || snap.transient) {
+    // Chromium 自愈期会 503：不改状态、不通知，只记一笔
+    log(`会话检查跳过（浏览器暂不可用：${snap.error ?? 'unknown'}）`);
+    return;
+  }
+
+  const { next, notify } = decideSession(state.session, snap, now);
+  state.session = next;
+
+  if (notify) {
+    enqueue(`session:${next.needsUser ? 'expired' : 'recovered'}:${now.toISOString()}`, notify.text);
+    log(`会话状态变化：${notify.kind}（reason=${next.reason ?? '-'}）`);
+  } else {
+    log(`会话正常：${snap.page?.title ?? ''}（${snap.chars ?? 0} 字符）`);
   }
 }
 
