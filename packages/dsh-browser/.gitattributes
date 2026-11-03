@@ -1,0 +1,4 @@
+# 容器里的 shell 入口脚本必须是 LF —— Windows 检出成 CRLF 时
+# `sh` 会报 "/bin/sh^M: bad interpreter" 或 "$'\r': not found"。
+# 只作用于本包，不改仓库级配置。
+*.sh text eol=lf

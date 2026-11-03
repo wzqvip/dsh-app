@@ -16,13 +16,21 @@ Windows（开发）                       ubuntu-gpu 192.168.3.30（运行）
                                        │    └─ backup.sh（每日备份）
                                        ├─ ~/dsh-assistant（compose，assistant 容器）
                                        │    └─ data/（telegram.json / token.txt / state.json / run.log）
-                                       └─ ~/dsh-tg（compose，tg 容器，接 dsh-net）
-                                            └─ state/（offset / 序号映射）
+                                       ├─ ~/dsh-tg（compose，tg 容器，接 dsh-net）
+                                       │    └─ state/（offset / 序号映射）
+                                       └─ ~/dsh-browser（compose，浏览器容器，接 dsh-net）
+                                            ├─ profile/（Chromium 登录态，**等于凭据**，gitignored）
+                                            └─ .env（VNC 密码）
 ```
 
 > Telegram 链路由独立的 `dsh-tg` 容器负责（入站命令 + 出站推送），
 > 与 `dsh-assistant` 通过 external network `dsh-net` 用服务名互访，不发布到局域网。
 > 契约、部署与排错见 [TELEGRAM-GATEWAY.md](TELEGRAM-GATEWAY.md)。
+>
+> 无 API 的站点（学校 Outlook 网页版、Canvas 网页）由 `dsh-browser` 处理：
+> 容器内 headed Chromium + noVNC，**登录由维护者在 noVNC 里手动完成**，agent 只经 CDP
+> 读页面/点按钮，遇到登录、2FA、验证码就停下来找人。见
+> [BROWSER-SERVICE.md](BROWSER-SERVICE.md)。
 
 ## 访问方式
 
@@ -31,6 +39,11 @@ Windows（开发）                       ubuntu-gpu 192.168.3.30（运行）
 | 局域网 | `http://192.168.3.30:8000` |
 | Tailscale（登录后） | `http://100.121.250.110:8000` 或 `http://ubuntu-gpu:8000` |
 | 仅本机 | `http://127.0.0.1:8000` |
+| **浏览器 noVNC**（人工登录用） | `http://192.168.3.30:16080/vnc.html?autoconnect=1&resize=scale` |
+
+> `dsh-browser` 的 noVNC 只发布 **16080** 一个端口，需要 **VNC 密码**
+> （`~/dsh-browser/.env` 里的 `VNC_PASSWORD`，≤8 字符）。它是唯一会暴露
+> "已登录的浏览器"的入口，绑定范围与收紧方式见 [BROWSER-SERVICE.md](BROWSER-SERVICE.md) §4。
 
 > 主机防火墙 `ufw` 是 **inactive**，端口 8000 已监听 `0.0.0.0`。
 > ⚠️ 这意味着**同一局域网内任何人都能访问 classpipe**（它没有登录，会直接暴露
@@ -55,6 +68,9 @@ cd ~/dsh-assistant && docker compose logs --tail 30
 
 # Telegram 网关（入站命令 + 出站推送）
 cd ~/dsh-tg && docker compose logs --tail 30
+
+# 浏览器执行服务（人工登录 + agent 执行）
+cd ~/dsh-browser && docker compose logs --tail 30
 ```
 
 `sync.sh` 做的事情（按顺序）：备份 DB+密钥 → `git pull --ff-only` → `compose up -d --build`

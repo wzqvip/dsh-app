@@ -1,0 +1,16 @@
+# 本包的忽略项（仓库根 .gitignore 已覆盖 node_modules/、*.log、.env）
+
+# Chromium 持久 profile —— 里面是**登录 cookie**，等价于凭据，绝不能入库
+profile/
+
+# 预留的可写状态目录（如果以后把 pending 落盘）
+state/
+
+# 本地环境变量（VNC 密码等）
+.env
+# 但**模板**必须入库：仓库根的 `.env.*` 规则会把 .env.example 一起吞掉，
+# 这里显式放行（深层 .gitignore 优先级更高）
+!.env.example
+
+# npm 在容器里生成的锁文件不入库（依赖只有 playwright-core 一个，版本写死在 package.json）
+package-lock.json

@@ -1,0 +1,13 @@
+# 构建上下文里不要的东西（镜像里不该出现登录态、测试和本机配置）
+node_modules
+profile
+state
+test
+docs
+*.log
+.env
+.env.*
+Dockerfile
+docker-compose.yml
+.gitignore
+.gitattributes

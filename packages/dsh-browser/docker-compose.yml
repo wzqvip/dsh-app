@@ -1,0 +1,80 @@
+# dsh-browser —— 浏览器执行服务（人工登录 + agent 执行）
+#
+# 拓扑（详见 docs/BROWSER-SERVICE.md）：
+#   容器内：Xvfb :99 → x11vnc 127.0.0.1:5900 → websockify/noVNC 0.0.0.0:6080
+#           chromium headed（CDP 只在 127.0.0.1:9222，Playwright 从本机连）
+#           Node 服务 0.0.0.0:8789（接 dsh-net，服务名 dsh-browser，**不** publish）
+#   对外只发布一个端口：宿主机 16080 → 容器 6080（noVNC 给维护者登录用）
+#
+# 一次性准备（在 ubuntu-gpu 上）：
+#   mkdir -p ~/dsh-browser/profile          # 必须是 taco(1001) 可写，否则 Chromium 起不来
+#   cd ~/dsh-browser && cp .env.example .env && 编辑 .env（VNC_PASSWORD 必填）
+#   docker network create dsh-net           # 已存在则跳过
+#   docker compose up -d --build
+#
+# 手工调试（8789 **不发布**到宿主机：只用 docker compose exec 进容器打，
+# 或者从同网络的 dsh-assistant 容器用服务名 http://dsh-browser:8789 访问）：
+#   docker compose exec browser node -e \
+#     "fetch('http://127.0.0.1:8789/health').then(r=>r.text()).then(console.log)"
+
+services:
+  browser:
+    build: .
+    container_name: dsh-browser
+    restart: unless-stopped
+    # 固定 hostname：Chromium 的 profile 锁（SingletonLock）里记着 hostname，
+    # 容器重建后 hostname 变化会被判成"另一台电脑在用这个 profile"。
+    # entrypoint 每次启动前也会清锁，这里再稳一层。
+    hostname: dsh-browser
+    # 收僵尸进程：entrypoint 里有 chromium 重启循环，会不断产生子进程
+    init: true
+    # 与 dsh-tg 一致：ubuntu 上的 taco 是 uid/gid 1001，
+    # 否则读不了 600 权限的 token，也写不了挂进来的 ./profile
+    user: "1001:1001"
+    networks:
+      - dsh-net
+    # Chromium 对 /dev/shm 很挑；默认 64MB 会崩。entrypoint 里也有 --disable-dev-shm-usage
+    shm_size: "1gb"
+    volumes:
+      # 共享密钥：与 assistant / tg 同一份，只读；token 轮换后这边自动跟上
+      - /home/taco/dsh-assistant/data/token.txt:/data/api-token.txt:ro
+      # Chromium 持久 profile：登录一次长期有效。**绝不入仓库**
+      - ./profile:/profile
+    environment:
+      - TZ=America/New_York
+      - HOST=0.0.0.0
+      - PORT=8789
+      - SHARED_TOKEN_FILE=/data/api-token.txt
+      - CDP_URL=http://127.0.0.1:9222
+      # 维护者要打开的地址（只用于告诉人"去哪登录"，服务本身不依赖）
+      - PUBLIC_VNC_URL=${PUBLIC_VNC_URL:-}
+      # x11vnc 的 RFB 密码，**最多 8 字符**（超出部分会被 x11vnc 忽略）
+      - VNC_PASSWORD=${VNC_PASSWORD:?请在 .env 里设置 VNC_PASSWORD}
+      # 可选的 noVNC HTTP Basic 鉴权，形如 user:pass（不含空格）；留空 = 不启用
+      - NOVNC_BASIC_AUTH=${NOVNC_BASIC_AUTH:-}
+      - START_URL=${START_URL:-about:blank}
+      - LOG_LEVEL=info
+    ports:
+      # 只发布 noVNC 这一个端口。绑定范围见文档 §4：
+      # 默认 0.0.0.0（私网 eth0 / NAT 后面），要收紧就改成
+      #   "127.0.0.1:16080:6080"（配 SSH 隧道）或 "100.x.x.x:16080:6080"（Tailscale）
+      - "16080:6080"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8789/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  dsh-net:
+    external: true

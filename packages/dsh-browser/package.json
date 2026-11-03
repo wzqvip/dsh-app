@@ -1,0 +1,25 @@
+{
+  "name": "dsh-browser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "浏览器执行服务：容器内 headed Chromium（Xvfb + x11vnc + noVNC），登录由人完成；agent 经 CDP 快照/操作，需要人时升级",
+  "main": "src/server.js",
+  "files": [
+    "src",
+    "docker",
+    "test",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "playwright-core": "1.64.1"
+  }
+}
