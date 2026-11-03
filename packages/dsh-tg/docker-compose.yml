@@ -1,0 +1,70 @@
+# dsh-tg —— Telegram 网关（独立部署）
+#
+# 背景（见 docs/TELEGRAM-GATEWAY.md）：
+#   Telegram 链路（入站对话 + 出站推送）从 dsh-assistant 里拆出来，由本服务独占。
+#   两个服务在 ubuntu-gpu 上用 Docker 跑，通过 external network `dsh-net` 用**服务名**互访，
+#   不向局域网/宿主机 0.0.0.0 发布端口。
+#
+# 一次性准备（在 ubuntu-gpu 上）：
+#   docker network create dsh-net            # 已由 Lead 创建，若不存在再执行
+#   mkdir -p ~/dsh-tg/state
+#
+# 凭据（只读挂载，绝不进镜像/仓库）：
+#   ~/dsh-assistant/data/telegram.json  →  /data/telegram.json   （bot token + chatId）
+#   ~/dsh-assistant/data/token.txt      →  /data/api-token.txt   （assistant ↔ tg 共享密钥）
+#
+# 部署：
+#   cd ~/dsh-tg && docker compose up -d --build
+#   docker compose logs -f
+#
+# 手工调试（可选）：只在宿主机回环发布 18788，容器间互访不依赖它
+#   curl -s http://127.0.0.1:18788/health
+#   curl -s -X POST http://127.0.0.1:18788/notify \
+#     -H "content-type: application/json" \
+#     -H "x-dsh-token: $(cat ~/dsh-assistant/data/token.txt)" \
+#     -d '{"text":"hello from dsh-tg"}'
+
+services:
+  tg:
+    build: .
+    container_name: dsh-tg
+    restart: unless-stopped
+    # ubuntu-gpu 上的 taco 是 uid/gid 1001（不是 node 镜像默认的 1000）：
+    # 用它运行才能读 600 权限的凭据文件、并写挂进来的 ./state
+    user: "1001:1001"
+    networks:
+      - dsh-net
+    volumes:
+      # 只读凭据：与 assistant 共用同一份，避免 token 轮换后两边不一致
+      - /home/taco/dsh-assistant/data/telegram.json:/data/telegram.json:ro
+      - /home/taco/dsh-assistant/data/token.txt:/data/api-token.txt:ro
+      # 可写状态：offset（重启不重复消费）+ 序号映射（/done 跨重启可用）
+      - ./state:/state
+    environment:
+      - TZ=America/New_York
+      - TG_TIMEZONE=America/New_York
+      - HOST=0.0.0.0
+      - PORT=8788
+      - TELEGRAM_CONFIG=/data/telegram.json
+      - SHARED_TOKEN_FILE=/data/api-token.txt
+      - STATE_FILE=/state/tg-state.json
+      - SEQ_FILE=/state/seq.json
+      # 容器间用服务名：assistant 也接入了 dsh-net
+      - ASSISTANT_BASE_URL=http://dsh-assistant:8787
+      - LOG_LEVEL=info
+      # 可选调参（默认值见 src/config.js）
+      # - POLL_TIMEOUT_SEC=30
+      # - HEARTBEAT_STALE_MS=300000
+      # - ALERT_THROTTLE_MS=1800000
+    ports:
+      # 仅宿主机回环，便于手工 curl；不影响容器间访问
+      - "127.0.0.1:18788:8788"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+networks:
+  dsh-net:
+    external: true

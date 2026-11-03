@@ -14,9 +14,15 @@ Windows（开发）                       ubuntu-gpu 192.168.3.30（运行）
                                        │    ├─ docker-compose.yml（classpipe:8000）
                                        │    ├─ sync.sh（备份 → pull → 重建 → 体检）
                                        │    └─ backup.sh（每日备份）
-                                       └─ ~/dsh-assistant（compose，assistant 容器）
-                                            └─ data/（telegram.json / state.json / run.log）
+                                       ├─ ~/dsh-assistant（compose，assistant 容器）
+                                       │    └─ data/（telegram.json / token.txt / state.json / run.log）
+                                       └─ ~/dsh-tg（compose，tg 容器，接 dsh-net）
+                                            └─ state/（offset / 序号映射）
 ```
+
+> Telegram 链路由独立的 `dsh-tg` 容器负责（入站命令 + 出站推送），
+> 与 `dsh-assistant` 通过 external network `dsh-net` 用服务名互访，不发布到局域网。
+> 契约、部署与排错见 [TELEGRAM-GATEWAY.md](TELEGRAM-GATEWAY.md)。
 
 ## 访问方式
 
@@ -46,6 +52,9 @@ docker compose logs --tail 50
 
 # 助理
 cd ~/dsh-assistant && docker compose logs --tail 30
+
+# Telegram 网关（入站命令 + 出站推送）
+cd ~/dsh-tg && docker compose logs --tail 30
 ```
 
 `sync.sh` 做的事情（按顺序）：备份 DB+密钥 → `git pull --ff-only` → `compose up -d --build`
@@ -64,7 +73,9 @@ cd ~/dsh-assistant && docker compose logs --tail 30
    （只读即可）。`~/.ssh/config` 里 `Host github-classpipe` 指向这把 key。
 2. **classpipe 数据**：把 Windows 的 `data/classpipe.db` **和** `data/.app_secret`
    **成对**拷贝过来 —— 少了密钥，DB 里的 Canvas token 解不开。
-3. **助理凭据**：`~/dsh-assistant/data/telegram.json`（`chmod 600`）。
+3. **助理凭据**：`~/dsh-assistant/data/telegram.json`（`chmod 600`）与
+   `~/dsh-assistant/data/token.txt`（`chmod 600`，assistant ↔ tg 共享密钥）。
+   `dsh-tg` 把这两个文件**只读挂载**进容器，不各自存一份。
 
 ## Node 版本
 

@@ -1,0 +1,28 @@
+{
+  "name": "dsh-tg",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "DSH 的 Telegram 网关：唯一的 Telegram 出入口（入站命令 + 出站推送）",
+  "main": "src/index.js",
+  "files": [
+    "src",
+    "Dockerfile",
+    "docker-compose.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "dsh",
+    "telegram",
+    "gateway",
+    "bot-api"
+  ]
+}

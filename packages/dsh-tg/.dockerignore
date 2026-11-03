@@ -1,0 +1,10 @@
+node_modules
+test
+state
+data
+docs
+*.log
+*.tmp
+.git
+.dockerignore
+README.md
