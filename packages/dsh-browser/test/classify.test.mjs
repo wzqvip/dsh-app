@@ -113,6 +113,50 @@ test('iframe 里是登录页也算（学校的 SSO 常套在 iframe 里）', () 
     }),
   );
   assert.equal(result.reason, REASONS.LOGIN);
+  assert.ok(result.signals.includes('login_iframe'), 'iframe 命中要和顶层 URL 区分开');
+});
+
+test('现场复现：Canvas 答题页的 sso.canvaslms.com iframe **不能**算登录页', () => {
+  // 实测页面：已登录的 Canvas 答题页，iframe 是 Instructure 自己的 LTI 消息转发
+  const result = classifyNeedsUser(
+    normalPage({
+      url: 'https://osu.instructure.com/courses/220921/quizzes/1503007/take',
+      title: 'Survey: Survey Quiz: Han-Wei Shen',
+      text: 'Fill out the 3 question survey\nFlag question: Question 1\nQuestion 1\n1 pts\nAre you interested',
+      interactiveCount: 80,
+      iframeUrls: [
+        'about:blank',
+        'https://sso.canvaslms.com/post_message_forwarding?rev=1b7f65852f&token=eyJhbGciOiJIUzUxMiJ9',
+      ],
+    }),
+  );
+  assert.equal(result.needsUser, false, '已登录的答题页不该报"需要人"');
+  assert.equal(result.reason, null);
+});
+
+test('iframe 严格判据：明确登录域名 / 登录路径仍然命中', () => {
+  const cases = [
+    'https://login.microsoftonline.com/common/oauth2/authorize',
+    'https://webauth.service.ohio-state.edu/idp/profile/SAML2/Redirect/SSO',
+    'https://shibboleth.osu.edu/idp/Authn/UserPassword',
+    'https://sso.school.edu/login',
+  ];
+  for (const iframeUrl of cases) {
+    const result = classifyNeedsUser(
+      normalPage({ url: 'https://app.example.edu/home', iframeUrls: [iframeUrl] }),
+    );
+    assert.equal(result.reason, REASONS.LOGIN, `iframe ${iframeUrl} 应判登录`);
+  }
+});
+
+test('looksLikeLoginUrl 的 strict 模式：只认强证据', () => {
+  // iframe 用的严格模式：不认宽泛的 sso.* 子域
+  assert.equal(looksLikeLoginUrl('https://sso.canvaslms.com/post_message_forwarding', { strict: true }), false);
+  // 顶层 URL 用的宽模式：sso.* 仍算（学校门户常见）
+  assert.equal(looksLikeLoginUrl('https://sso.school.edu/anything'), true);
+  // 严格模式下，路径是登录入口的仍然算
+  assert.equal(looksLikeLoginUrl('https://sso.school.edu/login', { strict: true }), true);
+  assert.equal(looksLikeLoginUrl('https://sso.canvaslms.com/login', { strict: true }), true);
 });
 
 test('2FA 文案 → mfa_required', () => {

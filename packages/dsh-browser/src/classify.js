@@ -56,14 +56,39 @@ const LOGIN_HOSTS = Object.freeze([
 ]);
 
 /**
+ * **严格**宿主表：只包含"这域名本身就是登录系统"的强证据。
+ * 给 **iframe** 用 —— iframe 经常是第三方小工具，用宽泛的 `sso.*` 会把它们全误判：
+ * 实测 Canvas 答题页里有一个 `https://sso.canvaslms.com/post_message_forwarding`
+ * （Instructure 自己的 LTI 消息转发），宽泛规则命中 `sso.` → 已登录的答题页被报成
+ * `needsUser:true / login_required`，触发假告警。所以 iframe 只认：
+ *   · 明确的登录/身份提供商域名（微软、谷歌、AWS），或
+ *   · **路径**本身是登录入口（`/login`、`/saml2/...` 等）
+ */
+const STRICT_LOGIN_HOSTS = Object.freeze([
+  /(?:^|\.)login\.microsoftonline\.com$/,
+  /(?:^|\.)login\.live\.com$/,
+  /(?:^|\.)accounts\.google\.com$/,
+  /(?:^|\.)signin\.aws\.amazon\.com$/,
+  /(?:^|\.)mysignins\.microsoft\.com$/,
+  /(?:^|\.)login\.microsoft\.com$/,
+]);
+
+/**
  * 路径本身就是登录入口。
  * 边界用 `[./]|$|/` 卡住，避免 `/authors`、`/login-help` 这类误伤
  * （`/login-help` 里的 `-` 不是边界 → 不匹配）。
  */
-const LOGIN_PATH_RE = /(?:^|\/)(?:login|log-?in|signin|sign-in|signon|sign-on|logon|oauth2?|authorize|auth|sso|saml2?|adfs|cas)(?:[./]|$)/i;
+const LOGIN_PATH_RE = /(?:^|\/)(?:login|log-?in|signin|sign-in|signon|sign-on|logon|oauth2?|authorize|auth|authn|idp|sso|saml2?|adfs|cas)(?:[./]|$)/i;
 
-/** 判断一个 URL 是否"看起来是登录/鉴权入口"。非 http(s) 一律 false。 */
-export function looksLikeLoginUrl(raw) {
+/**
+ * 判断一个 URL 是否"看起来是登录/鉴权入口"。非 http(s) 一律 false。
+ *
+ * @param {string} raw
+ * @param {{strict?:boolean}} [options]
+ *   strict=true：只认强证据（明确登录域名 + 登录路径），给 iframe 用。
+ *   strict=false（默认）：额外认 `login./sso./idp.` 这类宿主通配，给顶层 URL 用。
+ */
+export function looksLikeLoginUrl(raw, { strict = false } = {}) {
   if (typeof raw !== 'string' || raw === '') return false;
   let parsed;
   try {
@@ -73,7 +98,8 @@ export function looksLikeLoginUrl(raw) {
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
   const host = parsed.hostname.toLowerCase();
-  if (LOGIN_HOSTS.some((re) => re.test(host))) return true;
+  const hosts = strict ? STRICT_LOGIN_HOSTS : LOGIN_HOSTS;
+  if (hosts.some((re) => re.test(host))) return true;
   return LOGIN_PATH_RE.test(parsed.pathname);
 }
 
@@ -206,9 +232,14 @@ export function classifyNeedsUser(observation = {}, options = {}) {
   }
 
   // 1. 登录
-  const urls = [obs.url, ...obs.iframeUrls];
-  if (urls.some((u) => looksLikeLoginUrl(u))) {
+  //    顶层 URL 用宽判据；**iframe 用严格判据**（iframe 常是第三方小工具，
+  //    宽泛的 `sso.*` 宿主规则会把它们误判成登录页 —— 实测 Canvas 答题页栽在这里）。
+  if (obs.url && looksLikeLoginUrl(obs.url)) {
     return { needsUser: true, reason: REASONS.LOGIN, signals: ['login_url'] };
+  }
+  const loginIframe = obs.iframeUrls.find((u) => looksLikeLoginUrl(u, { strict: true }));
+  if (loginIframe) {
+    return { needsUser: true, reason: REASONS.LOGIN, signals: ['login_iframe'] };
   }
   if (obs.passwordFieldCount > 0) {
     return { needsUser: true, reason: REASONS.LOGIN, signals: ['password_field'] };

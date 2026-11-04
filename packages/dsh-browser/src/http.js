@@ -171,15 +171,21 @@ export function createRequestHandler({
     touch();
     const result = await browser.open(url);
     const finalUrl = result?.finalUrl ?? url;
-    return sendJson(res, 200, {
-      ok: result?.ok !== false,
+    const navigationApplied = result?.navigationApplied !== false;
+    const responseBody = {
+      ok: result?.ok !== false && navigationApplied,
+      navigationApplied,
       // finalUrl 与 url 是同一个值：前者是历史字段，后者让每个接口都有统一的 url
       title: result?.title ?? '',
       finalUrl,
       url: finalUrl,
       timedOut: result?.timedOut === true,
       httpStatus: result?.httpStatus ?? null,
-    });
+      ...(navigationApplied ? {} : { code: result?.code ?? 'navigation_not_applied', error: result?.error }),
+    };
+    // 没导航就**不是成功**：用 502（我们让浏览器去导航，它没办到），
+    // 只认状态码的调用方也能立刻发现；看 body 的调用方还能拿到停在哪个页。
+    return sendJson(res, navigationApplied ? 200 : 502, responseBody);
   }
 
   async function handleSnapshot(res) {

@@ -19,7 +19,14 @@ function fakeBrowser(overrides = {}) {
       return { browserUp: true, page: { url: 'https://example.com/', title: 'Example Domain', pageCount: 1 } };
     },
     async open(url) {
-      return { ok: true, title: 'Example Domain', finalUrl: url, timedOut: false, httpStatus: 200 };
+      return {
+        ok: true,
+        navigationApplied: true,
+        title: 'Example Domain',
+        finalUrl: url,
+        timedOut: false,
+        httpStatus: 200,
+      };
     },
     async snapshot() {
       return {
@@ -122,6 +129,76 @@ test('除 /health 外一律要求 x-dsh-token', async () => {
     }
     const ok = await harness.call('/snapshot', { body: {} });
     assert.equal(ok.status, 200);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('POST /open：导航没发生（beforeunload 拦截）→ 502 + navigationApplied:false', async () => {
+  // 现场复现：从 Canvas 答题页 open example.com，页面没动
+  const stuckUrl = 'https://osu.instructure.com/courses/220921/quizzes/1503007/take';
+  const harness = await startHarness({
+    browser: fakeBrowser({
+      async open() {
+        return {
+          ok: false,
+          navigationApplied: false,
+          title: 'Survey: Survey Quiz: Han-Wei Shen',
+          finalUrl: stuckUrl,
+          timedOut: false,
+          httpStatus: null,
+          code: 'navigation_not_applied',
+          error: `导航没有发生：页面仍停在 ${stuckUrl}`,
+        };
+      },
+    }),
+  });
+  try {
+    const { status, json } = await harness.call('/open', { body: { url: 'https://example.com' } });
+    assert.equal(status, 502, '没导航不能是 200');
+    assert.equal(json.ok, false);
+    assert.equal(json.navigationApplied, false);
+    assert.equal(json.code, 'navigation_not_applied');
+    assert.equal(json.url, stuckUrl, '要如实告诉上层停在哪个页面');
+    assert.match(json.error, /导航没有发生/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('POST /open：超时但导航已发生 → 200 + timedOut:true + navigationApplied:true', async () => {
+  const harness = await startHarness({
+    browser: fakeBrowser({
+      async open(url) {
+        return {
+          ok: true,
+          navigationApplied: true,
+          title: '',
+          finalUrl: url,
+          timedOut: true,
+          httpStatus: 200,
+        };
+      },
+    }),
+  });
+  try {
+    const { status, json } = await harness.call('/open', { body: { url: 'https://example.com' } });
+    assert.equal(status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.navigationApplied, true);
+    assert.equal(json.timedOut, true);
+    assert.equal(json.code, undefined);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('POST /open：正常导航带上 navigationApplied:true', async () => {
+  const harness = await startHarness();
+  try {
+    const { status, json } = await harness.call('/open', { body: { url: 'https://example.com' } });
+    assert.equal(status, 200);
+    assert.equal(json.navigationApplied, true);
   } finally {
     await harness.close();
   }

@@ -17,6 +17,7 @@ import { chromium } from 'playwright-core';
 
 import { classifyNeedsUser } from './classify.js';
 import { evaluateInPage } from './eval-script.js';
+import { briefUrl, createDialogHandler, isNavigationApplied } from './navigation.js';
 import { acquireManagedPage, markManagedPage } from './page-select.js';
 import { typeIntoLocator } from './type-input.js';
 
@@ -153,7 +154,10 @@ export function createBrowserController({
    * 语义细节见 src/page-select.js 与 docs/BROWSER-SERVICE.md §5.0。
    */
   async function ensurePage() {
-    if (browser && browser.isConnected() && page && !page.isClosed()) return page;
+    if (browser && browser.isConnected() && page && !page.isClosed()) {
+      ensureDialogHandler(page);
+      return page;
+    }
 
     if (browser && browser.isConnected()) {
       // 浏览器还在，只是受管页被关了：重新认页（**不**采用仅剩的别人的标签）
@@ -161,6 +165,7 @@ export function createBrowserController({
       if (context) {
         page = await acquireManagedPage(context, { logger, allowAdoptSingleTab: false });
         page.setDefaultTimeout(actionTimeoutMs);
+        ensureDialogHandler(page);
         return page;
       }
     }
@@ -199,6 +204,7 @@ export function createBrowserController({
     page = await acquireManagedPage(context, { logger, allowAdoptSingleTab: adoptSingleTab });
     if (!page) throw new BrowserUnavailableError('Chromium 没有可用的页面（tab）');
     page.setDefaultTimeout(actionTimeoutMs);
+    ensureDialogHandler(page);
     logger('info', 'cdp_connected', { cdpUrl, pages: context.pages().length });
     return page;
   }
@@ -208,6 +214,28 @@ export function createBrowserController({
       return await target.title();
     } catch {
       return '';
+    }
+  }
+
+  /**
+   * 每个受管页只挂一次 dialog 监听。
+   *
+   * 为什么必须有：Canvas 答题页注册了 `beforeunload`，离开时弹"确定要离开吗"。
+   * Playwright 在**没有** dialog 监听时默认 dismiss，而 dismiss 等于"留在本页"，
+   * 于是 `goto` 被取消、URL 不变 —— 旧实现把一句 `net::ERR_ABORTED` 吞掉后
+   * 仍然返回成功，上层看到的就是"open 了但没导航"。
+   * 现在 beforeunload → accept，其它弹框 → dismiss（不替使用者确认危险操作）。
+   */
+  const dialogHandledPages = new WeakSet();
+  const dialogHandler = createDialogHandler({ logger });
+
+  function ensureDialogHandler(target) {
+    if (!target || dialogHandledPages.has(target)) return;
+    dialogHandledPages.add(target);
+    try {
+      target.on('dialog', dialogHandler);
+    } catch (error) {
+      logger('warn', 'dialog_register_failed', { error: messageOf(error) });
     }
   }
 
@@ -246,11 +274,30 @@ export function createBrowserController({
     }
   }
 
+  /**
+   * 打开页面（在受管页上 goto）。
+   *
+   * 两件事必须说清楚，否则上层只能猜：
+   *   · **beforeunload / 弹窗**：注册了 dialog handler（beforeunload → accept），
+   *     否则 Playwright 默认 dismiss = "留在本页"，goto 会被取消。
+   *   · **navigationApplied**：最终 URL 是否与请求对得上。旧实现把被取消的导航
+   *     当成功返回（只吞了一句 ERR_ABORTED），上层会以为"open 了"，实际还在原页 ——
+   *     2026-11-04 的 Canvas 误判就是这么来的。现在没导航就明确返回 ok:false。
+   */
   async function open(url, { timeoutMs } = {}) {
     const target = await ensurePage();
+    ensureDialogHandler(target);
     const timeout = clampTimeout(timeoutMs);
+    const beforeUrl = (() => {
+      try {
+        return target.url();
+      } catch {
+        return '';
+      }
+    })();
     lastHttpStatus = null;
     let timedOut = false;
+    let abortReason = null;
 
     try {
       const response = await target.goto(url, { waitUntil: 'domcontentloaded', timeout });
@@ -260,8 +307,10 @@ export function createBrowserController({
         timedOut = true;
         logger('warn', 'open_timeout', { url, timeout });
       } else if (isAbortError(error)) {
-        // 页面自己在跳（常见于 SSO 中转）：不当失败
-        logger('info', 'open_aborted', { url });
+        // 页面自己在跳（SSO 中转）或被 beforeunload 取消 —— 两种都可能，
+        // 所以这里**不**下结论，统一交给后面的 URL 校验。
+        abortReason = 'navigation_aborted';
+        logger('info', 'open_aborted', { url, beforeUrl: briefUrl(beforeUrl) });
       } else {
         throw new BrowserActionError(`打开 ${url} 失败：${messageOf(error)}`, { cause: error, status: 502 });
       }
@@ -271,12 +320,40 @@ export function createBrowserController({
     // 但站点可能改写它 —— 每次 open 后补一次标记，保证重连还能认出这一页。
     await markManagedPage(target);
     await settle(target);
+
+    const finalUrl = (() => {
+      try {
+        return target.url();
+      } catch {
+        return '';
+      }
+    })();
+    const navigationApplied = isNavigationApplied({ beforeUrl, requestedUrl: url, finalUrl });
+    if (!navigationApplied) {
+      logger('warn', 'navigation_not_applied', {
+        requested: briefUrl(url),
+        before: briefUrl(beforeUrl),
+        final: briefUrl(finalUrl),
+        timedOut,
+        abortReason,
+      });
+    }
+
     return {
-      ok: true,
+      ok: navigationApplied,
+      navigationApplied,
       title: await safeTitle(target),
-      finalUrl: target.url(),
+      finalUrl,
       timedOut,
       httpStatus: lastHttpStatus,
+      ...(navigationApplied
+        ? {}
+        : {
+            code: timedOut ? 'navigation_timeout' : 'navigation_not_applied',
+            error: timedOut
+              ? `导航未完成（${timeout}ms 超时）：页面仍停在 ${briefUrl(finalUrl)}，可能被 beforeunload/站点拦截`
+              : `导航没有发生：页面仍停在 ${briefUrl(finalUrl)}（请求 ${briefUrl(url)}），可能被 beforeunload 拦截`,
+          }),
     };
   }
 

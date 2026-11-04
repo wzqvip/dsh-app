@@ -227,16 +227,45 @@ docker compose logs -f
 
 ```json
 { "url": "https://outlook.office.com/mail/" }
-→ { "ok": true, "title": "Mail - …", "finalUrl": "https://outlook.office.com/mail/inbox",
+→ { "ok": true, "navigationApplied": true, "title": "Mail - …",
+    "finalUrl": "https://outlook.office.com/mail/inbox",
     "url": "https://outlook.office.com/mail/inbox", "timedOut": false, "httpStatus": 200 }
+
+# 导航被 beforeunload 拦住（2026-11-04 现场）
+→ HTTP 502
+  { "ok": false, "navigationApplied": false, "code": "navigation_not_applied",
+    "url": "https://osu.instructure.com/courses/…/quizzes/1503007/take",
+    "error": "导航没有发生：页面仍停在 …（请求 https://example.com），可能被 beforeunload 拦截" }
 ```
 
 - 在**受管页**上 `goto`（不新开标签，见 §5.0）；SSO 中转后 `url`/`finalUrl` 是**重定向后**的地址
 - `url` 与 `finalUrl` 同值（后者是历史字段，保留兼容）
 - 只接受 `http(s)` 绝对地址，其它 → 400
-- 等 `domcontentloaded`（默认 30s，`OPEN_TIMEOUT_MS`），超时返回 `timedOut:true` 但 **`ok` 仍为 true**
-  ——接着 `/snapshot` 才能判断到底是不是登录页
+- 等 `domcontentloaded`（默认 30s，`OPEN_TIMEOUT_MS`）
 - 非超时的网络错误（`ERR_NAME_NOT_RESOLVED` 等）→ 502
+
+**`navigationApplied`：导航到底有没有发生**
+
+判据：最终 URL 与导航前**不同** → 发生了（含 SSO 跨域跳转）；
+或最终 URL 与请求 URL **同 host** → 发生了（重新加载同一页）。
+否则 = 没发生。
+
+- `navigationApplied:true` → HTTP 200（即使 `timedOut:true`：页面可能还在加载，但确实换页了）
+- `navigationApplied:false` → **HTTP 502 + ok:false**，`url` 如实报告**还停在哪一页**
+  （没有假装成功 —— 这就是之前 Canvas 登录被误判的根源）
+- 上层**不要**只看 HTTP 200 就认为到了目标站：`url` 的 host 才是事实（`canvas-login.mjs` 已经这么做）
+
+**弹框 / beforeunload**
+
+服务在每个受管页上注册了 `page.on('dialog')`：
+
+| 弹框类型 | 处理 | 为什么 |
+|---|---|---|
+| `beforeunload` | **accept**（离开） | 否则 Playwright 默认 dismiss = "留在本页"，`goto` 被取消却看起来像成功 |
+| `alert` / `confirm` / `prompt` | dismiss | 与 Playwright 默认行为一致，**不替使用者确认**（避免自动确认"删除/提交"这类操作） |
+
+日志记 `dialog_handled`（类型、动作、弹框文案前 160 字）。导航被取消时会额外记一条
+`navigation_not_applied`，带请求/导航前/最终 URL 三者（去掉查询串，避免把 token 写进日志）。
 
 ### 5.3 `POST /snapshot`
 
@@ -423,9 +452,18 @@ HTTP 状态、加载错误）交给一个**纯函数**判定。优先级从高�
 - 宿主：`login.microsoftonline.com`、`login.live.com`、`accounts.google.com`、
   任意 `login.` / `signin.` / `sso.` / `idp.` / `auth.` / `adfs.` / `sts.` 子域、
   `mysignins.microsoft.com`
-- 路径段：`/login`、`/signin`、`/auth`、`/authorize`、`/oauth2`、`/sso`、`/saml`、
-  `/adfs`、`/cas`，以及 `Login.aspx` 这类带扩展名的形式
+- 路径段：`/login`、`/signin`、`/auth`、`/authn`、`/idp`、`/authorize`、`/oauth2`、
+  `/sso`、`/saml`、`/adfs`、`/cas`，以及 `Login.aspx` 这类带扩展名的形式
 - **刻意不误伤**：`/authors`、`/logins`、`/login-help`、`/articles/auth-in-design`
+
+**顶层 URL 与 iframe 用不同严格度**（2026-11-04 实测修的一处误判）：
+
+| 位置 | 判据 | 为什么 |
+|---|---|---|
+| 顶层 URL | 宽（含 `sso.*` 这类宿主通配） | 学校门户常常就是 `sso.school.edu`，宽一点更稳 |
+| **iframe** | **严格**：只认明确登录域名（微软/谷歌/AWS）+ 登录路径 | iframe 经常是第三方小工具。实测 Canvas 答题页里有 `https://sso.canvaslms.com/post_message_forwarding`（Instructure 自家的 LTI 消息转发），宽判据命中 `sso.` → **已登录的答题页被报成 `needsUser:true`**，触发假告警 |
+
+signal 也分开记：顶层命中是 `login_url`，iframe 命中是 `login_iframe`（便于排错时区分）。
 
 > **为什么 captcha 排在 mfa 前面**（任务书里 2FA 写在验证码前面）：
 > 验证码页面的文案几乎都含 "verify"（"Verify you are human"），而 2FA 关键词里
@@ -486,6 +524,8 @@ docker compose exec browser node -e "
 | 容器起不来：`cannot assign requested address` | `ports:` 绑了本机没有的 IP（`VNC_BIND` 指向的网卡不存在，常见：Tailscale 退出登录）。改回 `VNC_BIND=0.0.0.0` 或先登录 Tailscale |
 | 容器起不来：`VNC_PASSWORD` 未设置 | compose 用了 `${VNC_PASSWORD:?…}`；`cp .env.example .env` 并填值 |
 | `/eval` 超时，之后 `/snapshot` 也卡住 | 脚本里有**同步死循环**（页面里的定时器永远不会触发）。只能 `/open` 重新加载页面。异步 `await` 不返回的情况会正常按 `timeoutMs` 超时，页面不受影响 |
+| `/open` 返回了但 `/snapshot` 还在旧页面 | 看 `/open` 的 `navigationApplied`：`false` 说明被 `beforeunload`/站点拦住了（HTTP 也是 502）。日志搜 `dialog_handled` / `navigation_not_applied`。常见于 Canvas 答题页、未保存的表单页 |
+| 已登录的页面仍报 `needsUser:true` | 先看 `/snapshot` 的 `signals`：`login_iframe` = 是**iframe** 命中的（iframe 用严格判据，但若某个小工具真的在登录域名下仍会误判，把那个 URL 记下来告诉我补规则）；`login_url` = 顶层 URL 命中；`mfa_text`/`captcha_text` = 文案命中 |
 | 日志刷 `Chromium 退出（连续第 N 次，本次运行 Xs），D 秒后重启` 且 D 越来越大 | 这正是 2026-11-04 那次事故的现场（17 万次崩溃 → 9.5 万僵尸 → 宿主 fork 耗尽）。退避是**故意**的：把"每 2 秒造一次进程"压到 60 秒一次，给看门狗留反应时间。配合 `docs/HOST-WATCHDOG.md` 的 "近 10 分钟 traps 计数" 告警查根因 |
 
 ## 9. 没验证到 / 需要真实页面才能定的部分
