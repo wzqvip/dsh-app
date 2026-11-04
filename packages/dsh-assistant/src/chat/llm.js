@@ -37,6 +37,10 @@ export async function chatCompletion({
   temperature = 0.6,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   tools = null,
+  // deepseek-flash 默认会「思考」（reasoning_tokens）。实测：600 max_tokens 可能全被
+  // reasoning 吃掉，正文变成空串 → 上层只看到"模型返回为空"。
+  // 手机对话不需要深度推理，所以默认关闭；需要时用 --chat-thinking 打开。
+  thinking = 'disabled',
   fetchImpl = globalThis.fetch,
 } = {}) {
   if (typeof apiKey !== 'string' || !apiKey.trim()) {
@@ -52,6 +56,7 @@ export async function chatCompletion({
 
   try {
     const payload = { model, messages, max_tokens: maxTokens, temperature, stream: false };
+    if (thinking === 'disabled' || thinking === 'enabled') payload.thinking = { type: thinking };
     // 只有传了工具才带 tools（避免某些兼容端点对空数组报错）
     if (Array.isArray(tools) && tools.length > 0) {
       payload.tools = tools;
@@ -98,7 +103,13 @@ export async function chatCompletion({
 
     const reply = message?.content;
     if (typeof reply !== 'string' || !reply.trim()) {
-      throw new Error('chat: 模型返回为空');
+      const finish = body?.choices?.[0]?.finish_reason;
+      const reasoningChars = String(message?.reasoning_content ?? '').length;
+      // 最常见原因：思考占满 max_tokens（finish=length）。给出可操作的错误，别只说"为空"。
+      throw new Error(
+        `chat: 模型返回为空（finish=${finish ?? '?'}，思考 ${reasoningChars} 字符，` +
+          `max_tokens=${maxTokens}${thinking === 'enabled' ? '，思考已开启' : ''}）`,
+      );
     }
 
     return {
