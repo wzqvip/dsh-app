@@ -134,3 +134,8 @@ msg96.tmp
 msg97.tmp
 msg98.tmp
 msg99.tmp
+
+# Google OAuth 凭据与 token（含 refresh token，绝不入库）
+google.json
+google-tokens.json
+calendar-backup-*
