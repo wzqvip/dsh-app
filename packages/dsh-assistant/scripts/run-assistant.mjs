@@ -655,6 +655,46 @@ function loadLlmConfig() {
 const llm = loadLlmConfig();
 const chatMaxTokens = Number(flag('chat-max-tokens', 600));
 
+/**
+ * 把「最近读到的 Canvas quiz 题目」拼成对话事实块。
+ *
+ * 为什么需要：维护者问「quiz 题目看了吗」时，对话层原本只有事项清单，
+ * 模型只能答"我看不到题目" —— 而浏览器其实读得到（见 canvas-quiz-read.mjs）。
+ * 读到的结果落进 canvas-cache.json，这里注入上下文，让"看不到"消失。
+ */
+function buildCanvasChatFacts({ maxEntries = 3, maxAgeHours = 48 } = {}) {
+  const cachePathForChat = join(dirname(statePath), 'canvas-cache.json');
+  if (!existsSync(cachePathForChat)) return null;
+
+  try {
+    const cache = JSON.parse(readFileSync(cachePathForChat, 'utf8'));
+    const cutoff = Date.now() - maxAgeHours * 3600_000;
+    const entries = Object.entries(cache)
+      .filter(([key, value]) => key !== 'lastKey' && value?.readAt && Date.parse(value.readAt) > cutoff)
+      .slice(-maxEntries);
+
+    if (entries.length === 0) return null;
+
+    const lines = ['【Canvas quiz 题目 · 刚读到的，可以直接引用】'];
+    for (const [, entry] of entries) {
+      lines.push(`· ${entry.title ?? '(无标题)'}（${entry.questionCount ?? 0} 题）`);
+      for (const question of entry.questions ?? []) {
+        const prompt = String(question.prompt ?? '').replace(/\s+/g, ' ').slice(0, 220);
+        lines.push(`   Q${question.index}（${question.type}）${prompt}`);
+        if (question.answers?.length) lines.push(`      选项：${question.answers.join(' / ')}`);
+      }
+      if ((entry.questionCount ?? 0) === 0 && entry.textHead) {
+        lines.push(
+          `   （结构化提取失败，页面文本：${String(entry.textHead).replace(/\s+/g, ' ').slice(0, 300)}）`,
+        );
+      }
+    }
+    return lines.join('\n');
+  } catch {
+    return null;
+  }
+}
+
 /** 处理一条用户文本，返回 { reply } 并把这一轮写进历史 */
 async function handleChat(text) {
   if (!llm) throw new Error('对话未启用：缺 LLM 凭据（/data/llm.json 或 DSH_ASSISTANT_LLM_API_KEY）');
@@ -670,9 +710,12 @@ async function handleChat(text) {
   const messages = buildMessages({ systemPrompt, history, userText: text });
   // 把最新事实再贴近问一次：小模型会锚定历史里自己说错的话（实测踩到），
   // 放在最后一条 system 里比只加强 system prompt 有效得多。
+  const canvasFacts = buildCanvasChatFacts();
   messages.splice(messages.length - 1, 0, {
     role: 'system',
-    content: buildFactsBlock({ items: state.items, now, timeZone }),
+    content:
+      buildFactsBlock({ items: state.items, now, timeZone }) +
+      (canvasFacts ? `\n\n${canvasFacts}` : ''),
   });
 
   const result = await chatCompletion({
