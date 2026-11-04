@@ -34,6 +34,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   createPoller,
@@ -50,6 +51,7 @@ import { attemptPasswordLogin, shouldAttemptLogin } from '../src/session/login.j
 import { decideSession, shouldCheck } from '../src/session/decide.js';
 import { buildFactsBlock, buildMessages, buildSystemPrompt, trimHistory } from '../src/chat/prompt.js';
 import { chatCompletion, DEFAULT_CHAT_BASE_URL, DEFAULT_CHAT_MODEL } from '../src/chat/llm.js';
+import { TOOL_DEFS, TOOL_SUMMARY, executeTool } from '../src/chat/tools.js';
 import { STALE_OVERRIDE_REASON, planStaleDrops } from '../src/items.js';
 import { syncAllCourses } from '../src/sources/classpipe-sync.js';
 import { sendDelivery } from '../src/notify/dsh-im.js';
@@ -695,17 +697,35 @@ function buildCanvasChatFacts({ maxEntries = 3, maxAgeHours = 48 } = {}) {
   }
 }
 
+/** 跑一个同目录下的脚本，返回 {ok, output|error}（给工具调用用） */
+async function runScript(scriptName, scriptArgs, timeoutMs = 60_000) {
+  const { execFile } = await import('node:child_process');
+  const scriptPath = fileURLToPath(new URL(`./${scriptName}`, import.meta.url));
+  return new Promise((resolve) => {
+    execFile(process.execPath, [scriptPath, ...scriptArgs], { timeout: timeoutMs }, (error, stdout, stderr) => {
+      if (error) {
+        resolve({ ok: false, error: String(stderr || error.message).slice(-500) });
+      } else {
+        resolve({ ok: true, output: String(stdout).slice(-2000) });
+      }
+    });
+  });
+}
+
 /** 处理一条用户文本，返回 { reply } 并把这一轮写进历史 */
 async function handleChat(text) {
   if (!llm) throw new Error('对话未启用：缺 LLM 凭据（/data/llm.json 或 DSH_ASSISTANT_LLM_API_KEY）');
 
   const now = new Date();
-  const systemPrompt = buildSystemPrompt({
-    items: state.items,
-    session: state.session,
-    now,
-    timeZone,
-  });
+  const systemPrompt =
+    buildSystemPrompt({
+      items: state.items,
+      session: state.session,
+      now,
+      timeZone,
+    }) +
+    '\n\n' +
+    TOOL_SUMMARY;
   const history = state.chat?.history ?? [];
   const messages = buildMessages({ systemPrompt, history, userText: text });
   // 把最新事实再贴近问一次：小模型会锚定历史里自己说错的话（实测踩到），
@@ -718,13 +738,72 @@ async function handleChat(text) {
       (canvasFacts ? `\n\n${canvasFacts}` : ''),
   });
 
-  const result = await chatCompletion({
+  // ---- 工具调用循环（最多 3 轮，防止模型无限调工具）----
+  const toolCtx = {
+    browserBase,
+    token: apiToken,
+    listItems: (statusFilter, limit) =>
+      state.items
+        .filter((item) => (statusFilter === 'all' ? true : item.status === statusFilter))
+        .sort((a, b) => {
+          const am = a.dueAt ? Date.parse(a.dueAt) : Number.POSITIVE_INFINITY;
+          const bm = b.dueAt ? Date.parse(b.dueAt) : Number.POSITIVE_INFINITY;
+          return am - bm;
+        })
+        .slice(0, limit),
+    // 读 quiz 走独立脚本（打开 → 提取 → 写缓存），只读不提交
+    readQuiz: async ({ quizId, courseId }) =>
+      runScript('canvas-quiz-read.mjs', ['--quiz', quizId, '--course', courseId], 90_000),
+  };
+
+  let result = await chatCompletion({
     apiKey: llm.apiKey,
     baseUrl: llm.baseUrl,
     model: llm.model,
     messages,
     maxTokens: chatMaxTokens,
+    tools: TOOL_DEFS,
   });
+
+  let toolRounds = 0;
+  while (result.toolCalls?.length && toolRounds < 3) {
+    toolRounds += 1;
+    messages.push(result.assistantMessage);
+    for (const call of result.toolCalls) {
+      const name = call.function?.name;
+      let args = {};
+      try {
+        args = JSON.parse(call.function?.arguments || '{}');
+      } catch {
+        args = {};
+      }
+      log(`对话工具：${name}（${JSON.stringify(args).slice(0, 120)}）`);
+      let output;
+      try {
+        output = await executeTool(name, args, toolCtx);
+      } catch (error) {
+        output = { ok: false, error: String(error?.message ?? error) };
+      }
+      messages.push({
+        role: 'tool',
+        tool_call_id: call.id,
+        content: JSON.stringify(output).slice(0, 8000),
+      });
+    }
+    result = await chatCompletion({
+      apiKey: llm.apiKey,
+      baseUrl: llm.baseUrl,
+      model: llm.model,
+      messages,
+      maxTokens: chatMaxTokens,
+      tools: TOOL_DEFS,
+    });
+  }
+
+  if (!result.reply) {
+    // 工具轮用完还没有最终回复：给一句兜底，别把空串发出去
+    result = { ...result, reply: '（工具调用次数达到上限，我先停下来了。要我继续就再说一次。）' };
+  }
 
   state.chat = state.chat ?? { history: [] };
   state.chat.history = trimHistory([

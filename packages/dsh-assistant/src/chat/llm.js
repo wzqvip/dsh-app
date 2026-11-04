@@ -36,6 +36,7 @@ export async function chatCompletion({
   maxTokens = 600,
   temperature = 0.6,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  tools = null,
   fetchImpl = globalThis.fetch,
 } = {}) {
   if (typeof apiKey !== 'string' || !apiKey.trim()) {
@@ -50,13 +51,20 @@ export async function chatCompletion({
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const payload = { model, messages, max_tokens: maxTokens, temperature, stream: false };
+    // 只有传了工具才带 tools（避免某些兼容端点对空数组报错）
+    if (Array.isArray(tools) && tools.length > 0) {
+      payload.tools = tools;
+      payload.tool_choice = 'auto';
+    }
+
     const response = await fetchImpl(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature, stream: false }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
     });
 
@@ -73,7 +81,22 @@ export async function chatCompletion({
       throw new Error(`chat: HTTP ${response.status} ${detail}`.trim());
     }
 
-    const reply = body?.choices?.[0]?.message?.content;
+    const message = body?.choices?.[0]?.message;
+    const toolCalls = message?.tool_calls;
+
+    // 模型要调工具：把原始 assistant 消息带回去（OpenAI 协议要求原样回传）
+    if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+      return {
+        ok: true,
+        reply: null,
+        toolCalls,
+        assistantMessage: message,
+        usage: body.usage ?? null,
+        model: body.model ?? model,
+      };
+    }
+
+    const reply = message?.content;
     if (typeof reply !== 'string' || !reply.trim()) {
       throw new Error('chat: 模型返回为空');
     }
@@ -81,6 +104,8 @@ export async function chatCompletion({
     return {
       ok: true,
       reply: reply.trim(),
+      toolCalls: null,
+      assistantMessage: message ?? null,
       usage: body.usage ?? null,
       model: body.model ?? model,
     };
