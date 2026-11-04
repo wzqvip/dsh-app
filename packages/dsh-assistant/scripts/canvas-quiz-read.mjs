@@ -81,11 +81,15 @@ if (host && host !== 'osu.instructure.com') {
 
 // 如果在 quiz 详情页，需要点 Take the Survey 进入答题页
 if (!/\/take/.test(String(page?.url ?? ''))) {
+  // 按钮文案实测有四种：Take the Survey / Take the Quiz / Resume Survey / Resume Quiz
   const clicked = await evalScript(`(() => {
-    const b = [...document.querySelectorAll('a,button')].find((x) => /take the survey|take the quiz|resume quiz/i.test((x.innerText || '').trim()));
+    const b = [...document.querySelectorAll('a,button')].find((x) =>
+      /take the (survey|quiz)|resume (survey|quiz)|begin (survey|quiz)/i.test((x.innerText || '').trim())
+    );
     if (!b) return { clicked: false };
+    const href = b.getAttribute('href') || '';
     b.click();
-    return { clicked: true, text: (b.innerText || '').trim() };
+    return { clicked: true, text: (b.innerText || '').trim(), href };
   })()`);
   console.log(`[quiz-read] 点进入答题页：${JSON.stringify(clicked)}`);
   await sleep(10_000);

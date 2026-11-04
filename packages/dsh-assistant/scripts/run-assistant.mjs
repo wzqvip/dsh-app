@@ -52,6 +52,7 @@ import { decideSession, shouldCheck } from '../src/session/decide.js';
 import { buildFactsBlock, buildMessages, buildSystemPrompt, trimHistory } from '../src/chat/prompt.js';
 import { chatCompletion, DEFAULT_CHAT_BASE_URL, DEFAULT_CHAT_MODEL } from '../src/chat/llm.js';
 import { TOOL_DEFS, TOOL_SUMMARY, executeTool } from '../src/chat/tools.js';
+import { deepseekFetch, deepseekSearch, searchPapers } from '../src/chat/web.js';
 import { STALE_OVERRIDE_REASON, planStaleDrops } from '../src/items.js';
 import { syncAllCourses } from '../src/sources/classpipe-sync.js';
 import { sendDelivery } from '../src/notify/dsh-im.js';
@@ -712,6 +713,25 @@ async function runScript(scriptName, scriptArgs, timeoutMs = 60_000) {
   });
 }
 
+/**
+ * 联网检索的日配额（**花钱的能力必须有上限**）。
+ * DeepSeek Search/Fetch 每次成功请求约 $0.00075，默认每天 50 次 ≈ $0.04/天上限。
+ */
+const webDailyLimit = Number(flag('web-daily-limit', 50));
+
+function webUsageToday() {
+  const today = new Date().toISOString().slice(0, 10);
+  const usage = state.webUsage;
+  return usage && usage.date === today ? Number(usage.count) || 0 : 0;
+}
+
+function bumpWebUsage() {
+  const today = new Date().toISOString().slice(0, 10);
+  const current = webUsageToday();
+  state.webUsage = { date: today, count: current + 1 };
+  saveState(state);
+}
+
 /** 处理一条用户文本，返回 { reply } 并把这一轮写进历史 */
 async function handleChat(text) {
   if (!llm) throw new Error('对话未启用：缺 LLM 凭据（/data/llm.json 或 DSH_ASSISTANT_LLM_API_KEY）');
@@ -751,6 +771,29 @@ async function handleChat(text) {
           return am - bm;
         })
         .slice(0, limit),
+    // 联网检索：DeepSeek 官方 Search/Fetch（**计费**，走日配额），OpenAlex（免费）
+    webSearch: async ({ query, count }) => {
+      if (!llm?.apiKey) return { ok: false, error: '没有 LLM 凭据，无法联网' };
+      if (webUsageToday() >= webDailyLimit) {
+        return { ok: false, error: `今日联网检索已达上限（${webDailyLimit} 次）` };
+      }
+      const result = await deepseekSearch({ apiKey: llm.apiKey, query, count });
+      if (result.billed) bumpWebUsage();
+      log(`联网搜索："${String(query).slice(0, 40)}" → ${result.count} 条（今日 ${webUsageToday()}/${webDailyLimit}）`);
+      return result;
+    },
+    fetchUrl: async ({ url }) => {
+      if (!llm?.apiKey) return { ok: false, error: '没有 LLM 凭据，无法联网' };
+      if (webUsageToday() >= webDailyLimit) {
+        return { ok: false, error: `今日联网抓取已达上限（${webDailyLimit} 次）` };
+      }
+      const result = await deepseekFetch({ apiKey: llm.apiKey, url });
+      bumpWebUsage();
+      log(`抓网页：${String(url).slice(0, 60)}（${String(result.content ?? '').length} 字符）`);
+      return result;
+    },
+    searchPapers: async ({ query, limit }) => searchPapers({ query, limit }),
+
     // 读 quiz 走独立脚本（打开 → 提取 → 写缓存），只读不提交
     readQuiz: async ({ quizId, courseId }) =>
       runScript('canvas-quiz-read.mjs', ['--quiz', quizId, '--course', courseId], 90_000),

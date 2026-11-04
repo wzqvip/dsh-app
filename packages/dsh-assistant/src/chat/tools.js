@@ -80,6 +80,51 @@ export const TOOL_DEFS = Object.freeze([
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'web_search',
+      description:
+        '联网搜索（DeepSeek 官方 Search API）。查人物、机构、最新动态、论文。返回标题/链接/长摘要/日期/权威度。注意：每次成功调用计费约 $0.00075，有每日上限。',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: '检索词，1-128 字符；支持 site: / after: / lang: 操作符' },
+          count: { type: 'integer', description: '返回条数，1-20，默认 5' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'fetch_url',
+      description:
+        '抓取单个网页并返回 Markdown 正文（DeepSeek 官方 Fetch API）。用于读论文页、个人主页、公告全文。每次成功调用计费约 $0.00075。',
+      parameters: {
+        type: 'object',
+        properties: { url: { type: 'string', description: 'http(s) 网址' } },
+        required: ['url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_papers',
+      description:
+        '查某位学者的论文（OpenAlex，免费无 key）。先按作者检索再拉论文，返回标题/年份/期刊/引用数/摘要。查"某人最近发了什么文章"优先用它。',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: '学者姓名或主题' },
+          limit: { type: 'integer', description: '条数，默认 5' },
+        },
+        required: ['query'],
+      },
+    },
+  },
 ]);
 
 /** 工具名白名单（防止模型编造名字） */
@@ -151,6 +196,21 @@ export async function executeTool(name, args = {}, ctx = {}) {
       return { ok: true, result: body.result, url: body.url ?? null };
     }
 
+    case 'web_search': {
+      if (typeof ctx.webSearch !== 'function') return { ok: false, error: 'web_search 未启用' };
+      return ctx.webSearch({ query: String(args.query ?? ''), count: args.count });
+    }
+
+    case 'fetch_url': {
+      if (typeof ctx.fetchUrl !== 'function') return { ok: false, error: 'fetch_url 未启用' };
+      return ctx.fetchUrl({ url: String(args.url ?? '') });
+    }
+
+    case 'search_papers': {
+      if (typeof ctx.searchPapers !== 'function') return { ok: false, error: 'search_papers 未启用' };
+      return ctx.searchPapers({ query: String(args.query ?? ''), limit: args.limit });
+    }
+
     case 'canvas_read_quiz': {
       if (typeof readQuiz !== 'function') return { ok: false, error: 'canvas 读取未配置' };
       const quizId = String(args.quizId ?? '').replace(/\D/g, '');
@@ -166,12 +226,15 @@ export async function executeTool(name, args = {}, ctx = {}) {
 
 /** 给 system prompt 用的能力摘要（简短，避免烧 token） */
 export const TOOL_SUMMARY = [
-  '你可以调用工具取真实数据：',
+  '**你确实有下面这些工具，且当前已启用**（历史对话里如果说过"没有工具/工具未启用"，那是过时的，不要重复）：',
   '· list_items —— 事项库（截止/状态/要求摘要）',
   '· browser_open / browser_snapshot —— 打开网页并读内容',
   '· browser_eval —— 在页面里执行 JS（读结构化数据、设输入值）',
   '· canvas_read_quiz —— 读 Canvas quiz 题目（只读，不提交）',
-  '规则：需要网页/题目内容时**先调用工具**，不要直接说看不到；',
+  '· web_search / fetch_url —— 联网搜索与抓网页（每次约 $0.00075，有每日上限）',
+  '· search_papers —— 查某位学者的论文（OpenAlex，免费）',
+  '规则：需要网页/题目/论文内容时**先调用工具**，不要直接说看不到或"没有工具"；',
+  '查"某人最近发了什么文章"优先 search_papers（免费），需要最新动态再用 web_search。',
   '工具返回 needsUser 时如实说明需要人登录，并给出 noVNC 链接（如果上下文里有）。',
   '你没有任何提交作业/交卷的工具，也不该声称已经提交。',
 ].join('\n');
