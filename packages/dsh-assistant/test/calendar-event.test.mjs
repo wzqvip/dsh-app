@@ -81,3 +81,32 @@ test('needsUpdate: 只比较关心的字段（避免无谓 PATCH 消耗配额）
     true,
   );
 });
+
+test('needsUpdate: Google 返回的时间格式不同（Z vs .000Z）但时刻相同 → 不更新', () => {
+  const next = toGoogleEvent(item, { timeZone: TZ });
+  // Google 实际返回的形态：没有毫秒、可能不带 timeZone
+  const existing = {
+    summary: next.summary,
+    status: 'confirmed',
+    start: { dateTime: '2026-11-09T04:59:00Z' },
+    end: { dateTime: next.end.dateTime.replace('.000Z', 'Z') },
+  };
+  assert.equal(needsUpdate(existing, next), false);
+});
+
+test('needsUpdate: 只差 1 秒 → 需要更新', () => {
+  const next = toGoogleEvent(item, { timeZone: TZ });
+  const existing = {
+    summary: next.summary,
+    status: 'confirmed',
+    start: { dateTime: '2026-11-09T04:59:01Z' },
+    end: { dateTime: next.end.dateTime },
+  };
+  assert.equal(needsUpdate(existing, next), true);
+});
+
+test('needsUpdate: 全天事项按日期比较', () => {
+  const next = toGoogleEvent({ ...item, allDay: true }, { timeZone: TZ });
+  const existing = { summary: next.summary, status: 'confirmed', start: { date: '2026-11-08' }, end: { date: '2026-11-09' } };
+  assert.equal(needsUpdate(existing, next), false);
+});

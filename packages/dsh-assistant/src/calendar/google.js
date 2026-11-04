@@ -231,3 +231,32 @@ export async function findEventByDshItemId({ calendarId, dshItemId, ...options }
   });
   return data?.items?.[0] ?? null;
 }
+
+/** 删事件（仅用于清理误写入；正常同步从不删除） */
+export async function deleteEvent({ calendarId, eventId, ...options } = {}) {
+  if (!calendarId || !eventId) throw new Error('google: calendarId / eventId are required');
+  return apiRequest({
+    ...options,
+    method: 'DELETE',
+    path: `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+  });
+}
+
+/**
+ * 找出所有同名日历。
+ *
+ * 教训（2026-11-04）：维护者账号下有 **3 个都叫 OSU** 的日历，
+ * 而 `calendarList` 的返回顺序在两次调用间并不稳定 ——
+ * 结果是第一次同步写进了 A，第二次写进了 B，看起来就像"幂等失效"。
+ * 所以「按名字找日历」必须能报告"有多个候选"，由调用方决定：
+ * **要么明确指定 id，要么报错**，绝不能自己挑一个。
+ */
+export function findCalendarsByName(calendars, name) {
+  const needle = String(name ?? '').trim().toLowerCase();
+  if (!needle) return [];
+  return (calendars ?? []).filter(
+    (cal) =>
+      String(cal.summary ?? '').trim().toLowerCase() === needle ||
+      String(cal.summaryOverride ?? '').trim().toLowerCase() === needle,
+  );
+}

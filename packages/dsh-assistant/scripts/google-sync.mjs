@@ -16,7 +16,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { createEvent, findCalendarByName, findEventByDshItemId, listCalendars, listEvents, patchEvent } from '../src/calendar/google.js';
+import { createEvent, findCalendarsByName, findEventByDshItemId, listCalendars, listEvents, patchEvent } from '../src/calendar/google.js';
 import { needsUpdate, toGoogleEvent } from '../src/calendar/event.js';
 
 const arg = (name, dflt) => {
@@ -41,16 +41,55 @@ if (!creds.clientId || !creds.clientSecret || !creds.refreshToken) {
   process.exit(2);
 }
 
+// ---------------- 解析目标日历（必须确定性） ----------------
+// 教训（2026-11-04）：账号下有 3 个同名「OSU」，calendarList 顺序不稳定，
+// 结果两次同步写进了两个不同的日历，看起来像"幂等失效"。
+// 现在的规则：显式 id > 上次确认过的 id（calendar.json）> 名字唯一匹配；否则报错。
+const pinnedPath = arg('calendar-config', join(dataDir, 'calendar.json'));
 const calendars = await listCalendars(creds);
-const target = findCalendarByName(calendars, targetName);
+const explicitId = arg('calendar-id', null);
+
+let target = null;
+
+if (explicitId) {
+  target = calendars.find((cal) => cal.id === explicitId) ?? null;
+  if (!target) {
+    console.error(`[google] ❌ 指定的 --calendar-id 不在可访问列表里：${explicitId}`);
+    process.exit(3);
+  }
+  // 显式指定过就固化下来，之后不用再带参数（否则每次都要手写一长串 id）
+  writeFileSync(
+    pinnedPath,
+    JSON.stringify({ calendarId: target.id, summary: target.summary, pinnedAt: new Date().toISOString() }, null, 2),
+  );
+  console.log(`[google] 已固化目标日历 → ${pinnedPath}`);
+} else if (existsSync(pinnedPath)) {
+  const pinned = JSON.parse(readFileSync(pinnedPath, 'utf8'));
+  target = calendars.find((cal) => cal.id === pinned.calendarId) ?? null;
+  if (target) {
+    console.log(`[google] 使用上次确认过的日历（${pinnedPath}）`);
+  } else {
+    console.error(`[google] ⚠️ 固定 ID 已不可访问：${pinned.calendarId}，回退到按名字解析`);
+  }
+}
 
 if (!target) {
-  console.error(`[google] ❌ 没找到名为「${targetName}」的日历。现有日历：`);
-  for (const cal of calendars) {
-    console.error(`   · ${cal.summary}${cal.primary ? '（primary）' : ''}  id=${cal.id}`);
+  const matches = findCalendarsByName(calendars, targetName);
+  if (matches.length !== 1) {
+    console.error(`[google] ❌ 名为「${targetName}」的日历有 ${matches.length} 个，无法确定写哪个：`);
+    for (const cal of matches) {
+      console.error(`   · ${cal.summary}  id=${cal.id}  权限=${cal.accessRole}`);
+    }
+    console.error('[google] 请用 --calendar-id <id> 明确指定一次，确认后会记到 calendar.json。');
+    console.error('[google] （绝不会自己挑一个，也不会退回到 primary）');
+    process.exit(4);
   }
-  console.error('[google] 为安全起见**不会**退回到 primary，退出。');
-  process.exit(3);
+  target = matches[0];
+  writeFileSync(
+    pinnedPath,
+    JSON.stringify({ calendarId: target.id, summary: target.summary, pinnedAt: new Date().toISOString() }, null, 2),
+  );
+  console.log(`[google] 已固定目标日历 → ${pinnedPath}`);
 }
 
 console.log(`[google] 目标日历：${target.summary}  id=${target.id}  权限=${target.accessRole}`);

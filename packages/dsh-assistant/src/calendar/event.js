@@ -98,15 +98,27 @@ export function toGoogleEvent(item, { timeZone = 'UTC', durationMinutes = DEFAUL
 
 /**
  * 判断某事件是否需要更新（避免每次都 PATCH 触发 Google 的写配额）。
- * 只比较我们关心的字段。
+ *
+ * 坑（2026-11-04 实测）：不能直接 JSON.stringify 比较 start ——
+ * Google 返回的时间是 `2026-11-05T04:59:59Z`，我们发的是 `...04:59:59.000Z`，
+ * 字符串不等但**时刻相同**，于是每次同步都被判成"需要更新"，白打 8 次 PATCH。
+ * 所以时间要按**时刻**比较；日期型（全天）按日期字符串比较。
  */
 export function needsUpdate(existing, next) {
   if (!existing || !next) return true;
-  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-  return !(
-    same(existing.summary, next.summary) &&
-    same(existing.start, next.start) &&
-    same(existing.end, next.end) &&
-    same(existing.status, next.status)
-  );
+  if (String(existing.summary ?? '') !== String(next.summary ?? '')) return true;
+  if (String(existing.status ?? 'confirmed') !== String(next.status ?? 'confirmed')) return true;
+
+  const sameTime = (a, b) => {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    // 全天事项
+    if (a.date || b.date) return a.date === b.date;
+    const am = Date.parse(a.dateTime);
+    const bm = Date.parse(b.dateTime);
+    if (!Number.isFinite(am) || !Number.isFinite(bm)) return false;
+    return am === bm;
+  };
+
+  return !(sameTime(existing.start, next.start) && sameTime(existing.end, next.end));
 }
