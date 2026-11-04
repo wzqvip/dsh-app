@@ -301,6 +301,45 @@ test('POST /act：动作白名单、selector 必填、type 需要 text', async (
   }
 });
 
+test('POST /act：type 降级完成时把 inputMode / degraded / reason 透传给上层', async () => {
+  const harness = await startHarness({
+    browser: fakeBrowser({
+      async act() {
+        return {
+          ok: true,
+          url: 'https://login.microsoftonline.com/',
+          inputMode: 'fill',
+          degraded: true,
+          reason: 'click_failed',
+        };
+      },
+    }),
+  });
+  try {
+    const { status, json } = await harness.call('/act', {
+      body: { action: 'type', selector: '#i0116', text: 'x@y.z' },
+    });
+    assert.equal(status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.inputMode, 'fill');
+    assert.equal(json.degraded, true);
+    assert.equal(json.reason, 'click_failed');
+    assert.equal(json.url, 'https://login.microsoftonline.com/');
+  } finally {
+    await harness.close();
+  }
+
+  // 正常路径不该出现 degraded/reason 字段
+  const normal = await startHarness();
+  try {
+    const { json } = await normal.call('/act', { body: { action: 'type', selector: '#email', text: 'x' } });
+    assert.equal(json.degraded, undefined);
+    assert.equal(json.reason, undefined);
+  } finally {
+    await normal.close();
+  }
+});
+
 test('POST /act：把动作参数如实转给浏览器适配器', async () => {
   const calls = [];
   const harness = await startHarness({

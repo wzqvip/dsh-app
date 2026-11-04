@@ -18,6 +18,7 @@ import { chromium } from 'playwright-core';
 import { classifyNeedsUser } from './classify.js';
 import { evaluateInPage } from './eval-script.js';
 import { acquireManagedPage, markManagedPage } from './page-select.js';
+import { typeIntoLocator } from './type-input.js';
 
 const OBSERVE_SCRIPT = () => {
   const body = document.body;
@@ -305,6 +306,8 @@ export function createBrowserController({
     // 点击可能触发跳转，之后 lastHttpStatus 就属于"上一页"了 —— 清掉，
     // 别让旧的 200 掩盖新页面的 403。
     lastHttpStatus = null;
+    /** type 的附加信息（inputMode / degraded）——只有 type 会填 */
+    let inputMeta = null;
 
     try {
       if (action === 'click') {
@@ -312,13 +315,20 @@ export function createBrowserController({
       } else if (action === 'waitFor') {
         await locator.waitFor({ state: 'visible', timeout });
       } else if (action === 'type') {
-        await locator.click({ timeout });
-        try {
-          await locator.fill(text ?? '', { timeout });
-        } catch (error) {
-          // contenteditable / 自定义控件不支持 fill → 逐字符敲
-          logger('info', 'type_fallback_press', { selector, error: messageOf(error) });
-          await locator.pressSequentially(text ?? '', { timeout });
+        // 先 click 聚焦；点不动（浮层遮挡等）就跳过 click 直接 fill，而不是整个动作失败。
+        // 顺序与日志纪律都在 src/type-input.js，单测覆盖。
+        const typed = await typeIntoLocator({ locator, text: text ?? '', timeout, logger });
+        if (!typed.ok) {
+          throw new BrowserActionError(`动作 type 失败：${typed.error}`, {
+            status: typed.timedOut ? 408 : 500,
+          });
+        }
+        inputMeta = typed.degraded
+          ? { inputMode: typed.inputMode, degraded: true, reason: typed.reason }
+          : { inputMode: typed.inputMode };
+        if (typed.degraded) {
+          // 结构化标记：上层可据此判断"输入是降级路径完成的"（例如 skip 了聚焦）
+          logger('warn', 'type_degraded', { selector, inputMode: typed.inputMode, reason: typed.reason });
         }
       } else {
         throw new BrowserActionError(`不支持的动作：${action}`, { status: 400 });
@@ -331,7 +341,7 @@ export function createBrowserController({
       });
     }
 
-    return { ok: true, url: target.url() };
+    return { ok: true, url: target.url(), ...(inputMeta ?? {}) };
   }
 
   function clampEvalTimeout(value) {

@@ -275,12 +275,42 @@ docker compose logs -f
 - 响应里的 `url` 是**动作执行后**受管页的地址（点击可能触发跳转），调用方可据此校验
 - `selector` 用 **Playwright 选择器语法**：CSS（`#id`、`a[href*=x]`）默认；
   也支持 `text=Sign in`、`role=button[name="Sign in"]`、`xpath=//…`
-- `action=type` 时 `text` 必填（可为空字符串 = 清空）；先 `click` 再 `fill`，
-  `fill` 不被支持时自动退回逐字符输入
+- `action=type` 时 `text` 必填（可为空字符串 = 清空）
 - `waitFor` 等的是**可见**（`state: visible`）
 - 超时 → 408；其它失败 → 500；参数不合法 → 400
 - ⚠️ **选择器依赖真实页面**：本服务只提供机制，具体文本框/按钮的 selector
   必须对着真实 Outlook/Canvas 页面验一次（见 §9）
+
+#### `type` 的输入顺序与降级（2026-11-05 改）
+
+```
+① click（聚焦）  ──成功──►  fill  ──失败──►  pressSequentially（逐字符）
+      │                         │                        │
+      失败（浮层遮挡/超时）       成功                     都失败
+      ↓                         ↓                        ↓
+   记 degraded，跳 ②          ok:true                  ok:false → HTTP 408/500
+```
+
+1. **先 click 聚焦**（保持原语义）；点不动就**不中断**，直接进入下一步
+2. `fill`（不需要命中点，直接设值 + 派发 input 事件）
+3. `fill` 也不支持（`contenteditable` / 自定义控件）→ `pressSequentially` 逐字符敲
+   —— 这条**需要**真正的焦点，所以 click 不能永远跳过
+4. 三步全失败才报错
+
+为什么改：Microsoft 登录页在输入框上盖了 `#footerLinks` 浮层，`click()` 会被判
+"subtree intercepts pointer events" 直到超时；旧实现"先 click 再 fill"于是**整条失败**，
+而 `type` 是登录脚本唯一的输入通道。
+
+**响应里的结构化标记**（只有 `type` 会有）：
+
+| 字段 | 含义 |
+|---|---|
+| `inputMode` | `fill`（正常）或 `press`（退到逐字符） |
+| `degraded` | `true` = 没抢到焦点，靠 fill/逐字符完成；上层可据此决定要不要复核页面 |
+| `reason` | `click_failed`（点不动）或 `fill_failed`（fill 不支持） |
+
+日志里只记 `selector` / `inputMode` / `reason` / 错误摘要，**绝不记录输入内容**
+（那可能是密码）。单测里有一条专门断言这件事。
 
 ### 5.5 `POST /eval`（在页面里执行 JS）
 

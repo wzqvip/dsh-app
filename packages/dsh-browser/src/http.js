@@ -234,7 +234,15 @@ export function createRequestHandler({
       text: body?.text,
       timeoutMs,
     });
-    return sendJson(res, 200, { ok: result?.ok !== false, action, selector, url: result?.url ?? null });
+    return sendJson(res, 200, {
+      ok: result?.ok !== false,
+      action,
+      selector,
+      url: result?.url ?? null,
+      // type 的降级信息：click 被浮层挡住 → 直接 fill 完成，上层可据此决定要不要复核
+      ...(result?.inputMode ? { inputMode: result.inputMode } : {}),
+      ...(result?.degraded ? { degraded: true, reason: result.reason ?? null } : {}),
+    });
   }
 
   /**
