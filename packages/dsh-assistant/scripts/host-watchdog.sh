@@ -31,9 +31,16 @@ memavail=$(awk '/MemAvailable/ {printf "%d", $2/1024}' /proc/meminfo)
 disk=$(df -P / | awk 'NR==2 {gsub("%","",$5); print $5}')
 cores=$(nproc)
 
+# 内核崩溃计数（traps / segfault）。2026-11-04 那次事故的**先行指标**：
+# chromium 从 14:42 开始疯狂 SIGTRAP（一晚 17 万次），5 分钟后僵尸才开始堆积。
+# 只统计最近 10 分钟，避免历史噪音。
+traps=$(journalctl -k --since '-10 min' --no-pager 2>/dev/null | grep -c 'traps: ' || true)
+traps_top=$(journalctl -k --since '-10 min' --no-pager 2>/dev/null | grep -oE 'traps: [a-zA-Z0-9_.-]+' | awk '{print $2}' | sort | uniq -c | sort -rn | head -1 || true)
+
 problems=()
 [ "${zombies:-0}" -gt 1000 ] && problems+=("僵尸进程 ${zombies}（阈值 1000）")
 [ "${procs:-0}" -gt 20000 ] && problems+=("进程总数 ${procs}（阈值 20000）")
+[ "${traps:-0}" -gt 100 ] && problems+=("近 10 分钟内核崩溃 ${traps} 次${traps_top:+（$traps_top）}")
 [ "$(awk -v l="$load1" -v c="$cores" 'BEGIN{print (l>c*2)?1:0}')" = "1" ] && problems+=("负载 ${load1}（${cores} 核）")
 [ "${memavail:-9999}" -lt 1024 ] && problems+=("可用内存仅 ${memavail}MB")
 [ "${disk:-0}" -gt 90 ] && problems+=("根分区 ${disk}%")
