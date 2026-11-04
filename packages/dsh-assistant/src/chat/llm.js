@@ -12,7 +12,7 @@
 
 /** 默认端点与模型（可用配置覆盖） */
 export const DEFAULT_CHAT_BASE_URL = 'https://api.deepseek.com';
-export const DEFAULT_CHAT_MODEL = 'deepseek-chat';
+export const DEFAULT_CHAT_MODEL = 'deepseek-flash';
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 
