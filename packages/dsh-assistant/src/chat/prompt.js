@@ -68,7 +68,12 @@ export function pickUpcoming(items, { now = new Date(), limit = 8 } = {}) {
   return future.slice(0, limit);
 }
 
-/** 构造 system prompt */
+/** 每条事项把要求正文截到多少字符塞进 prompt（太小答不全，太大烧 token） */
+export const DESC_IN_PROMPT_CHARS = 240;
+
+/**
+ * 构造 system prompt
+ */
 export function buildSystemPrompt({
   items = [],
   session = null,
@@ -94,6 +99,14 @@ export function buildSystemPrompt({
     for (const item of upcoming) {
       const course = item.course ? `（${item.course}）` : '';
       lines.push(`  · ${dueText(item.dueAt, timeZone)}  ${item.title}${course}`);
+      // 作业要求：没有这一行，被问「要求是啥」就只能瞎猜或说不知道（维护者 2026-11-04 踩到）
+      if (item.description) {
+        const text =
+          item.description.length > DESC_IN_PROMPT_CHARS
+            ? `${item.description.slice(0, DESC_IN_PROMPT_CHARS)}…`
+            : item.description;
+        lines.push(`      要求：${text.replace(/\n+/g, ' ')}`);
+      }
     }
   } else {
     lines.push('最近的未完成截止：暂无。');
@@ -114,6 +127,7 @@ export function buildSystemPrompt({
     '',
     '规则：',
     '· 不确定的信息不要编，直接说不知道或建议他用命令查。',
+    '· 他问某条作业的「要求」时，用上面「要求：」后面的内容回答；那条没有「要求：」就直说"这条学校没写要求"。',
     '· 不要声称已经替他完成了某个动作（标记完成、打开网页等）——你没有那些权限。',
     '· 不要输出任何密钥、token、密码。',
   );

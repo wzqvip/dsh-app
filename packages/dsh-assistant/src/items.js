@@ -39,7 +39,41 @@ export const CONTENT_FIELDS = Object.freeze([
   'dueAt',
   'allDay',
   'url',
+  // 作业要求正文（2026-11-04 加入）。维护者问「OPCA 要求是啥」答不出来的根因
+  // 就是只存了标题 —— 而 classpipe 的 241 条作业里有 186 条带 description。
+  'description',
 ]);
+
+/** 描述正文上限：够回答「要求是什么」，又不至于把 state.json 撑爆 */
+export const DESCRIPTION_MAX_CHARS = 1500;
+
+/**
+ * 清洗来源给的描述正文。
+ *
+ * Canvas 的 description 是 HTML（`<p>` / `<a>` / `<br>` …），直接塞进对话上下文会
+ * 浪费 token（标签本身没信息），还会让模型把 `&nbsp;` 当内容念出来。
+ * 处理：去标签 → 解常见实体 → 压缩空白 → 截断。
+ */
+export function normalizeDescription(value) {
+  if (typeof value !== 'string') return null;
+  const text = value
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[ \t]+/g, ' ')
+    // 开标签被换成空格后会留在行首（`<p>a</p><p>b</p>` → `a\n b`），把行首尾空白吃掉
+    .replace(/[ \t]*\n[ \t]*/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  if (!text) return null;
+  return text.length > DESCRIPTION_MAX_CHARS ? `${text.slice(0, DESCRIPTION_MAX_CHARS)}…` : text;
+}
 
 /** 稳定序列化：键排序，避免对象键序不同导致指纹漂移 */
 function canonicalJson(obj) {
@@ -114,6 +148,8 @@ export function normalizeItem(raw, now = new Date()) {
     // TZID 解析不了时由解析层置 true —— 这里只透传，不猜
     tzUncertain: raw.tzUncertain === true,
     url: typeof raw.url === 'string' && raw.url.trim() ? raw.url.trim() : null,
+    // 作业要求正文（去 HTML + 截断）。没有就是 null，不要塞空字符串
+    description: normalizeDescription(raw.description),
     confidence: typeof raw.confidence === 'number' && raw.confidence >= 0 && raw.confidence <= 1
       ? raw.confidence
       : 1,
