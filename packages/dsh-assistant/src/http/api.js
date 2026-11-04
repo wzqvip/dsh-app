@@ -58,7 +58,7 @@ function readJsonBody(req, limitBytes = 64 * 1024) {
  * @param {(id:string, status:string)=>{ok:boolean,error?:string}} deps.setItemStatus
  * @param {()=>object} deps.stats
  */
-export function createRequestHandler({ token, listItems, setItemStatus, stats }) {
+export function createRequestHandler({ token, listItems, setItemStatus, stats, chat, checkSession }) {
   const authorized = (req) => {
     if (!token) return true;
     const provided = req.headers['x-dsh-token'];
@@ -91,6 +91,40 @@ export function createRequestHandler({ token, listItems, setItemStatus, stats })
           revision: item.revision ?? 1,
         }));
         return sendJson(res, 200, { ok: true, count: items.length, items });
+      }
+
+// 立即做一次会话检查（tg 的 /ready 用它：人刚登录完，别等下一个 15 分钟）
+      if (path === '/session/check' && req.method === 'POST') {
+        if (typeof checkSession !== 'function') {
+          return sendJson(res, 503, { ok: false, error: 'session check 未启用' });
+        }
+        try {
+          const result = await checkSession();
+          return sendJson(res, 200, { ok: true, ...result });
+        } catch (error) {
+          return sendJson(res, 502, { ok: false, error: String(error?.message ?? error) });
+        }
+      }
+
+      // 对话：tg 网关把用户的普通文本转发到这里
+      if (path === '/chat' && req.method === 'POST') {
+        if (typeof chat !== 'function') {
+          return sendJson(res, 503, { ok: false, error: 'chat 未启用（缺 LLM 凭据）' });
+        }
+        let body;
+        try {
+          body = await readJsonBody(req, 32 * 1024);
+        } catch (error) {
+          return sendJson(res, 400, { ok: false, error: String(error.message ?? error) });
+        }
+        const text = typeof body?.text === 'string' ? body.text.trim() : '';
+        if (!text) return sendJson(res, 400, { ok: false, error: 'text is required' });
+        try {
+          const result = await chat(text);
+          return sendJson(res, 200, { ok: true, reply: result.reply, usage: result.usage ?? null });
+        } catch (error) {
+          return sendJson(res, 502, { ok: false, error: String(error?.message ?? error) });
+        }
       }
 
       const statusMatch = /^\/items\/([^/]+)\/status$/.exec(path);

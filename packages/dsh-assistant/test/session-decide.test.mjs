@@ -95,3 +95,9 @@ test('shouldCheck: 按间隔节流', () => {
   );
   assert.equal(shouldCheck({ lastCheckAt: 'garbage' }, T1, 15), true);
 });
+
+test('decideSession: 保留 prev 上的额外字段（autoRecoverAt 冷却不能被抹掉）', () => {
+  const prev = { needsUser: false, autoRecoverAt: '2026-11-03T11:00:00.000Z', okSince: T0.toISOString() };
+  const { next } = decideSession(prev, { browserUp: true, needsUser: false }, T1);
+  assert.equal(next.autoRecoverAt, '2026-11-03T11:00:00.000Z');
+});

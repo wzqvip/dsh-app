@@ -14,7 +14,10 @@
 /** 会话状态机：给定上一状态与本次观测，返回新状态与该不该通知 */
 export function decideSession(prev, observation, now = new Date()) {
   const at = now instanceof Date ? now.toISOString() : String(now);
+  // 保留 prev 上的其它字段（例如 autoRecoverAt 冷却时间戳）——
+  // 否则每次状态机返回都会把它们抹掉，冷却逻辑就失效了。
   const state = {
+    ...(prev ?? {}),
     lastCheckAt: at,
     lastOkAt: prev?.lastOkAt ?? null,
     needsUser: prev?.needsUser ?? false,

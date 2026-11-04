@@ -44,8 +44,11 @@ import {
   reminderText,
 } from '../src/index.js';
 import { startApiServer } from '../src/http/api.js';
-import { snapshotBrowser } from '../src/browser/client.js';
+import { actOnBrowser, snapshotBrowser } from '../src/browser/client.js';
+import { attemptAutoRecover, shouldAttemptRecovery } from '../src/session/recover.js';
 import { decideSession, shouldCheck } from '../src/session/decide.js';
+import { buildMessages, buildSystemPrompt, trimHistory } from '../src/chat/prompt.js';
+import { chatCompletion, DEFAULT_CHAT_BASE_URL, DEFAULT_CHAT_MODEL } from '../src/chat/llm.js';
 import { STALE_OVERRIDE_REASON, planStaleDrops } from '../src/items.js';
 import { syncAllCourses } from '../src/sources/classpipe-sync.js';
 import { sendDelivery } from '../src/notify/dsh-im.js';
@@ -88,6 +91,8 @@ const tgGatewayBase = String(flag('tg-gateway', process.env.DSH_TG_GATEWAY ?? ''
 // 浏览器会话监控：定时看学校邮箱是否被要求重新登录（维护者 2026-11-03 要求）
 const browserBase = String(flag('browser-base', process.env.DSH_BROWSER_BASE ?? ''));
 const sessionCheckMinutes = Number(flag('session-check-minutes', 15));
+// 会话自愈：先点按钮试着自己恢复（绝不输密码/验证码）；--no-auto-recover 可关
+const autoRecoverEnabled = flag('no-auto-recover', false) !== true;
 // assistant 侧 HTTP：供 tg 网关查询/回写（Docker 内监听 0.0.0.0，不 publish 到公网）
 const apiPort = Number(flag('api-port', 8787));
 const apiHost = String(flag('api-host', '0.0.0.0'));
@@ -232,6 +237,8 @@ const EMPTY_STATE = {
   overrides: {},
   // 浏览器会话状态（见 src/session/decide.js）
   session: null,
+  // 对话历史（只保留最近若干轮，见 chat/prompt.js）
+  chat: { history: [] },
   lastTickAt: null,
   lastError: null,
 };
@@ -470,8 +477,8 @@ async function tick() {
   // 4) 每日摘要（到点且今天还没发过才发；播种轮跳过，免得刚部署就打扰）
   if (!isSeed) await maybeSendMorningDigest(now);
 
-  // 5) 浏览器会话巡检（登录是否过期）
-  await checkBrowserSession(now);
+  // 浏览器会话巡检**不放在 tick 里**：tick 是 45 分钟，而会话检查要 15 分钟。
+  // 它有自己的定时器（见 main），否则实际就退化成 45 分钟一次。
 
   state.lastTickAt = now.toISOString();
   saveState(state);
@@ -589,6 +596,80 @@ async function maybeSendMorningDigest(now) {
   }
 }
 
+// ---------------- 对话 ----------------
+
+/**
+ * 读 LLM 配置：优先 env，其次 `/data/llm.json`。
+ *
+ * 为什么不用 DSH 的登录态：本服务跑在 ubuntu 容器里，拿不到 Windows 上 DSH 的会话。
+ * 所以用 provider 的 API key（DeepSeek 官方，便宜）。
+ */
+function loadLlmConfig() {
+  const path = String(flag('llm-config', join(dirname(statePath), 'llm.json')));
+  const fromEnv = process.env.DSH_ASSISTANT_LLM_API_KEY;
+  if (fromEnv) {
+    return {
+      apiKey: fromEnv,
+      baseUrl: process.env.DSH_ASSISTANT_LLM_BASE_URL || DEFAULT_CHAT_BASE_URL,
+      model: process.env.DSH_ASSISTANT_LLM_MODEL || DEFAULT_CHAT_MODEL,
+      source: 'env',
+    };
+  }
+  if (existsSync(path)) {
+    try {
+      const config = JSON.parse(readFileSync(path, 'utf8'));
+      if (config?.apiKey) {
+        return {
+          apiKey: config.apiKey,
+          baseUrl: config.baseUrl || DEFAULT_CHAT_BASE_URL,
+          model: config.model || DEFAULT_CHAT_MODEL,
+          source: path,
+        };
+      }
+    } catch (error) {
+      logError(`LLM 配置解析失败（对话不可用）：${error.message}`);
+    }
+  }
+  return null;
+}
+
+const llm = loadLlmConfig();
+const chatMaxTokens = Number(flag('chat-max-tokens', 600));
+
+/** 处理一条用户文本，返回 { reply } 并把这一轮写进历史 */
+async function handleChat(text) {
+  if (!llm) throw new Error('对话未启用：缺 LLM 凭据（/data/llm.json 或 DSH_ASSISTANT_LLM_API_KEY）');
+
+  const now = new Date();
+  const systemPrompt = buildSystemPrompt({
+    items: state.items,
+    session: state.session,
+    now,
+    timeZone,
+  });
+  const history = state.chat?.history ?? [];
+  const messages = buildMessages({ systemPrompt, history, userText: text });
+
+  const result = await chatCompletion({
+    apiKey: llm.apiKey,
+    baseUrl: llm.baseUrl,
+    model: llm.model,
+    messages,
+    maxTokens: chatMaxTokens,
+  });
+
+  state.chat = state.chat ?? { history: [] };
+  state.chat.history = trimHistory([
+    ...history,
+    { role: 'user', content: text, at: now.toISOString() },
+    { role: 'assistant', content: result.reply, at: now.toISOString() },
+  ]);
+  state.chat.lastUsedAt = now.toISOString();
+  saveState(state);
+  log(`对话：${text.slice(0, 40)} → ${result.reply.slice(0, 40)}（tokens ${result.usage?.total_tokens ?? '?'}）`);
+  return result;
+}
+
 // ---------------- 浏览器会话监控 ----------------
 
 /**
@@ -597,9 +678,16 @@ async function maybeSendMorningDigest(now) {
  * 为什么要它：Outlook 会话会静默过期。没有监控的话，表现是"助理突然不推邮件了"，
  * 而人不会想到是登录过期 —— 会把"管道断了"误解成"这周没邮件"。
  */
-async function checkBrowserSession(now) {
+/** 浏览器动作的薄封装（open / click），失败不抛、交给调用方判断 */
+async function browserAct(action, payload = {}) {
+  return actOnBrowser({ baseUrl: browserBase, token: apiToken, action, ...payload });
+}
+
+async function checkBrowserSession(now, { force = false } = {}) {
   if (!browserBase) return;
-  if (!shouldCheck(state.session, now, sessionCheckMinutes)) return;
+  // 定时器本身已保证间隔；force 用于进程刚启动时无条件查一次，
+  // 否则会被上一代进程写入的 lastCheckAt 挡住（实测踩到：启动后 15 分钟才第一次查）
+  if (!force && !shouldCheck(state.session, now, sessionCheckMinutes)) return;
 
   const snap = await snapshotBrowser({ baseUrl: browserBase, token: apiToken });
   if (!snap.ok || snap.transient) {
@@ -608,14 +696,54 @@ async function checkBrowserSession(now) {
     return;
   }
 
-  const { next, notify } = decideSession(state.session, snap, now);
-  state.session = next;
+  // "可用"判据：不需要人 且 页面有实际内容。
+  // 空页是危险假阴性 —— 重定向到 signout/空白页时 needsUser 可能是 false。
+  const usable = (candidate) => candidate && !candidate.needsUser && (candidate.chars ?? 0) >= 100;
 
+  let finalSnap = snap;
+
+  // 需要人时先尝试自愈（只点按钮，绝不输密码/验证码）；失败才打扰维护者
+  if (snap.needsUser && autoRecoverEnabled && shouldAttemptRecovery(snap.reason)) {
+    const lastAttempt = state.session?.autoRecoverAt ? Date.parse(state.session.autoRecoverAt) : NaN;
+    const cooledDown = !Number.isFinite(lastAttempt) || now.getTime() - lastAttempt > 30 * 60_000;
+    if (cooledDown) {
+      log(`会话需要人工（${snap.reason}），先尝试自动恢复…`);
+      const recovered = await attemptAutoRecover({
+        url: 'https://outlook.office.com/mail/',
+        open: (url) => browserAct('open', { url }),
+        snapshot: () => snapshotBrowser({ baseUrl: browserBase, token: apiToken }),
+        click: (selector) => browserAct('click', { selector }),
+        log: (m) => log(m),
+      });
+      finalSnap = recovered.final ?? finalSnap;
+      state.session = { ...(state.session ?? {}), autoRecoverAt: now.toISOString() };
+      if (recovered.recovered) log('会话已自动恢复，不打扰维护者');
+    }
+  }
+
+  // 自愈之后仍可能"空页且不需要人" —— 不改判断、不打扰，但必须刷新 lastCheckAt，
+  // 否则每一轮都会重复自愈。
+  if (!finalSnap.needsUser && !usable(finalSnap)) {
+    state.session = { ...(state.session ?? {}), lastCheckAt: now.toISOString() };
+    saveState(state);
+    log(`会话可疑：页面几乎为空（${finalSnap.chars ?? 0} 字符），本轮不改判断`);
+    return;
+  }
+
+  const { next, notify } = decideSession(state.session, finalSnap, now);
+  state.session = next;
+  saveState(state);
+
+  if (notify) {
   if (notify) {
     enqueue(`session:${next.needsUser ? 'expired' : 'recovered'}:${now.toISOString()}`, notify.text);
     log(`会话状态变化：${notify.kind}（reason=${next.reason ?? '-'}）`);
+  } else if (next.needsUser) {
+    // 已经处于"需要人"状态：不重复通知，但日志必须说实话（之前这里误写成"正常"）
+    log(`会话仍需要人工（reason=${next.reason ?? '-'}），不重复通知`);
   } else {
-    log(`会话正常：${snap.page?.title ?? ''}（${snap.chars ?? 0} 字符）`);
+    log(`会话正常：${finalSnap.page?.title ?? ''}（${finalSnap.chars ?? 0} 字符）`);
+  }
   }
 }
 
@@ -676,6 +804,16 @@ async function main() {
             })
             .slice(0, limit);
         },
+        chat: handleChat,
+        // tg 的 /ready：人刚登录完，立刻验证一次，别等 15 分钟
+        checkSession: async () => {
+          await checkBrowserSession(new Date(), { force: true });
+          return {
+            needsUser: state.session?.needsUser ?? null,
+            reason: state.session?.reason ?? null,
+            okSince: state.session?.okSince ?? null,
+          };
+        },
         setItemStatus: (id, nextStatus) => {
           const item = state.items.find((entry) => entry.id === id);
           if (!item) return { ok: false, error: 'item not found' };
@@ -688,6 +826,11 @@ async function main() {
           return { ok: true };
         },
       });
+      log(
+        llm
+          ? `对话=已启用（${llm.model} @ ${llm.baseUrl}，来源 ${llm.source === 'env' ? 'env' : '文件'}）`
+          : '对话=未启用（缺 LLM 凭据：/data/llm.json 或 DSH_ASSISTANT_LLM_API_KEY）',
+      );
       log(`API 已启动 http://${apiHost}:${api.port}${apiToken ? '（需 x-dsh-token）' : '（⚠️ 未设 token）'}`);
     } catch (error) {
       logError(`API 启动失败（不影响数据管线）：${error.message}`);
@@ -731,6 +874,17 @@ async function main() {
     }
 
     await tick(); // 先立刻跑一次，不等第一个间隔
+
+    // 会话巡检：独立定时器（默认 15 分钟），与 tick 的 45 分钟解耦
+    if (browserBase) {
+      const runSessionCheck = () => {
+        checkBrowserSession(new Date(), { force: true }).catch((error) => logError(`会话巡检异常：${error.message}`));
+      };
+      runSessionCheck(); // 启动即查一次（force，不受上一代进程节流影响）
+      const sessionTimer = setInterval(runSessionCheck, sessionCheckMinutes * 60_000);
+      if (typeof sessionTimer.unref === 'function') sessionTimer.unref();
+      log(`会话巡检=每 ${sessionCheckMinutes} 分钟（浏览器 ${browserBase}）`);
+    }
     const poller = createPoller({ intervalMs: intervalMin * 60_000, run: tick, unref: false });
     poller.start();
     log('常驻中（Ctrl+C 退出）');

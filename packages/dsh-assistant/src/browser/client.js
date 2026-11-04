@@ -46,9 +46,57 @@ export async function fetchBrowserHealth({
 }
 
 /**
- * 抓一次快照并给出 needsUser 判定。
- * @returns {Promise<{ok:boolean, browserUp?:boolean, needsUser?:boolean, reason?:string|null, vncUrl?:string, transient?:boolean, error?:string}>}
+ * 执行一个浏览器动作（open / click / type / waitFor）。
+ * 失败返回 {ok:false}，不抛 —— 自愈流程要能逐个尝试、失败继续。
  */
+export async function actOnBrowser({
+  baseUrl,
+  token,
+  action,
+  selector,
+  url,
+  text,
+  timeoutMs = 10_000,
+} = {}) {
+  const base = String(baseUrl ?? '').replace(/\/+$/, '');
+  if (!base) return { ok: false, error: 'no browser baseUrl' };
+
+  const body = { action, timeoutMs };
+  if (selector) body.selector = selector;
+  if (url) body.url = url;
+  if (text !== undefined) body.text = text;
+
+  try {
+    const response = await withTimeout(timeoutMs + 5_000, (signal) =>
+      fetchImplFor()(`${base}/act`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(token ? { 'x-dsh-token': token } : {}),
+        },
+        body: JSON.stringify(body),
+        signal,
+      }),
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (action === 'open' && (!response.ok || payload?.ok === false)) {
+      return { ok: false, error: payload?.error ?? `HTTP ${response.status}` };
+    }
+    return { ok: response.ok && payload?.ok !== false, ...payload };
+  } catch (error) {
+    return { ok: false, error: String(error?.message ?? error) };
+  }
+}
+
+/** 允许测试注入；默认用全局 fetch */
+let fetchImplOverride = null;
+export function __setFetchImplForTest(fn) {
+  fetchImplOverride = fn;
+}
+function fetchImplFor() {
+  return fetchImplOverride ?? globalThis.fetch;
+}
+
 export async function snapshotBrowser({
   baseUrl,
   token,
