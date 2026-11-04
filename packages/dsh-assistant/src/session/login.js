@@ -11,13 +11,55 @@
  * "无表单"页面时，密码管理器不会自动填充 —— 必须真的走到登录表单上。
  */
 
-/** 登录表单的候选选择器（按优先级；命中第一个即可） */
+/**
+ * 登录表单的候选选择器（按站点分"配方"）。
+ *
+ * 为什么分配方：Outlook 是 Microsoft 的 `#i0116 / #i0118`，
+ * 而 OSU 的 Canvas 走 Shibboleth SSO（`webauth.service.ohio-state.edu`，`#username / #password`），
+ * 两套 DOM 完全不同。硬塞一套选择器会在另一套上乱填（甚至填进搜索框）。
+ */
 export const LOGIN_SELECTORS = Object.freeze({
   email: ['input[type="email"]', '#i0116', 'input[name="loginfmt"]'],
   password: ['input[type="password"]', '#i0118', 'input[name="passwd"]'],
   submit: ['#idSIButton9', 'input[type="submit"]', 'button[type="submit"]'],
   staySignedIn: ['#idSIButton9'],
   otherAccount: ['#otherTile', '[data-test-id="otherTile"]'],
+});
+
+/** 各站点的登录配方 */
+export const LOGIN_PROFILES = Object.freeze({
+  microsoft: {
+    startUrl: 'https://outlook.office.com/mail/',
+    email: LOGIN_SELECTORS.email,
+    password: LOGIN_SELECTORS.password,
+    submit: LOGIN_SELECTORS.submit,
+    // Microsoft 的"保持登录"是同一个按钮
+    staySignedIn: LOGIN_SELECTORS.staySignedIn,
+    otherAccount: LOGIN_SELECTORS.otherAccount,
+    // Microsoft 的账号框本身就是 email 类型，不需要额外点击
+    extraClicks: [],
+  },
+  osu: {
+    // OSU Canvas 走 Shibboleth；访问 canvas 会被重定向到 webauth
+    startUrl: 'https://osu.instructure.com/',
+    email: [
+      '#username',
+      'input[name="j_username"]',
+      'input[name="username"]',
+      'input[type="text"][autocomplete="username"]',
+    ],
+    password: ['#password', 'input[name="j_password"]', 'input[type="password"]'],
+    submit: ['input[type="submit"]', 'button[type="submit"]', '#login-button'],
+    // OSU 没有"保持登录"，但有 "Is this a private computer/device?" 单选（选 Yes 减少后续验证）
+    staySignedIn: [],
+    otherAccount: [],
+    // 先点 "Yes"（私人设备），再提交
+    extraClicks: [
+      '#private-computer-yes',
+      'input[name="privateComputer"][value="yes"]',
+      'label[for="private-computer-yes"]',
+    ],
+  },
 });
 
 /** 哪些状态值得尝试"填密码" */
@@ -60,7 +102,9 @@ export async function attemptPasswordLogin({
   type,
   click,
   creds,
-  url = 'https://outlook.office.com/mail/',
+  profile = 'microsoft',
+  // 显式指定入口时优先；不传则用配方里的 startUrl
+  url = null,
   log = () => {},
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   settleMs = 3500,
@@ -88,7 +132,9 @@ export async function attemptPasswordLogin({
   async function settledSnapshot(label) {
     let snap = await snapshot();
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      if (snap && !snap.needsUser) return snap;
+      // ⚠️ 不能只看 !needsUser —— 跳转中途的空白页也是 needsUser=false，
+      // 曾被当成"登录成功"（2026-11-04 实测：Canvas SSO 明明没进去却报成功）。
+      if (snap && !snap.needsUser && (snap.chars ?? 0) >= 100) return snap;
       if ((snap?.chars ?? 0) >= 100) return snap;
       await sleep(settleMs);
       snap = await snapshot();
@@ -97,7 +143,11 @@ export async function attemptPasswordLogin({
     return snap;
   }
 
-  await open(url);
+  // 按配方决定选择器与入口（microsoft / osu 两套 DOM 完全不同）
+  const recipe = LOGIN_PROFILES[profile] ?? LOGIN_PROFILES.microsoft;
+  const targetUrl = url ?? recipe.startUrl;
+
+  await open(targetUrl);
   await sleep(settleMs);
   let snap = await settledSnapshot('打开');
   steps.push(
@@ -111,20 +161,20 @@ export async function attemptPasswordLogin({
   }
 
   // ① 账号：先直接找输入框；找不到多半是"选账户"页 → 点『使用其他账户』再来一次
-  let emailStep = await firstSuccess(LOGIN_SELECTORS.email, (selector) => type(selector, creds.email));
+  let emailStep = await firstSuccess(recipe.email, (selector) => type(selector, creds.email));
   if (!emailStep.ok) {
-    const other = await firstSuccess(LOGIN_SELECTORS.otherAccount, (selector) => click(selector));
+    const other = await firstSuccess(recipe.otherAccount, (selector) => click(selector));
     if (other.ok) {
       steps.push('点了「使用其他账户」');
       await sleep(settleMs);
       snap = await settledSnapshot('改用其他账户后');
-      emailStep = await firstSuccess(LOGIN_SELECTORS.email, (selector) => type(selector, creds.email));
+      emailStep = await firstSuccess(recipe.email, (selector) => type(selector, creds.email));
     }
   }
 
   if (emailStep.ok) {
     steps.push(`填入账号（${emailStep.selector}）`);
-    await firstSuccess(LOGIN_SELECTORS.submit, (selector) => click(selector));
+    await firstSuccess(recipe.submit, (selector) => click(selector));
     await sleep(settleMs);
     snap = await settledSnapshot('填账号后');
     if (!snap?.needsUser) return done(snap);
@@ -133,7 +183,7 @@ export async function attemptPasswordLogin({
   }
 
   // ② 密码
-  const passwordStep = await firstSuccess(LOGIN_SELECTORS.password, (selector) =>
+  const passwordStep = await firstSuccess(recipe.password, (selector) =>
     type(selector, creds.password),
   );
   if (!passwordStep.ok) {
@@ -141,9 +191,25 @@ export async function attemptPasswordLogin({
     return done(snap);
   }
   steps.push(`填入密码（${passwordStep.selector}）`);
-  await firstSuccess(LOGIN_SELECTORS.submit, (selector) => click(selector));
+
+  // ②.5 站点特有的附加点击（OSU 的 "Is this a private computer?" → Yes）
+  for (const selector of recipe.extraClicks ?? []) {
+    const clicked = await firstSuccess([selector], (sel) => click(sel));
+    if (clicked.ok) steps.push(`点了附加项（${selector}）`);
+  }
+
+  await firstSuccess(recipe.submit, (selector) => click(selector));
   await sleep(settleMs);
   snap = await settledSnapshot('提交密码后');
+
+  // 还在登录页 → 把页面文字的头一段记下来，便于判断是"密码错"还是"卡在 Duo"
+  if (snap?.needsUser) {
+    const head = String(snap.text ?? '')
+      .replace(/\s+/g, ' ')
+      .slice(0, 160);
+    steps.push(`提交后仍在登录态（${snap.reason ?? 'unknown'}）：${head}`);
+  }
+
   if (!snap?.needsUser) return done(snap);
 
   // ③ 2FA / 验证码：到此为止，交还给人
@@ -153,7 +219,7 @@ export async function attemptPasswordLogin({
   }
 
   // ④ "保持登录?" → 是（减少下次重登）
-  const stay = await firstSuccess(LOGIN_SELECTORS.staySignedIn, (selector) => click(selector));
+  const stay = await firstSuccess(recipe.staySignedIn, (selector) => click(selector));
   if (stay.ok) steps.push('点了「保持登录」');
   await sleep(settleMs);
   snap = await settledSnapshot('保持登录后');
