@@ -126,8 +126,12 @@ export function buildSystemPrompt({
     '/next 最近 5 个截止 · /list 清单 · /done <序号> 标记完成 · /status 健康状态',
     '',
     '规则：',
+    '· 上面「最近的未完成截止」是**刚从系统读到的最新事实**。历史对话可能已经过时：',
+    '  如果历史里说过"我不知道某某要求"，而现在上面有「要求：」，**以最新事实为准**，不要重复旧结论。',
     '· 不确定的信息不要编，直接说不知道或建议他用命令查。',
-    '· 他问某条作业的「要求」时，用上面「要求：」后面的内容回答；那条没有「要求：」就直说"这条学校没写要求"。',
+    '· 他问某条作业的「要求」时，**必须先把「要求：」后面的原文照转述出来**（哪怕只是',
+    '  一个文件名或一句英文），然后再说"学校只给了这些"。**绝不能说"我看不到要求"** ——',
+    '  那等于否认你已经拿到的数据。那条没有「要求：」才说"这条学校没填要求"。',
     '· 不要声称已经替他完成了某个动作（标记完成、打开网页等）——你没有那些权限。',
     '· 不要输出任何密钥、token、密码。',
   );
@@ -135,11 +139,66 @@ export function buildSystemPrompt({
   return lines.join('\n');
 }
 
-/** 修剪历史：只留最近 N 轮，总字符超限时从最旧开始丢 */
-export function trimHistory(history, { keepTurns = KEEP_HISTORY_TURNS, maxChars = MAX_HISTORY_CHARS } = {}) {
-  const list = (history ?? []).filter(
-    (entry) => entry && (entry.role === 'user' || entry.role === 'assistant') && typeof entry.content === 'string',
-  );
+/** 历史保留时长：超过这个年龄的对话不再注入（事实早就变了，留着只会误导模型） */
+export const MAX_HISTORY_AGE_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * 只生成「最新事实」块（不含人设与规则）。
+ *
+ * 为什么单独抽出来：小模型会**锚定在历史里自己说过的话**。
+ * 实测：上一轮它答过"我看不到要求"，下一轮即使 system prompt 里有「要求：…」，
+ * 它仍重复"我没有要求内容"。
+ * 解法是把事实**重新注入到紧贴用户提问的位置**（作为最后一条 system），
+ * 并显式声明"与历史冲突时以此为准" —— 这比只加强 system prompt 有效得多。
+ */
+export function buildFactsBlock({
+  items = [],
+  now = new Date(),
+  timeZone = 'UTC',
+  upcomingLimit = 8,
+} = {}) {
+  const upcoming = pickUpcoming(items, { now, limit: upcomingLimit });
+  const lines = ['【最新事实 · 与历史对话冲突时以此为准】', '最近的未完成截止：'];
+
+  if (upcoming.length === 0) {
+    lines.push('  （暂无）');
+  } else {
+    for (const item of upcoming) {
+      const course = item.course ? `（${item.course}）` : '';
+      lines.push(`  · ${dueText(item.dueAt, timeZone)}  ${item.title}${course}`);
+      if (item.description) {
+        const text =
+          item.description.length > DESC_IN_PROMPT_CHARS
+            ? `${item.description.slice(0, DESC_IN_PROMPT_CHARS)}…`
+            : item.description;
+        lines.push(`      要求：${text.replace(/\n+/g, ' ')}`);
+      }
+    }
+  }
+  return lines.join('\n');
+}
+
+/**
+ * 修剪历史：按轮数、年龄、总字符三个维度收敛。
+ *
+ * 加"年龄"是因为实测踩到：早上问「OPCA 要求是啥」我答"看不到"，
+ * 中午数据已经补全后，历史里那句旧结论让模型继续复读"没有记录"。
+ * 带时间戳的条目超过 MAX_HISTORY_AGE_MS 直接丢弃。
+ */
+export function trimHistory(
+  history,
+  { keepTurns = KEEP_HISTORY_TURNS, maxChars = MAX_HISTORY_CHARS, maxAgeMs = MAX_HISTORY_AGE_MS, now = Date.now() } = {},
+) {
+  const nowMs = now instanceof Date ? now.getTime() : Number(now);
+  const list = (history ?? []).filter((entry) => {
+    if (!entry || (entry.role !== 'user' && entry.role !== 'assistant')) return false;
+    if (typeof entry.content !== 'string') return false;
+    if (!Number.isFinite(maxAgeMs) || maxAgeMs <= 0) return true;
+    const at = entry.at ? Date.parse(entry.at) : NaN;
+    if (!Number.isFinite(at)) return true; // 没有时间戳的历史不因此丢弃（向后兼容）
+    return nowMs - at <= maxAgeMs;
+  });
+
   let trimmed = list.slice(-keepTurns * 2);
 
   const total = (arr) => arr.reduce((sum, entry) => sum + entry.content.length, 0);

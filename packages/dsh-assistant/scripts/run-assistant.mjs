@@ -46,8 +46,9 @@ import {
 import { startApiServer } from '../src/http/api.js';
 import { actOnBrowser, snapshotBrowser } from '../src/browser/client.js';
 import { attemptAutoRecover, shouldAttemptRecovery } from '../src/session/recover.js';
+import { attemptPasswordLogin, shouldAttemptLogin } from '../src/session/login.js';
 import { decideSession, shouldCheck } from '../src/session/decide.js';
-import { buildMessages, buildSystemPrompt, trimHistory } from '../src/chat/prompt.js';
+import { buildFactsBlock, buildMessages, buildSystemPrompt, trimHistory } from '../src/chat/prompt.js';
 import { chatCompletion, DEFAULT_CHAT_BASE_URL, DEFAULT_CHAT_MODEL } from '../src/chat/llm.js';
 import { STALE_OVERRIDE_REASON, planStaleDrops } from '../src/items.js';
 import { syncAllCourses } from '../src/sources/classpipe-sync.js';
@@ -93,6 +94,24 @@ const browserBase = String(flag('browser-base', process.env.DSH_BROWSER_BASE ?? 
 const sessionCheckMinutes = Number(flag('session-check-minutes', 15));
 // 会话自愈：先点按钮试着自己恢复（绝不输密码/验证码）；--no-auto-recover 可关
 const autoRecoverEnabled = flag('no-auto-recover', false) !== true;
+
+/**
+ * Outlook 登录凭据（维护者 2026-11-04 授权填写）。
+ * 存在 /data/outlook.json（600，仓库外）；**绝不写日志、绝不进 state**。
+ */
+function loadOutlookCreds() {
+  const path = String(flag('outlook-config', join(dirname(statePath), 'outlook.json')));
+  if (!existsSync(path)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    if (parsed?.email && parsed?.password) return { email: parsed.email, password: parsed.password };
+  } catch (error) {
+    logError(`outlook.json 解析失败（不会尝试自动登录）：${error.message}`);
+  }
+  return null;
+}
+
+const outlookCreds = loadOutlookCreds();
 // assistant 侧 HTTP：供 tg 网关查询/回写（Docker 内监听 0.0.0.0，不 publish 到公网）
 const apiPort = Number(flag('api-port', 8787));
 const apiHost = String(flag('api-host', '0.0.0.0'));
@@ -649,6 +668,12 @@ async function handleChat(text) {
   });
   const history = state.chat?.history ?? [];
   const messages = buildMessages({ systemPrompt, history, userText: text });
+  // 把最新事实再贴近问一次：小模型会锚定历史里自己说错的话（实测踩到），
+  // 放在最后一条 system 里比只加强 system prompt 有效得多。
+  messages.splice(messages.length - 1, 0, {
+    role: 'system',
+    content: buildFactsBlock({ items: state.items, now, timeZone }),
+  });
 
   const result = await chatCompletion({
     apiKey: llm.apiKey,
@@ -718,6 +743,29 @@ async function checkBrowserSession(now, { force = false } = {}) {
       finalSnap = recovered.final ?? finalSnap;
       state.session = { ...(state.session ?? {}), autoRecoverAt: now.toISOString() };
       if (recovered.recovered) log('会话已自动恢复，不打扰维护者');
+    }
+
+    // 光点按钮不够（被登出后是"无表单"页面，密码管理器不会自动填充）
+    // → 用维护者授权的账号密码走一遍登录表单。**验证码一律不填**，遇到 2FA 就停手。
+    if (finalSnap.needsUser && outlookCreds && shouldAttemptLogin(finalSnap.reason)) {
+      log(`尝试用保存的凭据登录（${finalSnap.reason ?? 'unknown'}）…`);
+      const login = await attemptPasswordLogin({
+        creds: outlookCreds,
+        open: (url) => browserAct('open', { url }),
+        snapshot: () => snapshotBrowser({ baseUrl: browserBase, token: apiToken }),
+        type: (selector, text) => browserAct('type', { selector, text }),
+        click: (selector) => browserAct('click', { selector }),
+        log: (m) => log(m),
+      });
+      // 只记录步骤（已脱敏），绝不记录密码
+      log(`登录尝试：${login.steps.join(' → ')}`);
+      if (login.ok) {
+        finalSnap = await snapshotBrowser({ baseUrl: browserBase, token: apiToken });
+        log('用保存的凭据登录成功');
+      } else if (login.reason === 'mfa_required' || login.reason === 'captcha') {
+        finalSnap = { ...finalSnap, needsUser: true, reason: login.reason };
+        log(`登录卡在二次验证（${login.reason}），需要人处理`);
+      }
     }
   }
 
@@ -832,6 +880,12 @@ async function main() {
           : '对话=未启用（缺 LLM 凭据：/data/llm.json 或 DSH_ASSISTANT_LLM_API_KEY）',
       );
       log(`API 已启动 http://${apiHost}:${api.port}${apiToken ? '（需 x-dsh-token）' : '（⚠️ 未设 token）'}`);
+      // 只说明"有没有凭据"，绝不打印账号/密码
+      log(
+        outlookCreds
+          ? `自动登录=已启用（有保存的账号凭据；2FA 仍由人处理）`
+          : '自动登录=未启用（缺 /data/outlook.json）',
+      );
     } catch (error) {
       logError(`API 启动失败（不影响数据管线）：${error.message}`);
     }
