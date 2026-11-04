@@ -48,6 +48,9 @@ export async function main() {
     maxActionTimeoutMs: config.maxActionTimeoutMs,
     connectTimeoutMs: config.connectTimeoutMs,
     settleMs: config.settleMs,
+    evalTimeoutMs: config.evalTimeoutMs,
+    maxEvalTimeoutMs: config.maxEvalTimeoutMs,
+    evalResultMaxBytes: config.evalResultMaxBytes,
     logger,
   });
   const pending = createPendingRegistry();
@@ -58,6 +61,7 @@ export async function main() {
     pending,
     logger,
     snapshotMaxChars: config.snapshotMaxChars,
+    evalScriptMaxBytes: config.evalScriptMaxBytes,
     publicVncUrl: config.publicVncUrl,
   });
 

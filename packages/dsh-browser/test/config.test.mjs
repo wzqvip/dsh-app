@@ -111,3 +111,45 @@ test('loadConfig：tokenSource 只报出处，不报内容', () => {
   assert.equal(config.tokenSource, 'env SHARED_TOKEN');
   assert.ok(!JSON.stringify({ ...config, token: '' }).includes(SECRET));
 });
+
+test('loadConfig：/eval 的默认值（10s 超时 / 30s 上限 / 脚本 200KB / 结果 64KB）', () => {
+  const config = loadConfig({ env: env(), readFile: fakeFiles({}) });
+  assert.equal(config.evalTimeoutMs, 10_000);
+  assert.equal(config.maxEvalTimeoutMs, 30_000);
+  assert.equal(config.evalScriptMaxBytes, 200 * 1024);
+  assert.equal(config.evalResultMaxBytes, 64 * 1024);
+});
+
+test('loadConfig：/eval 参数可调，且默认超时不能越过上限', () => {
+  const config = loadConfig({
+    env: env({
+      EVAL_TIMEOUT_MS: '3000',
+      EVAL_MAX_TIMEOUT_MS: '20000',
+      EVAL_SCRIPT_MAX_BYTES: '4096',
+      EVAL_RESULT_MAX_BYTES: '2048',
+    }),
+    readFile: fakeFiles({}),
+  });
+  assert.equal(config.evalTimeoutMs, 3_000);
+  assert.equal(config.maxEvalTimeoutMs, 20_000);
+  assert.equal(config.evalScriptMaxBytes, 4_096);
+  assert.equal(config.evalResultMaxBytes, 2_048);
+
+  // 默认超时越过上限要早失败，而不是跑起来才发现
+  assert.throws(
+    () =>
+      loadConfig({
+        env: env({ EVAL_TIMEOUT_MS: '60000', EVAL_MAX_TIMEOUT_MS: '10000' }),
+        readFile: fakeFiles({}),
+      }),
+    /EVAL_TIMEOUT_MS/,
+  );
+  assert.throws(
+    () => loadConfig({ env: env({ EVAL_SCRIPT_MAX_BYTES: '10' }), readFile: fakeFiles({}) }),
+    /EVAL_SCRIPT_MAX_BYTES/,
+  );
+  assert.throws(
+    () => loadConfig({ env: env({ EVAL_RESULT_MAX_BYTES: '9999999' }), readFile: fakeFiles({}) }),
+    /EVAL_RESULT_MAX_BYTES/,
+  );
+});

@@ -30,8 +30,13 @@ docker compose logs -f
 | POST | `/open` | `{url}` → 打开页面 |
 | POST | `/snapshot` | `{}` → 可见文本 + `needsUser` / `reason` |
 | POST | `/act` | `{action,selector,text?,timeoutMs?}`，action ∈ click / type / waitFor |
+| POST | `/eval` | `{script,timeoutMs?}` → 在页面里执行 JS（Canvas 技能靠它；脚本报错返回 200 + `ok:false`） |
 | POST | `/askuser` | `{reason,instructions,vncUrl}` → 记一条"要人"请求 |
 | POST | `/resume` | 人做完了 → 清掉"要人"状态 |
+
+> ⚠️ `/eval` 让 agent 能在**已登录的页面**里执行任意 JS，等于该站点账号的网页权限。
+> "绝不碰密码"从能力限制变成纪律约束 —— 细节与边界见
+> [docs/BROWSER-SERVICE.md §10](../../docs/BROWSER-SERVICE.md#10-安全边界必读)。
 
 除 `/health` 外都要请求头 `x-dsh-token`，值与 assistant/tg 共用：
 `~/dsh-assistant/data/token.txt`（只读挂进容器）。
@@ -53,8 +58,9 @@ src/classify.js   needsUser 判定（纯函数，单测重点）
 src/pending.js    /askuser → /resume 的内存状态机
 src/http.js       HTTP 路由 + 鉴权（browser 适配器注入，便于测试）
 src/browser.js    playwright-core connectOverCDP 适配器
+src/eval-script.js /eval 的「页面内执行 + 序列化」包装（不依赖 Playwright，可单测）
 src/config.js     配置装载（token 只从文件/env 读，绝不硬编码）
-docker/entrypoint.sh  Xvfb + x11vnc + noVNC + chromium 启动顺序
+docker/entrypoint.sh  Xvfb + x11vnc + noVNC + chromium 启动顺序（含崩溃退避）
 Dockerfile            Debian + 发行版 chromium（**不下载** Playwright 浏览器）
 docker-compose.yml    单容器，只发布 noVNC 一个端口
 ```

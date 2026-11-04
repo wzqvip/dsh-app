@@ -5,6 +5,7 @@
  *   POST /open    {url}              → 打开页面
  *   POST /snapshot {}                → 可见文本 + needsUser/reason
  *   POST /act     {action,selector,text?,timeoutMs?}
+ *   POST /eval    {script,timeoutMs?} → 在页面里执行 JS（脚本报错返回 200 + ok:false）
  *   POST /askuser {reason,instructions,vncUrl} → 记一条"要人"请求
  *   POST /resume                     → 人做完了，清掉
  *
@@ -25,7 +26,9 @@ const JSON_HEADERS = Object.freeze({
   'cache-control': 'no-store',
 });
 
-const MAX_BODY_BYTES = 64 * 1024;
+// 请求体上限。必须**大于** /eval 的脚本上限（默认 200KB），
+// 因为 JSON 转义后还会膨胀（换行/引号/中文），这里留到 512KB。
+const MAX_BODY_BYTES = 512 * 1024;
 const ACTIONS = Object.freeze(['click', 'type', 'waitFor']);
 
 function sendJson(res, status, body) {
@@ -90,6 +93,7 @@ function isHttpUrl(value) {
  * @param {object} [deps.pending]          createPendingRegistry() 的返回值
  * @param {Function} [deps.logger]         (level, message, extra) => void
  * @param {number} [deps.snapshotMaxChars] /snapshot 文本上限
+ * @param {number} [deps.evalScriptMaxBytes] /eval 脚本上限（字节）
  * @param {string} [deps.publicVncUrl]     维护者打开 noVNC 的地址（可空）
  * @param {Function} [deps.now]            () => epoch ms
  */
@@ -99,6 +103,7 @@ export function createRequestHandler({
   pending,
   logger = () => {},
   snapshotMaxChars = 48_000,
+  evalScriptMaxBytes = 200 * 1024,
   publicVncUrl = '',
   now = () => Date.now(),
 } = {}) {
@@ -165,10 +170,13 @@ export function createRequestHandler({
     }
     touch();
     const result = await browser.open(url);
+    const finalUrl = result?.finalUrl ?? url;
     return sendJson(res, 200, {
       ok: result?.ok !== false,
+      // finalUrl 与 url 是同一个值：前者是历史字段，后者让每个接口都有统一的 url
       title: result?.title ?? '',
-      finalUrl: result?.finalUrl ?? url,
+      finalUrl,
+      url: finalUrl,
       timedOut: result?.timedOut === true,
       httpStatus: result?.httpStatus ?? null,
     });
@@ -226,7 +234,72 @@ export function createRequestHandler({
       text: body?.text,
       timeoutMs,
     });
-    return sendJson(res, 200, { ok: result?.ok !== false, action, selector });
+    return sendJson(res, 200, { ok: result?.ok !== false, action, selector, url: result?.url ?? null });
+  }
+
+  /**
+   * POST /eval —— 在页面里执行一段 JS（Canvas 技能那类流程全靠它）。
+   *
+   * 状态码约定（和 /act 有意不同，别改）：
+   *   - 脚本报错 / 不可序列化 / 超时 → **200** + ok:false + `code`
+   *     上层要能区分"页面里的脚本挂了"和"服务挂了"
+   *   - 请求本身不合法（缺 script、太长、timeoutMs 非法）→ 400
+   *   - 浏览器不可用 → 503（由外层 catch 按 error.status 处理）
+   */
+  async function handleEval(req, res) {
+    const body = await readJsonBody(req);
+    if (typeof body?.script !== 'string' || body.script.trim() === '') {
+      return sendJson(res, 400, { ok: false, error: 'script 必须是非空字符串', code: 'bad_request' });
+    }
+    const script = body.script;
+    const scriptBytes = Buffer.byteLength(script, 'utf8');
+    if (scriptBytes > evalScriptMaxBytes) {
+      return sendJson(res, 400, {
+        ok: false,
+        error: `script 过长（${scriptBytes} 字节 > 上限 ${evalScriptMaxBytes} 字节）`,
+        code: 'bad_request',
+        scriptBytes,
+      });
+    }
+    const timeoutMs = body?.timeoutMs === undefined ? undefined : Number(body.timeoutMs);
+    if (timeoutMs !== undefined && (!Number.isFinite(timeoutMs) || timeoutMs <= 0)) {
+      return sendJson(res, 400, { ok: false, error: 'timeoutMs 必须是正数', code: 'bad_request' });
+    }
+
+    touch();
+    const startedAt = now();
+    const result = (await browser.evaluate({ script, timeoutMs })) ?? {};
+    const durationMs = result.durationMs ?? now() - startedAt;
+
+    // ⚠️ 日志里只记长度/耗时/结果码：脚本内容可能很长、可能含个人信息
+    logger('info', 'eval', {
+      scriptBytes,
+      timeoutMs: timeoutMs ?? null,
+      durationMs,
+      ok: result.ok === true,
+      code: result.code ?? null,
+      truncated: result.truncated === true,
+    });
+
+    if (result.ok !== true) {
+      return sendJson(res, 200, {
+        ok: false,
+        code: result.code ?? 'script_error',
+        error: result.error ?? '脚本执行失败',
+        ...(result.stack ? { stack: result.stack } : {}),
+        durationMs,
+        url: result.url ?? null,
+      });
+    }
+
+    return sendJson(res, 200, {
+      ok: true,
+      result: result.result ?? null,
+      ...(result.undefinedResult ? { undefinedResult: true } : {}),
+      ...(result.truncated ? { truncated: true, resultBytes: result.resultBytes ?? null } : {}),
+      durationMs,
+      url: result.url ?? null,
+    });
   }
 
   async function handleAskUser(req, res) {
@@ -269,6 +342,7 @@ export function createRequestHandler({
       if (req.method === 'POST' && path === '/open') return await handleOpen(req, res);
       if (req.method === 'POST' && path === '/snapshot') return await handleSnapshot(res);
       if (req.method === 'POST' && path === '/act') return await handleAct(req, res);
+      if (req.method === 'POST' && path === '/eval') return await handleEval(req, res);
       if (req.method === 'POST' && path === '/askuser') return await handleAskUser(req, res);
       if (req.method === 'POST' && path === '/resume') return await handleResume(res);
 

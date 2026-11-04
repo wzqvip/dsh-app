@@ -23,7 +23,12 @@
 
 **它不做的事**（都是刻意的）：
 
-- ❌ 不接触密码、不碰 2FA、不存任何凭据 → 服务里根本没有"输入密码"的入口
+- ❌ 不主动接触密码、不碰 2FA、不存任何凭据 → 服务**没有**"输入密码"的专用接口，
+  登录只能由人在 noVNC 里做
+  - ⚠️ **`POST /eval` 之后这条要说得更准确**：agent 拿到页面 JS 执行权，
+    *技术上*可以往任何输入框写值（包括 password 框）。真正的边界变成两条：
+    ① **agent 不知道密码**（只有维护者知道，也从没被喂给模型）；
+    ② 技能/政策的约束（见 §10）。有能力 ≠ 该用，别把这件事交给运气。
 - ❌ 不用无头浏览器。登录、过验证码都需要**看到屏幕**
 - ❌ 不下载 Playwright 自带的 Chromium：人和 agent 必须看同一个浏览器
 - ❌ 不把 API 发布到宿主机（只走 `dsh-net` 服务名 `dsh-browser:8789`）
@@ -97,18 +102,23 @@ docker compose logs -f
 
 ## 4. noVNC：维护者怎么进去
 
-### 4.1 三种访问方式（默认是第 1 种）
+### 4.1 绑定范围与三种访问方式
 
-| 方式 | compose 里 `ports:` 改成 | 维护者打开 |
+绑定地址由 `.env` 里的 **`VNC_BIND`** 控制（compose 里是 `${VNC_BIND:-0.0.0.0}:16080:6080`），
+改完 `docker compose up -d` 生效：
+
+| 方式 | `.env` 里的 `VNC_BIND` | 维护者打开 |
 |---|---|---|
-| **局域网（默认）** | `"16080:6080"`（= `0.0.0.0`） | `http://192.168.3.30:16080/vnc.html?autoconnect=1&resize=scale` |
-| **Tailscale（更严）** | `"100.121.250.110:16080:6080"` | `http://100.121.250.110:16080/vnc.html?autoconnect=1&resize=scale` |
-| **SSH 隧道（最严）** | `"127.0.0.1:16080:6080"` | 先 `ssh -N -L 16080:127.0.0.1:16080 192.168.3.30`，再开 `http://127.0.0.1:16080/vnc.html` |
+| **只绑局域网网卡（生产用）** | `192.168.3.30` | `http://192.168.3.30:16080/vnc.html?autoconnect=1&resize=scale` |
+| 所有网卡（默认值） | `0.0.0.0` | 同上，但**连 WSL / VMware / docker 网桥也一起暴露** |
+| Tailscale（更严） | `100.121.250.110` | `http://100.121.250.110:16080/vnc.html?autoconnect=1&resize=scale` |
+| SSH 隧道（最严） | `127.0.0.1` | 先 `ssh -N -L 16080:127.0.0.1:16080 192.168.3.30`，再开 `http://127.0.0.1:16080/vnc.html` |
 
-- **绑定范围**：默认 `0.0.0.0:16080` 意味着**同局域网可达**（这台机器在 NAT 后面，
-  没有公网端口映射，也**不要**给它加）。要收紧就按上表改一行再
-  `docker compose up -d`。改前请确认目标地址真的存在（Tailscale 退出登录后，
-  绑它的 IP 会让容器**起不来**：`cannot assign requested address`）。
+- **生产只绑局域网网卡**（`VNC_BIND=192.168.3.30`）。这台机器在 NAT 后面，没有公网端口映射，
+  也**不要**给它加。`0.0.0.0` 是兜底默认值，代价是 docker/WSL/VMware 那些虚拟网卡也能进来
+  （2026-11-04 维护者按此收紧并写进了 `.env.example`）。
+- 改前请确认目标地址真的存在：Tailscale 退出登录后绑它的 IP，容器会**起不来**
+  （`cannot assign requested address`）。
 - **密码**：`VNC_PASSWORD`（x11vnc 的 RFB 密码，**≤8 字符**）—— noVNC 页面会提示输入。
   这就是主门槛：页面本身能打开，但**连不上 VNC**（实测：无凭据的 WS 握手返回 401）。
 - **`NOVNC_BASIC_AUTH=用户名:密码` 默认不推荐开**。实测（2026-11-03）websockify 的
@@ -152,6 +162,33 @@ docker compose logs -f
 鉴权：除 `GET /health` 外，所有请求必须带 `x-dsh-token: <token.txt 的内容>`。
 不匹配 → `401 {"ok":false,"error":"unauthorized"}`。
 
+### 5.0 页面语义：只有一个受管页（**先读这个**）
+
+> 2026-11-04 出过一次很严重的 bug：`/open` 与 `/snapshot` 落到了不同标签，
+> Canvas 登录脚本读到的却是 Outlook 页面 → 误判"已登录"，Duo 都没触发。
+> 根因是选页策略当时是"取 `context.pages()` 的**最后一个**"，
+> 页面被关掉或服务重连时会静默换页。现在的语义是明确的：
+
+1. **一个受管页**：`/open` 永远在同一个 page 上 `goto`，**不新开标签**；
+   `/snapshot` `/act` `/eval` 都作用在同一页。
+2. **所有响应都回 `url`**，调用方应校验它（`canvas-login.mjs` 就是这么做的）：
+   `/open`（`url` 与 `finalUrl` 同值）、`/snapshot`、`/act`、`/eval`、`/health.page`。
+3. **选页策略**（`src/page-select.js`，有单测）：
+   - 优先用**带标记的页**：受管页的 `window.name` 会被写成 `dsh-browser-managed`，
+     服务重连 / 容器重启后靠它找回同一页，而不是靠"第几个标签"
+   - **刚连上**浏览器时，如果只有**一个**标签 → 采用它（那通常就是 entrypoint 用
+     `START_URL` 开出来、维护者登录用的那一页，不必多开）
+   - 其它情况（多标签、或受管页被关掉后只剩别人的标签）→ **新建**一个受管页，
+     **绝不**劫持维护者的标签
+4. **受管页被关掉 / 浏览器重启**：下一次调用会重新认页 —— 浏览器重启后按上一条"刚连上"处理；
+   只是受管页被关（浏览器还在）则**直接新建**，不会顺手接管人仅剩的那个标签
+   （这一点实测踩过：第一版实现会接管，已修）。**不会再静默读到别的标签**。
+5. 已知限制：`/open` 导航时如果站点自己 `window.open` 出弹窗（某些 SSO），
+   那个弹窗不是受管页，服务不会自动切过去；需要的话得显式 `/open`。
+
+> 调用方的正确姿势：**永远看响应里的 `url`**，别假设"我刚 open 过，
+> 所以 snapshot 一定是那个站"。域名校验是最后一道防线，不是多余。
+
 ### 5.1 `GET /health`（免鉴权）
 
 ```json
@@ -184,9 +221,12 @@ docker compose logs -f
 
 ```json
 { "url": "https://outlook.office.com/mail/" }
-→ { "ok": true, "title": "Mail - …", "finalUrl": "https://outlook.office.com/mail/inbox", "timedOut": false, "httpStatus": 200 }
+→ { "ok": true, "title": "Mail - …", "finalUrl": "https://outlook.office.com/mail/inbox",
+    "url": "https://outlook.office.com/mail/inbox", "timedOut": false, "httpStatus": 200 }
 ```
 
+- 在**受管页**上 `goto`（不新开标签，见 §5.0）；SSO 中转后 `url`/`finalUrl` 是**重定向后**的地址
+- `url` 与 `finalUrl` 同值（后者是历史字段，保留兼容）
 - 只接受 `http(s)` 绝对地址，其它 → 400
 - 等 `domcontentloaded`（默认 30s，`OPEN_TIMEOUT_MS`），超时返回 `timedOut:true` 但 **`ok` 仍为 true**
   ——接着 `/snapshot` 才能判断到底是不是登录页
@@ -223,9 +263,10 @@ docker compose logs -f
 { "action": "click",   "selector": "a[href*='inbox']" }
 { "action": "type",    "selector": "input[name='loginfmt']", "text": "…", "timeoutMs": 10000 }
 { "action": "waitFor", "selector": "#MailList", "timeoutMs": 20000 }
-→ { "ok": true, "action": "click", "selector": "…" }
+→ { "ok": true, "action": "click", "selector": "…", "url": "https://outlook.cloud.microsoft/mail/" }
 ```
 
+- 响应里的 `url` 是**动作执行后**受管页的地址（点击可能触发跳转），调用方可据此校验
 - `selector` 用 **Playwright 选择器语法**：CSS（`#id`、`a[href*=x]`）默认；
   也支持 `text=Sign in`、`role=button[name="Sign in"]`、`xpath=//…`
 - `action=type` 时 `text` 必填（可为空字符串 = 清空）；先 `click` 再 `fill`，
@@ -235,7 +276,71 @@ docker compose logs -f
 - ⚠️ **选择器依赖真实页面**：本服务只提供机制，具体文本框/按钮的 selector
   必须对着真实 Outlook/Canvas 页面验一次（见 §9）
 
-### 5.5 `POST /askuser` 与 `POST /resume`
+### 5.5 `POST /eval`（在页面里执行 JS）
+
+Canvas 技能（`packages/dsh-assistant/skills/canvas-quiz/`）的每一步都靠它：
+读题干结构、按 `input[name]` 分组批量勾选、提取 `media_attachments_iframe` 里的 mediaId、
+两步提交。没有它就只剩 click/type/waitFor，逐题点会慢到不可用。
+
+```json
+{ "script": "(() => ({ title: document.title }))()", "timeoutMs": 10000 }
+→ { "ok": true, "result": { "title": "Example Domain" }, "durationMs": 42, "url": "https://example.com/" }
+
+{ "script": "throw new Error('x')" }
+→ { "ok": false, "code": "script_error", "error": "x", "stack": "Error: x\n…", "durationMs": 3,
+    "url": "https://example.com/" }
+```
+
+> 成功和失败都会回 `url`（受管页地址），调用方可以顺手校验"脚本跑在我以为的那一页"。
+
+**执行模型**
+
+- `script` 在**受管页的主帧上下文**里执行（`new Function` + 页面 `eval` 语义），
+  所以能读到、改到该页面自己的 DOM / 变量 —— 这正是需要的
+- 先按**表达式**构造（`return (script)`）：`document.title`、`(() => …)()`、
+  `Array.from(document.querySelectorAll('input[name]')).length`
+- 表达式语法不合法时自动退回**语句块**：`throw new Error('x')`、`const a = 1; a + 1`
+  ⚠️ 只做"构造"不做"试跑"，同一段脚本**绝不会执行两遍**
+- 返回 Promise 会 `await`；返回函数会自动调用一次（所以 `() => 1` 也能直接用）
+- 结果用**页面里的** `JSON.stringify` 序列化；`undefined` → `result:null` + `undefinedResult:true`
+
+**边界（都是硬上限，改不了就报错）**
+
+| 项 | 默认 | 环境变量 | 超了会怎样 |
+|---|---|---|---|
+| 脚本大小 | 200 KB | `EVAL_SCRIPT_MAX_BYTES` | 400 `script 过长`（带 `scriptBytes`） |
+| 执行超时 | 10 s | `EVAL_TIMEOUT_MS` | 200 + `ok:false, code:"timeout"` |
+| 超时上限 | 30 s | `EVAL_MAX_TIMEOUT_MS` | 传入更大的 `timeoutMs` 会被夹到上限 |
+| 结果大小 | 64 KB（序列化后） | `EVAL_RESULT_MAX_BYTES` | 200 + `truncated:true`，`result` 是**JSON 前缀字符串**（不可再解析） |
+
+**状态码约定（和 `/act` 不同，别混）**
+
+| 情况 | HTTP | 身体 |
+|---|---|---|
+| 成功 | 200 | `{ok:true, result, durationMs, url}` |
+| 脚本抛错 / 语法错 | **200** | `{ok:false, code:"script_error", error, stack?, url}` |
+| 结果不可序列化（循环引用/BigInt/Symbol） | **200** | `{ok:false, code:"not_serializable", error, url}` |
+| 超时 | **200** | `{ok:false, code:"timeout", error, url}` |
+| 请求不合法（缺 script/太长/timeoutMs 非法） | 400 | `{ok:false, code:"bad_request", error}` |
+| 浏览器不可用 | 503 | `{ok:false, code:"browser_unavailable"}` |
+
+> 为什么脚本报错是 200：上层要能区分「页面里的脚本挂了（改脚本重试）」和
+> 「服务挂了（等会儿重试）」。用 500 会把两者混在一起。
+
+**安全边界（当前策略：可用优先，不做内容审查）**
+
+- JS 只能碰到**这个页面自己**的东西；拿不到 Node 进程、读不了服务端文件
+- 刻意**没有**做"脚本里出现 `fetch(` / `localStorage` 就拒绝"这类过滤 ——
+  先保证技能能跑，策略以后再收紧（见任务记录）
+- 日志只记 `scriptBytes` / `durationMs` / `ok` / `code`，**不打印脚本内容**
+  （脚本可能很长、可能含个人信息）
+- ⚠️ 页面内的**同步死循环**无法被中断：页面里的定时器不会触发，只能靠 Node 侧硬超时
+  放弃等待，此时页面已不可用 —— 需要 `/open` 重新加载。异步挂起（`await` 不返回）
+  则会按 `timeoutMs` 正常超时，页面不受影响
+- ⚠️ 只在**主帧**执行。跨域 iframe（比如 Canvas 的 `media_attachments_iframe` 内部）
+  读不到；需要 iframe 内执行的话得另加能力（本期没做）
+
+### 5.6 `POST /askuser` 与 `POST /resume`
 
 ```json
 POST /askuser { "reason": "login_required", "instructions": "请在 noVNC 里登录学校邮箱", "vncUrl": "http://…" }
@@ -250,7 +355,7 @@ POST /resume {}
 - `<pending>` 只存内存：容器重启后为空，但 `/snapshot` 随时能重新给出 `needsUser`
   ——**不要**把它当持久队列
 
-### 5.6 典型调用序列（assistant 侧）
+### 5.7 典型调用序列（assistant 侧）
 
 ```
 open(收件箱 URL)
@@ -258,6 +363,10 @@ open(收件箱 URL)
        ├─ askuser(reason, instructions, vncUrl)      # 记录
        ├─ （经 dsh-tg 推送 Telegram）                  # Lead/tg-agent 的地盘
        └─ 等维护者说"好了" → resume → snapshot 重试
+
+Canvas 作业页（已登录，不需要人）
+  └─ open(作业页) → eval(读题干/媒体列表) → snapshot 校对
+       → act(click 提交) 或 eval(按 name 分组批量勾选) → 再 eval 校验
 ```
 
 ## 6. "需要人"的判定（`src/classify.js`）
@@ -338,8 +447,10 @@ docker compose exec browser node -e "
 | 宿主机上 `curl 127.0.0.1:8789` 连不上 | **8789 故意不发布**。调试请 `docker compose exec` 进容器打（§7），容器间用 `http://dsh-browser:8789` |
 | `/snapshot` 一直 `blocked` + `empty_text` | 页面还没渲染完或有反爬挑战；先人工在 noVNC 里打开看一眼 |
 | 登录后仍报 `login_required` | 看 `finalUrl`：可能被重定向回登录页（会话没保存）→ 确认 `./profile` 挂载正常且容器以 1001 运行 |
-| 容器起不来：`cannot assign requested address` | `ports:` 绑了一个本机没有的 IP（常见：Tailscale 退出登录）。改回 `0.0.0.0:16080:6080` 或先登录 Tailscale |
+| 容器起不来：`cannot assign requested address` | `ports:` 绑了本机没有的 IP（`VNC_BIND` 指向的网卡不存在，常见：Tailscale 退出登录）。改回 `VNC_BIND=0.0.0.0` 或先登录 Tailscale |
 | 容器起不来：`VNC_PASSWORD` 未设置 | compose 用了 `${VNC_PASSWORD:?…}`；`cp .env.example .env` 并填值 |
+| `/eval` 超时，之后 `/snapshot` 也卡住 | 脚本里有**同步死循环**（页面里的定时器永远不会触发）。只能 `/open` 重新加载页面。异步 `await` 不返回的情况会正常按 `timeoutMs` 超时，页面不受影响 |
+| 日志刷 `Chromium 退出（连续第 N 次，本次运行 Xs），D 秒后重启` 且 D 越来越大 | 这正是 2026-11-04 那次事故的现场（17 万次崩溃 → 9.5 万僵尸 → 宿主 fork 耗尽）。退避是**故意**的：把"每 2 秒造一次进程"压到 60 秒一次，给看门狗留反应时间。配合 `docs/HOST-WATCHDOG.md` 的 "近 10 分钟 traps 计数" 告警查根因 |
 
 ## 9. 没验证到 / 需要真实页面才能定的部分
 
@@ -356,8 +467,17 @@ docker compose exec browser node -e "
    但没有做过针对性的反检测验证；学校若有严格风控，可能需要人工介入更频繁。
 5. **noVNC 的 TLS**：默认是 `http://`。经局域网/SSH 隧道够用，
    但如果要经公网访问，**必须**自己加 TLS 反向代理（不要直接暴露 16080）。
-6. **多标签页**：服务用"最后一个打开的标签页"。若人在 noVNC 里手动切到别的标签，
-   agent 也会跟着切过去 —— 并发操作没有互斥。**不要一边人工登录一边让 agent 跑**。
+6. **多标签页**：服务只操作**一个受管页**（§5.0）。人在 noVNC 里另开的标签不会被劫持，
+   但也**不会**被 agent 读到 —— 想让 agent 看某页，必须用 `/open`。并发仍然没有互斥：
+   **不要一边人工登录一边让 agent 跑**（同一个受管页，会互相打断）。
+7. **`/eval` 只在主帧**：跨域 iframe（Canvas 的 `media_attachments_iframe` 内部）读不到。
+   如果某个技能必须在 iframe 里执行 JS，需要另加能力（本期没做）。
+8. **`/eval` 的策略**：目前**不做**内容审查（不拦 `fetch`/`localStorage` 等），
+   只限制大小、超时与结果体积。这是刻意的取舍（先可用），
+   但意味着"agent 能在这个页面里做页面本身能做的一切"——见 §10。
+9. **Canvas 技能本身**：`packages/dsh-assistant/skills/canvas-quiz/` 的完整流程
+   （读题干 → 按指纹选题 → 批量勾选 → 两步提交）是 Lead 写的，本服务只提供了
+   它需要的 `/eval` 原语；端到端跑一遍真实 quiz 还没做过。
 
 ## 10. 安全边界（必读）
 
@@ -365,7 +485,16 @@ docker compose exec browser node -e "
   不打包进镜像（`.dockerignore`）、不放共享目录。
 - API 只在 `dsh-net` 内可达，鉴权用与 assistant/tg 共享的 token；
   拿到 token 就能读**你登录后的所有页面**，所以 token 按密码对待。
-- noVNC 端口只发布一个，且有两层密码（VNC + 可选 HTTP Basic）。
-  绑 `0.0.0.0` 时同局域网可达 —— 房间/网络不可信时按 §4.1 收紧。
+- noVNC 端口只发布一个，门槛是 **VNC 密码 + `VNC_BIND` 绑定的网卡**（生产绑局域网网卡，
+  见 §4.1）。绑 `0.0.0.0` 时 docker/WSL/VMware 的虚拟网卡也会一起暴露。
+- ⚠️ **`/eval` 把"能做什么"放大了一档**：持有 token 的一方可以在**你已登录的页面**里
+  执行任意 JS —— 读页面、改表单、点按钮、发同源请求都行。也就是说：
+  - 拿 token 的人 = **该站点账号的完整网页权限**（比 `/snapshot` 更宽）；
+  - **"绝不碰密码"从"能力限制"变成了"纪律约束"**：服务不再拦得住"往 password 框里写值"，
+    真正拦住它的是**agent 不知道密码**（密码只在维护者脑子里/密码管理器里）。
+  - 所以：不要给模型喂密码；不要让它读 `input[type=password]` 的值；
+    技能里凡是涉及登录的步骤，一律走 `needsUser` → 人工 → `/resume`。
+  - 后续若要收紧，可在 `/eval` 加脚本静态检查（如拒绝 `input[type=password]`、
+    拒绝 `fetch(`），但那会牺牲可用性，目前按任务要求**先不限制**。
 - 是否允许自动化访问学校邮箱，**由维护者按学校 AUP 自行判断**；
   本服务只提供机制，不改变学校的使用条款。

@@ -21,6 +21,11 @@ export const DEFAULTS = Object.freeze({
   maxActionTimeoutMs: 60_000,
   connectTimeoutMs: 5_000,
   settleMs: 1_500,
+  // /eval：默认 10s 超时、上限 30s；脚本 200KB、结果序列化后 64KB
+  evalTimeoutMs: 10_000,
+  maxEvalTimeoutMs: 30_000,
+  evalScriptMaxBytes: 200 * 1024,
+  evalResultMaxBytes: 64 * 1024,
   publicVncUrl: '',
 });
 
@@ -111,6 +116,18 @@ export function loadConfig({ env = process.env, readFile = readTextFile } = {}) 
     { min: 1_000, max: maxActionTimeoutMs },
   );
 
+  // /eval：脚本跑在页面里，超时与体积都必须有硬上限，否则一个死循环就能把服务拖住
+  const maxEvalTimeoutMs = positiveInt(
+    env.EVAL_MAX_TIMEOUT_MS,
+    DEFAULTS.maxEvalTimeoutMs,
+    'EVAL_MAX_TIMEOUT_MS',
+    { min: 1_000, max: 120_000 },
+  );
+  const evalTimeoutMs = positiveInt(env.EVAL_TIMEOUT_MS, DEFAULTS.evalTimeoutMs, 'EVAL_TIMEOUT_MS', {
+    min: 100,
+    max: maxEvalTimeoutMs,
+  });
+
   return {
     host: String(env.HOST ?? DEFAULTS.host).trim() || DEFAULTS.host,
     port,
@@ -127,6 +144,16 @@ export function loadConfig({ env = process.env, readFile = readTextFile } = {}) 
     }),
     actionTimeoutMs,
     maxActionTimeoutMs,
+    evalTimeoutMs,
+    maxEvalTimeoutMs,
+    evalScriptMaxBytes: positiveInt(env.EVAL_SCRIPT_MAX_BYTES, DEFAULTS.evalScriptMaxBytes, 'EVAL_SCRIPT_MAX_BYTES', {
+      min: 1_024,
+      max: 4_000_000,
+    }),
+    evalResultMaxBytes: positiveInt(env.EVAL_RESULT_MAX_BYTES, DEFAULTS.evalResultMaxBytes, 'EVAL_RESULT_MAX_BYTES', {
+      min: 1_024,
+      max: 4_000_000,
+    }),
     connectTimeoutMs: positiveInt(env.CONNECT_TIMEOUT_MS, DEFAULTS.connectTimeoutMs, 'CONNECT_TIMEOUT_MS', {
       min: 500,
       max: 60_000,

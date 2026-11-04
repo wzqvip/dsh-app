@@ -16,6 +16,8 @@
 import { chromium } from 'playwright-core';
 
 import { classifyNeedsUser } from './classify.js';
+import { evaluateInPage } from './eval-script.js';
+import { acquireManagedPage, markManagedPage } from './page-select.js';
 
 const OBSERVE_SCRIPT = () => {
   const body = document.body;
@@ -85,6 +87,7 @@ function isAbortError(error) {
   return /net::ERR_ABORTED/i.test(messageOf(error));
 }
 
+
 /**
  * @param {object} options
  * @param {string} options.cdpUrl                 如 http://127.0.0.1:9222
@@ -92,6 +95,9 @@ function isAbortError(error) {
  * @param {number} [options.maxActionTimeoutMs]   调用方传入 timeoutMs 的上限
  * @param {number} [options.connectTimeoutMs]     connectOverCDP 握手超时
  * @param {number} [options.settleMs]             导航后等待正文出现的宽限
+ * @param {number} [options.evalTimeoutMs]        /eval 默认超时
+ * @param {number} [options.maxEvalTimeoutMs]     /eval 超时上限
+ * @param {number} [options.evalResultMaxBytes]   /eval 结果序列化后的上限（字节）
  * @param {Function} [options.logger]
  * @param {object} [options.playwright]           (测试/替换用)，默认 playwright-core 的 chromium
  */
@@ -101,6 +107,9 @@ export function createBrowserController({
   maxActionTimeoutMs = 60_000,
   connectTimeoutMs = 5_000,
   settleMs = 1_500,
+  evalTimeoutMs = 10_000,
+  maxEvalTimeoutMs = 30_000,
+  evalResultMaxBytes = 64 * 1024,
   logger = () => {},
   playwright = chromium,
 } = {}) {
@@ -114,11 +123,19 @@ export function createBrowserController({
   let page = null;
   /** 最近一次导航的 HTTP 状态（重定向后的最终响应），/snapshot 用来判 403/429 */
   let lastHttpStatus = null;
+  /**
+   * 只有**刚建立 CDP 连接**的那一次取页允许"采用唯一标签"。
+   * 语义：新连接的浏览器里只会有 entrypoint 用它自己的 START_URL 开出来的那一页，
+   * 那页就是维护者登录用、agent 也要用的受管页。而"受管页被关掉"之后再取页时
+   * 必须新建，不能顺手接管人仅剩的标签（实测踩过）。
+   */
+  let allowAdoptOnNextAcquire = true;
 
   function reset() {
     browser = null;
     context = null;
     page = null;
+    allowAdoptOnNextAcquire = true;
   }
 
   function clampTimeout(value) {
@@ -127,29 +144,23 @@ export function createBrowserController({
     return Math.min(Math.max(n, 100), maxActionTimeoutMs);
   }
 
-  async function pickPage() {
-    if (!context) return null;
-    const pages = context.pages().filter((p) => !p.isClosed());
-    if (pages.length > 0) {
-      // 人在 noVNC 里通常会新开/切到自己需要的标签页：用最后一个可见标签
-      return pages[pages.length - 1];
-    }
-    return context.newPage();
-  }
-
-  /** 连上 Chromium，并拿到一个可用的 page。 */
+  /**
+   * 取受管页面（single managed page）：
+   *   - 浏览器还连着且缓存的 page 还活着 → **永远用它**（不因为出现新标签就换）
+   *   - page 被关掉了 → 新建一页（不接管别人的标签）
+   *   - 刚重连上 → 优先认标记；若只有 entrypoint 开的那一页就采用它；否则新建
+   * 语义细节见 src/page-select.js 与 docs/BROWSER-SERVICE.md §5.0。
+   */
   async function ensurePage() {
     if (browser && browser.isConnected() && page && !page.isClosed()) return page;
 
     if (browser && browser.isConnected()) {
-      // 浏览器还在，只是 page 被关了 / 换了：在现有 context 里再找一个
+      // 浏览器还在，只是受管页被关了：重新认页（**不**采用仅剩的别人的标签）
       context = browser.contexts()[0] ?? null;
       if (context) {
-        page = await pickPage();
-        if (page) {
-          page.setDefaultTimeout(actionTimeoutMs);
-          return page;
-        }
+        page = await acquireManagedPage(context, { logger, allowAdoptSingleTab: false });
+        page.setDefaultTimeout(actionTimeoutMs);
+        return page;
       }
     }
 
@@ -182,7 +193,9 @@ export function createBrowserController({
       }
     }
 
-    page = await pickPage();
+    const adoptSingleTab = allowAdoptOnNextAcquire;
+    allowAdoptOnNextAcquire = false;
+    page = await acquireManagedPage(context, { logger, allowAdoptSingleTab: adoptSingleTab });
     if (!page) throw new BrowserUnavailableError('Chromium 没有可用的页面（tab）');
     page.setDefaultTimeout(actionTimeoutMs);
     logger('info', 'cdp_connected', { cdpUrl, pages: context.pages().length });
@@ -253,6 +266,9 @@ export function createBrowserController({
       }
     }
 
+    // 导航会重建浏览上下文里的部分状态；window.name 一般能跨导航存活，
+    // 但站点可能改写它 —— 每次 open 后补一次标记，保证重连还能认出这一页。
+    await markManagedPage(target);
     await settle(target);
     return {
       ok: true,
@@ -315,7 +331,103 @@ export function createBrowserController({
       });
     }
 
-    return { ok: true };
+    return { ok: true, url: target.url() };
+  }
+
+  function clampEvalTimeout(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return Math.min(evalTimeoutMs, maxEvalTimeoutMs);
+    return Math.min(Math.max(n, 100), maxEvalTimeoutMs);
+  }
+
+  /**
+   * 在页面里跑一段 JS（`/eval`）。**不把失败抛给 HTTP 层**：
+   * 脚本抛错/超时/不可序列化都是「页面行为」，统一返回 ok:false，
+   * 让上层能把它和「服务挂了（503）」区分开。
+   */
+  async function evaluate({ script, timeoutMs } = {}) {
+    const target = await ensurePage();
+    const result = await runScriptOnPage(target, script, timeoutMs);
+    // 回 url：调用方必须能校验"你读的是我以为的那个页面"（task-4 的直接要求）
+    try {
+      return { ...result, url: target.url() };
+    } catch {
+      return { ...result, url: null };
+    }
+  }
+
+  async function runScriptOnPage(target, script, timeoutMs) {
+    const timeout = clampEvalTimeout(timeoutMs);
+    let raw;
+
+    // Node 侧硬超时：脚本同步阻塞页面主线程时，页面里的定时器根本不会触发，
+    // CDP 的 evaluate 会永远挂着。只能在这边放弃等待（此时页面已经不可用了）。
+    let timer = null;
+    const hardTimeout = new Promise((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`eval hard timeout after ${timeout + 1500}ms（脚本可能同步阻塞了页面主线程）`)),
+        timeout + 1500,
+      );
+    });
+
+    try {
+      raw = await Promise.race([
+        target.evaluate(evaluateInPage, { src: script, timeoutMs: timeout, maxBytes: evalResultMaxBytes }),
+        hardTimeout,
+      ]);
+    } catch (error) {
+      const message = messageOf(error);
+      const timedOut = /hard timeout|eval timeout after/i.test(message);
+      return {
+        ok: false,
+        code: timedOut ? 'timeout' : 'script_error',
+        error: timedOut
+          ? `脚本超时（${timeout}ms）：页面主线程可能被同步代码阻塞，建议 /open 重新加载页面`
+          : message,
+        durationMs: null,
+      };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+
+    if (!raw || typeof raw !== 'object') {
+      return { ok: false, code: 'script_error', error: '页面返回了非预期的结果', durationMs: null };
+    }
+    if (raw.ok !== true) {
+      return {
+        ok: false,
+        code: raw.code ?? 'script_error',
+        error: raw.error ?? '脚本执行失败',
+        stack: raw.stack || '',
+        durationMs: raw.durationMs ?? null,
+      };
+    }
+
+    // 截断时 json 只是前缀字符串，故意**不**解析（解析必然失败）
+    let value = null;
+    if (raw.truncated !== true) {
+      try {
+        value = JSON.parse(raw.json);
+      } catch (error) {
+        return {
+          ok: false,
+          code: 'not_serializable',
+          error: `result not serializable: ${messageOf(error)}`,
+          durationMs: raw.durationMs ?? null,
+        };
+      }
+    } else {
+      value = raw.json;
+    }
+
+    return {
+      ok: true,
+      result: value,
+      undefinedResult: raw.undefinedResult === true,
+      truncated: raw.truncated === true,
+      resultBytes: raw.bytes ?? null,
+      durationMs: raw.durationMs ?? null,
+    };
   }
 
   return {
@@ -323,6 +435,7 @@ export function createBrowserController({
     open,
     snapshot,
     act,
+    evaluate,
     /** 只断开 CDP 连接，**不关**那个人正在用的浏览器。 */
     disconnect() {
       try {

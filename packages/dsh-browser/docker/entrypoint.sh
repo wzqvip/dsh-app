@@ -103,16 +103,19 @@ log "启动 websockify/noVNC（0.0.0.0:${NOVNC_PORT} → 127.0.0.1:${VNC_PORT}�
 websockify --web=/usr/share/novnc ${WS_AUTH} "0.0.0.0:${NOVNC_PORT}" "127.0.0.1:${VNC_PORT}" &
 WS_PID=$!
 
-# ── 4. Chromium（崩了自动重启；profile 在 /profile，登录一次长期有效）──────
+# ── 4. Chromium（崩了自动重启，但**带崩溃退避**；profile 在 /profile，登录一次长期有效）
 chromium_loop() {
+  crash_streak=0
   while [ ! -f "$STOP_FILE" ]; do
     # profile 里的 Singleton* 是"谁在占用这个 profile"的锁，内容是 hostname-pid。
     # 容器重建后 hostname 变了，旧锁会被判成"另一台电脑正在用" → Chromium 拒绝启动。
     # 我们保证同一时刻只有一个 Chromium，所以每次启动前直接清掉这些锁。
     rm -f "$PROFILE_DIR/SingletonLock" "$PROFILE_DIR/SingletonSocket" "$PROFILE_DIR/SingletonCookie" 2>/dev/null || true
     log "启动 Chromium（profile=${PROFILE_DIR}，CDP=127.0.0.1:${CDP_PORT}）"
+    chrome_started_at=$(date +%s)
     # --no-sandbox：容器内以非 root 跑，但内核不一定允许 user namespace
     # --password-store=basic：不然 Chromium 会找 gnome-keyring，弹出没人能填的对话框
+    # --disable-breakpad：容器里不留崩溃转储，也少 spawn 一个 crashpad 进程（崩溃风暴时它也在堆积）
     chromium \
       --no-sandbox \
       --disable-dev-shm-usage \
@@ -122,6 +125,7 @@ chromium_loop() {
       --no-default-browser-check \
       --disable-session-crashed-bubble \
       --hide-crash-restore-bubble \
+      --disable-breakpad \
       --disable-features=Translate,MediaRouter,OptimizationHints \
       --user-data-dir="${PROFILE_DIR}" \
       --remote-debugging-port="${CDP_PORT}" \
@@ -131,8 +135,34 @@ chromium_loop() {
       --lang="${BROWSER_LANG}" \
       "${START_URL}" || true
     [ -f "$STOP_FILE" ] && break
-    log "Chromium 退出，2 秒后重启"
-    sleep 2
+
+    # ── 崩溃退避（2026-11-04 事故后的硬要求）──
+    # 事故：Chromium 起不来 → 本循环每 2 秒重启一次 → 每次崩溃留下孤儿进程，
+    # 在宿主上堆到 9.5 万个僵尸 → 进程表被占满 → 全系统 fork() 失败，
+    # sshd 认证成功却起不了 shell，19 小时登不上。170,573 次崩溃。
+    # 所以：**跑稳 60 秒才算"正常"**，否则连续崩溃要指数退避（2s→4s→…→60s 封顶），
+    # 把"每秒造一次进程"压成"每分钟一次"，给看门狗（近 10 分钟 traps 计数）留出反应时间。
+    ran=$(( $(date +%s) - chrome_started_at ))
+    if [ "$ran" -ge 60 ]; then
+      crash_streak=0
+    fi
+    crash_streak=$((crash_streak + 1))
+    # 2s（前 3 次）→ 4s → 8s → 16s → 32s → 60s 封顶。
+    # ⚠️ 不用 `**`：这个脚本跑在 dash 下，POSIX 算术里没有幂运算符（实测会报错）。
+    delay=2
+    if [ "$crash_streak" -ge 4 ]; then
+      steps=$((crash_streak - 3))
+      [ "$steps" -gt 6 ] && steps=6
+      delay=2
+      i=0
+      while [ "$i" -lt "$steps" ]; do
+        delay=$((delay * 2))
+        i=$((i + 1))
+      done
+      [ "$delay" -gt 60 ] && delay=60
+    fi
+    log "Chromium 退出（连续第 ${crash_streak} 次，本次运行 ${ran}s），${delay} 秒后重启"
+    sleep "$delay"
   done
 }
 chromium_loop &
