@@ -4,18 +4,20 @@
  * 安全：
  *   · **只回复配置里那个 chat**。bot 如果被拉进别的群，机器人不能替别人查你的课程数据。
  *   · 所有 assistant 的错误消息都由 assistant.js 脱敏过，这里只做展示。
+ *   · 对话是**无状态转发**：LLM/上下文/历史都在 assistant 侧，本服务不存聊天内容。
  */
 import {
   NEXT_COUNT,
   buildHelpReply,
   buildListReply,
   buildNextReply,
+  buildReadyReply,
   buildStatusReply,
-  buildTextReply,
   buildUnknownCommandReply,
   parseCommand,
   parseIndex,
   parseLimit,
+  splitForTelegram,
 } from './commands.js';
 
 /**
@@ -43,6 +45,30 @@ function formatAssistantError(error, action) {
     return `⚠️ ${action}失败：assistant 返回了无法识别的响应（${error.message}）。`;
   }
   return `⚠️ ${action}失败：${error?.message ?? error}`;
+}
+
+/**
+ * 对话失败的用户可见文案。
+ * 注意：只说"原因 + 怎么办"，**不回显栈/请求体**；具体错误进容器日志。
+ */
+function formatChatError(error) {
+  const reason = error?.description || error?.message || '未知错误';
+  if (error?.kind === 'timeout') {
+    return `⚠️ 对话服务暂时不可用（等待超时：${reason}）。\n请稍后重试；也可以把问题拆短一点，或发 /status 看服务状态。`;
+  }
+  if (error?.kind === 'unreachable') {
+    return '⚠️ 对话服务暂时不可用（assistant 不可达）。\n发 /status 查看两个服务的健康状况。';
+  }
+  if (error?.status === 503) {
+    return `⚠️ 对话服务暂时不可用（后台未启用：${reason}）。`;
+  }
+  if (error?.status === 502) {
+    return `⚠️ 对话服务暂时不可用（${reason}）。`;
+  }
+  if (error?.status === 401 || error?.status === 403) {
+    return `⚠️ 对话服务暂时不可用（共享密钥被拒绝，HTTP ${error.status}）。\n请检查两侧的 token 文件是否一致。`;
+  }
+  return `⚠️ 对话服务暂时不可用（${reason}）。`;
 }
 
 /**
@@ -190,6 +216,59 @@ export function createCommandHandler({
     };
   }
 
+  async function handleReady() {
+    try {
+      const session = await assistant.checkSession();
+      return {
+        handled: true,
+        replies: [
+          {
+            text: buildReadyReply({
+              needsUser: session.needsUser,
+              reason: session.reason,
+              okSince: session.okSince,
+              timeZone,
+            }),
+          },
+        ],
+      };
+    } catch (error) {
+      logger.error?.(
+        `[handler] /session/check 失败：${error?.kind ?? 'unknown'}${error?.status ? ` HTTP ${error.status}` : ''} ${error?.message ?? error}`,
+      );
+      return { handled: true, replies: [{ text: formatAssistantError(error, '检查登录状态') }] };
+    }
+  }
+
+  /**
+   * 普通文本 → assistant `/chat`（无状态转发），长回复按换行切成多条。
+   * 日志只记长度与耗时，**不记聊天内容**。
+   */
+  async function handleChat(text) {
+    const startedAt = Date.now();
+    try {
+      const payload = await assistant.chat({ text });
+      const reply = typeof payload?.reply === 'string' ? payload.reply.trim() : '';
+      if (!reply) {
+        logger.warn?.('[handler] /chat 返回空回复');
+        return {
+          handled: true,
+          replies: [{ text: '🤖 对话服务返回了空回复，请再试一次。' }],
+        };
+      }
+      const chunks = splitForTelegram(reply);
+      logger.info?.(
+        `[handler] /chat 成功：输入 ${text.length} 字 → 回复 ${reply.length} 字（${chunks.length} 条），${Date.now() - startedAt}ms`,
+      );
+      return { handled: true, replies: chunks.map((chunk) => ({ text: chunk })) };
+    } catch (error) {
+      logger.error?.(
+        `[handler] /chat 失败：${error?.kind ?? 'unknown'}${error?.status ? ` HTTP ${error.status}` : ''} ${error?.message ?? error}`,
+      );
+      return { handled: true, replies: [{ text: formatChatError(error) }] };
+    }
+  }
+
   async function handleCommand(parsed) {
     switch (parsed.name) {
       case 'next':
@@ -198,6 +277,8 @@ export function createCommandHandler({
         return handleList(parsed.args);
       case 'done':
         return handleDone(parsed.args);
+      case 'ready':
+        return handleReady();
       case 'status':
         return handleStatus();
       case 'help':
@@ -226,7 +307,7 @@ export function createCommandHandler({
       return { handled: true, replies: [{ text: buildHelpReply() }] };
     }
     if (parsed.kind === 'text') {
-      return { handled: true, replies: [{ text: buildTextReply() }] };
+      return handleChat(extracted.text);
     }
     return handleCommand(parsed);
   }

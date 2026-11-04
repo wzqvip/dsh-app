@@ -169,3 +169,143 @@ test('probe: 可达时返回 open/items，不可达时不抛异常', async () =>
   assert.equal(bad.reachable, false);
   assert.equal(bad.error.kind, 'unreachable');
 });
+
+test('chat: POST /chat 转发文本，返回 reply（无状态）', async () => {
+  const captured = {};
+  const client = createAssistantClient({
+    baseUrl: BASE,
+    token: TOKEN,
+    fetchImpl: okFetch(captured, {
+      ok: true,
+      reply: '最急的是明天 23:59 截止的 OPCA 作业。',
+      usage: { total_tokens: 12 },
+    }),
+  });
+
+  const result = await client.chat({ text: '最急的事？' });
+
+  assert.equal(captured.url, `${BASE}/chat`);
+  assert.equal(captured.init.method, 'POST');
+  assert.equal(captured.init.headers['x-dsh-token'], TOKEN);
+  assert.deepEqual(captured.body, { text: '最急的事？' });
+  assert.equal(result.reply, '最急的是明天 23:59 截止的 OPCA 作业。');
+});
+
+test('chat: 空文本本地拒绝（不发请求）', async () => {
+  let called = 0;
+  const client = createAssistantClient({
+    baseUrl: BASE,
+    token: TOKEN,
+    fetchImpl: async () => {
+      called += 1;
+      return { ok: true, status: 200, text: async () => '{}' };
+    },
+  });
+  await assert.rejects(() => client.chat({ text: '   ' }), (error) => error.kind === 'validation');
+  assert.equal(called, 0);
+});
+
+test('chat: 502/503 的字符串 error 被解析成可读原因，且不泄露 token', async () => {
+  const client502 = createAssistantClient({
+    baseUrl: BASE,
+    token: TOKEN,
+    fetchImpl: async () => ({
+      ok: false,
+      status: 502,
+      text: async () => JSON.stringify({ ok: false, error: 'DeepSeek 调用失败' }),
+    }),
+  });
+  await assert.rejects(
+    () => client502.chat({ text: '你好' }),
+    (error) => {
+      assert.equal(error.kind, 'http');
+      assert.equal(error.status, 502);
+      assert.match(error.message, /DeepSeek 调用失败/);
+      assert.match(error.description, /DeepSeek 调用失败/);
+      assert.ok(!error.message.includes(TOKEN));
+      return true;
+    },
+  );
+
+  const client503 = createAssistantClient({
+    baseUrl: BASE,
+    token: TOKEN,
+    fetchImpl: async () => ({
+      ok: false,
+      status: 503,
+      text: async () => JSON.stringify({ ok: false, error: 'chat 未启用（缺 /data/llm.json）' }),
+    }),
+  });
+  await assert.rejects(
+    () => client503.chat({ text: '你好' }),
+    (error) => error.status === 503 && /chat 未启用/.test(error.description),
+  );
+});
+
+test('chat: 200 但缺 reply 字段 → invalid_response', async () => {
+  const client = createAssistantClient({
+    baseUrl: BASE,
+    token: TOKEN,
+    fetchImpl: okFetch({}, { ok: true }),
+  });
+  await assert.rejects(() => client.chat({ text: '你好' }), (error) => error.kind === 'invalid_response');
+});
+
+test('chat: 用 chatTimeoutMs（默认 60s）而不是普通请求超时', async () => {
+  const hanging = (_url, { signal }) =>
+    new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => {
+        const error = new Error('aborted');
+        error.name = 'AbortError';
+        reject(error);
+      });
+    });
+  const client = createAssistantClient({
+    baseUrl: BASE,
+    token: TOKEN,
+    timeoutMs: 10,
+    chatTimeoutMs: 10,
+    fetchImpl: hanging,
+  });
+  await assert.rejects(
+    () => client.chat({ text: '写一段长文' }),
+    (error) => error.kind === 'timeout' && /超时 10ms/.test(error.message),
+  );
+});
+
+test('checkSession: POST /session/check，解析 needsUser/reason/okSince', async () => {
+  const captured = {};
+  const client = createAssistantClient({
+    baseUrl: BASE,
+    token: TOKEN,
+    fetchImpl: okFetch(captured, {
+      ok: true,
+      needsUser: true,
+      reason: 'blocked',
+      okSince: null,
+    }),
+  });
+
+  const session = await client.checkSession();
+
+  assert.equal(captured.url, `${BASE}/session/check`);
+  assert.equal(captured.init.method, 'POST');
+  assert.deepEqual(captured.body, {});
+  assert.deepEqual(session, { needsUser: true, reason: 'blocked', okSince: null });
+});
+
+test('checkSession: 失败返回结构化错误（503）', async () => {
+  const client = createAssistantClient({
+    baseUrl: BASE,
+    token: TOKEN,
+    fetchImpl: async () => ({
+      ok: false,
+      status: 503,
+      text: async () => JSON.stringify({ ok: false, error: 'session 检查未启用' }),
+    }),
+  });
+  await assert.rejects(
+    () => client.checkSession(),
+    (error) => error.status === 503 && /session 检查未启用/.test(error.description),
+  );
+});

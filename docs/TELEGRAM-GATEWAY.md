@@ -1,6 +1,6 @@
 # Telegram 网关（dsh-tg）
 
-> 状态：**v0.1 已部署在 ubuntu-gpu**（2026-11-03）。
+> 状态：**v0.2 已部署在 ubuntu-gpu**（2026-11-03；v0.2 增加普通文本对话转发与 `/ready`）。
 > 代码：[`packages/dsh-tg/`](../packages/dsh-tg/README.md) · 上游服务：[`packages/dsh-assistant/`](../packages/dsh-assistant/README.md)
 
 ## 1. 为什么单独拆一个服务
@@ -12,8 +12,8 @@
 
 | 服务 | 职责 | 维护者 |
 |---|---|---|
-| `dsh-assistant`（8787） | 数据管线：抓取、去重、提醒计划、暴露 `/items`、`/health` | Lead |
-| `dsh-tg`（8788） | **唯一**与 Telegram 通信的组件：出站推送 + 入站命令 | tg-agent |
+| `dsh-assistant`（8787） | 数据管线（抓取/去重/提醒，`/items`、`/health`）+ LLM 对话（`/chat`、`/session/check`） | Lead |
+| `dsh-tg`（8788） | **唯一**与 Telegram 通信的组件：出站推送 + 入站命令 + 普通文本转发 | tg-agent |
 
 `dsh-tg` **不 import** assistant 的源码（连 `src/notify/telegram.js` 也不 import）：
 发送逻辑是复制 + 扩展的（多了 `getUpdates`、429 结构化错误），两个包刻意解耦。
@@ -28,13 +28,13 @@
   Telegram Bot API ◀─┤ dsh-tg (container_name)     │
         ▲  │         │   dsh-net 内监听 :8788       │
         │  │         └──────────┬──────────────────┘
-        │  │                    │ http://dsh-assistant:8787
+        │  │                    │ /items /chat /session/check
         │  └── 长轮询 getUpdates │  x-dsh-token
         │                       ▼
         │          ┌─────────────────────────────┐
         └──────────┤ dsh-assistant (:8787)       │
-           sendMessage│  数据管线（Lead 维护）     │
-                   └─────────────────────────────┘
+           sendMessage│ 数据管线 + LLM 对话（Lead） │
+                     └─────────────────────────────┘
 ```
 
 | 方向 | 调用 |
@@ -122,9 +122,10 @@
 | `/next` | 最近 **5** 个未完成截止（顺序由 assistant 给，**本服务不重排**） |
 | `/list [n]` | 未完成清单，默认 10、最多 50；超时区/无截止/过期都有明确文案 |
 | `/done <序号>` | 把**上一次 `/list`/`/next` 回复里**的第 N 项标记完成 |
+| `/ready` | 登录 noVNC 后确认会话是否恢复（调 assistant `POST /session/check`） |
 | `/status` | tg 运行时（运行时长/长轮询/offset/最近错误）+ assistant 可达性（`open`/`pending`/延迟） |
 | `/help` | 帮助 |
-| 普通文本 | 友好提示 + 命令列表（**本轮不做 LLM 对话**，避免 scope 爆炸） |
+| **普通文本** | **转发 assistant `POST /chat` 做对话**（LLM/上下文/历史都在 assistant 侧） |
 
 ### `/done` 的序号语义（重要）
 
@@ -142,12 +143,39 @@
 GET  /items?status=open&limit=50      → {ok:true, count:N, items:[...]}
 POST /items/{id}/status {"status":"done"} → {ok:true, id, status}
 GET  /health                          → {ok:true, items, open, pending, lastTickAt, lastSyncAt}
+POST /chat {"text":"..."}             → {ok:true, reply, usage}     （DeepSeek，P50 2-5s，长回复 20s+）
+POST /session/check {}                → {ok:true, needsUser, reason, okSince}
 ```
 
 ⚠️ `count` 是**本次返回条数**（实测 limit=5 → count=5，而 `/health.open` 是 301），
 所以回复里不写"共 N 条未完成"，只写"显示 N 条"。
 
 `id` 形如 `canvas:assignment:123`，路径里的 `:` 保持字面量（只转义其它字符）。
+
+### 对话：普通文本 → `POST /chat`
+
+本服务对对话是**无状态转发**：不存聊天内容、不拼上下文、不接触模型 key
+（DeepSeek 的 key 由 assistant 从 `/data/llm.json` 读，本服务既读不到也不记日志）。
+
+| 情况 | 行为 |
+|---|---|
+| 成功 | 把 `reply` 发回用户；日志只记**输入/回复长度与耗时**，不记内容 |
+| `reply` 为空 | 回「🤖 对话服务返回了空回复，请再试一次。」（不静默） |
+| 长回复 | `reply` 超过 **4000** 字符时按**换行**切分，分多条发送（硬切时避开 emoji 代理对） |
+| 超时 | `CHAT_TIMEOUT_MS`（默认 **60s**）超时 → 「对话服务暂时不可用（等待超时…）」 |
+| assistant 502 | 「对话服务暂时不可用（原因…）」；原因取自返回体的 `error` |
+| assistant 503 | 「对话服务暂时不可用（后台未启用：…）」 |
+| assistant 不可达 | 「对话服务暂时不可用（assistant 不可达）」，引导看 `/status` |
+
+对话请求用独立的超时（`CHAT_TIMEOUT_MS`），不影响 `/items`、`/status` 之类的短请求（`ASSISTANT_TIMEOUT_MS`）。
+
+### `/ready`：登录后立即确认会话
+
+维护者登录 noVNC 后发 `/ready`，本服务**立刻**调 assistant `POST /session/check`（不等 15 分钟巡检）：
+
+- `needsUser:false` → 「✅ 已登录，会话正常」（有 `okSince` 时附带时间）
+- `needsUser:true` → 「⚠️ 仍未登录（reason=xxx），请完成登录后再发 /ready。」
+- 调用失败 → 「检查登录状态失败：…」，引导看 `/status`
 
 ## 6. 稳定性机制
 
@@ -159,6 +187,7 @@ GET  /health                          → {ok:true, items, open, pending, lastTi
 | **心跳告警** | 只看"距最近一次 `getUpdates` 成功"是否超过 `HEARTBEAT_STALE_MS`（默认 5 分钟）；告警按 `ALERT_THROTTLE_MS`（默认 30 分钟）限频 | 用户不发消息是正常的，不能用"没消息"判断故障 |
 | **鉴权/冲突告警** | 401/403、409（另一个实例在轮询）立即告警一次并限频 | 这两类不会自愈，需要人处理 |
 | **单条失败不毒死循环** | 处理/回复异常只记日志，offset 仍前进 | 避免同一条消息无限重放 |
+| **对话超时独立** | `/chat` 用 `CHAT_TIMEOUT_MS`（默认 60s），其余请求 10s | 模型长回复不该拖垮短查询，也不该被短超时误杀 |
 | **可中断 sleep** | SIGTERM 时中断在途长轮询 + 退避等待（上限 15s 强制退出） | `docker restart` 不用等满一个退避窗口 |
 
 ## 7. 配置项
@@ -172,6 +201,8 @@ GET  /health                          → {ok:true, items, open, pending, lastTi
 | `SEQ_FILE` | `/data/seq.json` | 序号映射（compose 里是 `/state/seq.json`） |
 | `ASSISTANT_BASE_URL` | `http://127.0.0.1:8787` | 生产为 `http://dsh-assistant:8787` |
 | `ASSISTANT_TOKEN` | 复用共享密钥 | 一般不用设 |
+| `ASSISTANT_TIMEOUT_MS` | `10000` | items/health/session 等短请求超时 |
+| `CHAT_TIMEOUT_MS` | `60000` | 对话请求超时（5s..180s；DeepSeek 长回复可能 20s+） |
 | `POLL_TIMEOUT_SEC` | `30` | 长轮询秒数（1..60） |
 | `HEARTBEAT_STALE_MS` | `300000` | 多久没成功轮询就告警 |
 | `ALERT_THROTTLE_MS` | `1800000` | 同类告警最小间隔 |
@@ -223,7 +254,7 @@ curl -s -X POST http://127.0.0.1:18788/notify \
   -H 'content-type: application/json' -H "x-dsh-token: $TOKEN" \
   -d '{"text":"dsh-tg 验证消息"}'
 
-# 入站命令的只读冒烟（用合成 update 跑真实 assistant，不改数据）
+# 入站命令 + 对话转发的冒烟（合成 update；最后一条普通文本会真实调 /chat 一次）
 docker exec dsh-tg node scripts/smoke-commands.mjs
 
 # 容器间连通性（可选，等价于 /status 做的事）
@@ -232,11 +263,11 @@ const t = (await import('node:fs')).readFileSync('/data/api-token.txt','utf8').t
 console.log(await (await fetch('http://dsh-assistant:8787/health')).json());"
 ```
 
-真实验证记录（2026-11-03，ubuntu-gpu）：
+真实验证记录（2026-11-03 v0.1、2026-11-04 v0.2，ubuntu-gpu）：
 
 ```
 $ curl -sS -w '\nHTTP %{http_code}\n' http://127.0.0.1:18788/health
-{"ok":true,...,"poller":{"running":true,"consecutiveFailures":0,"stale":false,...},"bot":{"tokenMasked":"907260…huVc",...}}
+{"ok":true,"service":"dsh-tg","version":"0.2.0",...,"poller":{"running":true,"consecutiveFailures":0,"stale":false,...},"bot":{"tokenMasked":"907260…huVc",...}}
 HTTP 200
 
 $ curl ... -H 'x-dsh-token: definitely-wrong' ...
@@ -246,6 +277,18 @@ HTTP 401
 $ curl ... -H "x-dsh-token: $(cat .../token.txt)" -d '{"text":"✅ dsh-tg 部署验证..."}'
 {"ok":true,"messageId":19,"chatId":6413978793}
 HTTP 200
+```
+
+v0.2 对话转发 + `/ready` 的真实冒烟（`docker exec dsh-tg node scripts/smoke-commands.mjs`）：
+
+```
+===== /ready =====
+⚠️ 仍未登录（reason=blocked），请完成登录后再发 /ready。
+
+===== 用一句话说我现在最急的事是什么？ =====
+最急的是明天23:59截止的 [OPCA] Potential Topic Considerations（TLIELP 5050）。
+
+[smoke] OK：全部命令都产生了回复（/chat 之外均只读，未改动真实数据）
 ```
 
 ## 10. 排错
@@ -259,6 +302,10 @@ HTTP 200
 | `/notify` 返回 502 + `bot was blocked` | 维护者在 Telegram 里 block 了 bot，或 chatId 不对 |
 | `/notify` 返回 429 | 等 `retryAfter` 秒；调用方（assistant）应尊重该字段 |
 | `/done` 说"找不到第 N 项" | 序号只在最近一次 `/list`/`/next` 后有效；重启后 seq.json 仍在，但如果清单被重新分配过就按最近的来 |
+| 对话回「暂时不可用（后台未启用…）」 | assistant 侧 `/chat` 返回 503：检查 assistant 的 `/data/llm.json`（key 由 Lead 维护，本服务不碰） |
+| 对话很慢或超时 | 看 assistant 日志里的 DeepSeek 耗时；必要时调大 `CHAT_TIMEOUT_MS`（上限 180s） |
+| `/ready` 一直回「仍未登录（reason=blocked）」 | noVNC 登录未完成/被拦；重新登录后再发 `/ready`，不要等巡检 |
+| 长回复只收到一部分 | 本服务按 4000 字符切分；若第二条没到，查容器日志里是否有 Telegram 发送失败 |
 | 容器起不来、日志 `共享密钥缺失` | `~/dsh-assistant/data/token.txt` 不存在或权限不对（容器以 uid 1001 运行） |
 | 端口被占 | 8787/8788 在宿主上已被 `artex` 占用；本服务**不发布**这两个宿主端口，只用 18788 回环调试 |
 
@@ -270,16 +317,19 @@ node --test
 ```
 
 - 零依赖、纯 ESM、`node:test`
-- 覆盖：命令解析、offset 持久化、429/超时、鉴权失败、`/done` 调不通、心跳告警限频、HTTP 契约
-- 全部用 fake `fetch` / fake updates，不访问真实 Telegram
+- 覆盖：命令解析、offset 持久化、429/超时、鉴权失败、`/done` 调不通、心跳告警限频、HTTP 契约、
+  对话转发（成功/空回复/502/超时/不可达）、长回复切分（换行优先、emoji 安全）、`/ready` 两态、`/session/check` 失败
+- 全部用 fake `fetch` / fake updates，不访问真实 Telegram / DeepSeek
 
-## 12. 已知限制（v0.1）
+## 12. 已知限制（v0.2）
 
-- **普通文本不做 LLM 对话**（只看命令）；这是有意的范围控制
+- **对话是无状态转发**：本服务不存聊天内容、不做上下文裁剪；历史与窗口都由 assistant 维护
+- 长回复切分**不加「第 N 条」标记**（保持模型原本的 Markdown 结构）；如果分条顺序在客户端错乱，
+  可改成带序号前缀，但会牺牲一点排版
 - 展示层**不合并**同标题同截止的重复项：那是 classpipe 里两条不同 `canvas_id` 的记录，
   合并显示会让 `/done` 的序号指向变得含糊；回写也必须按 id 逐条
 - `count` 语义以 assistant 实际返回为准（见 §5）
-- 入站命令的"真实用户消息"只能由维护者从 Telegram 发；自动化只覆盖合成 update + 单测
+- 入站命令与对话的"真实用户消息"只能由维护者从 Telegram 发；自动化覆盖合成 update + 单测 + 真实 `/chat` 冒烟
 
 ## 13. 相关文档
 

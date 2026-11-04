@@ -46,6 +46,8 @@ export async function main({ env = process.env } = {}) {
       baseUrl: config.assistant.baseUrl,
       token: config.assistant.token,
       timeoutMs: config.assistant.timeoutMs,
+      // 对话超时单独放宽（DeepSeek 长回复可能 20s+）
+      chatTimeoutMs: config.assistant.chatTimeoutMs,
     });
     state = createStateStore({ file: config.stateFile, logger });
     seq = createSeqStore({ file: config.seqFile, logger });

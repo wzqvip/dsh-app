@@ -16,7 +16,7 @@ import { silentLogger } from './log.js';
 import { toIso } from './util.js';
 
 export const SERVICE_NAME = 'dsh-tg';
-export const SERVICE_VERSION = '0.1.0';
+export const SERVICE_VERSION = '0.2.0';
 
 const MAX_BODY_BYTES = 64 * 1024;
 

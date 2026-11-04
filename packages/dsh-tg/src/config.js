@@ -24,6 +24,8 @@ export const DEFAULTS = Object.freeze({
   stateFile: '/data/tg-state.json',
   seqFile: '/data/seq.json',
   assistantBaseUrl: 'http://127.0.0.1:8787',
+  assistantTimeoutMs: 10_000,
+  chatTimeoutMs: 60_000,
   timeZone: 'America/New_York',
   pollTimeoutSec: 30,
   heartbeatStaleMs: 5 * 60 * 1000,
@@ -149,6 +151,11 @@ export function loadConfig({ env = process.env, readFile = readFileSync } = {}) 
   const alertThrottleMs = numberFrom(env.ALERT_THROTTLE_MS, DEFAULTS.alertThrottleMs, 'ALERT_THROTTLE_MS');
   const backoffBaseMs = numberFrom(env.BACKOFF_BASE_MS, DEFAULTS.backoffBaseMs, 'BACKOFF_BASE_MS');
   const backoffMaxMs = numberFrom(env.BACKOFF_MAX_MS, DEFAULTS.backoffMaxMs, 'BACKOFF_MAX_MS');
+  const assistantTimeoutMs = numberFrom(env.ASSISTANT_TIMEOUT_MS, DEFAULTS.assistantTimeoutMs, 'ASSISTANT_TIMEOUT_MS');
+  const chatTimeoutMs = numberFrom(env.CHAT_TIMEOUT_MS, DEFAULTS.chatTimeoutMs, 'CHAT_TIMEOUT_MS');
+  if (!Number.isFinite(chatTimeoutMs) || chatTimeoutMs < 5_000 || chatTimeoutMs > 180_000) {
+    throw new Error(`CHAT_TIMEOUT_MS 必须在 5000..180000（5s..180s）：${chatTimeoutMs}`);
+  }
 
   const logLevel = String(env.LOG_LEVEL ?? DEFAULTS.logLevel).trim().toLowerCase();
   if (!['error', 'warn', 'info', 'debug'].includes(logLevel)) {
@@ -165,7 +172,8 @@ export function loadConfig({ env = process.env, readFile = readFileSync } = {}) 
     assistant: {
       baseUrl: normalizeBaseUrl(env.ASSISTANT_BASE_URL ?? DEFAULTS.assistantBaseUrl),
       token: String(env.ASSISTANT_TOKEN ?? '').trim() || sharedToken,
-      timeoutMs: numberFrom(env.ASSISTANT_TIMEOUT_MS, 10_000, 'ASSISTANT_TIMEOUT_MS'),
+      timeoutMs: assistantTimeoutMs,
+      chatTimeoutMs,
     },
     stateFile: String(env.STATE_FILE ?? DEFAULTS.stateFile).trim() || DEFAULTS.stateFile,
     seqFile: String(env.SEQ_FILE ?? DEFAULTS.seqFile).trim() || DEFAULTS.seqFile,

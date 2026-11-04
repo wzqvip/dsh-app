@@ -2,18 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  CHAT_CHUNK_LENGTH,
   MAX_REPLY_LENGTH,
   buildHelpReply,
   buildItemLine,
   buildListReply,
   buildNextReply,
+  buildReadyReply,
   buildStatusReply,
-  buildTextReply,
   buildUnknownCommandReply,
   formatDue,
   parseCommand,
   parseIndex,
   parseLimit,
+  splitForTelegram,
   truncateForTelegram,
 } from '../src/commands.js';
 
@@ -172,16 +174,71 @@ test('buildListReply: 超长清单被截断但仍是合法长度', () => {
   assert.ok(reply.length <= MAX_REPLY_LENGTH);
 });
 
-test('buildHelpReply / buildTextReply / buildUnknownCommandReply 覆盖全部命令', () => {
-  for (const text of [buildHelpReply(), buildTextReply(), buildUnknownCommandReply('deploy')]) {
+test('buildHelpReply / buildUnknownCommandReply 覆盖全部命令（含 /ready 与对话提示）', () => {
+  for (const text of [buildHelpReply(), buildUnknownCommandReply('deploy')]) {
     assert.match(text, /\/next/);
     assert.match(text, /\/list/);
     assert.match(text, /\/done/);
+    assert.match(text, /\/ready/);
     assert.match(text, /\/status/);
     assert.match(text, /\/help/);
-    assert.match(text, /普通文本暂不对话/);
+    assert.match(text, /直接发普通文本就能对话/);
   }
   assert.match(buildUnknownCommandReply('deploy'), /未知命令 \/deploy/);
+});
+
+test('/ready 是已知命令', () => {
+  const parsed = parseCommand('/ready');
+  assert.equal(parsed.kind, 'command');
+  assert.equal(parsed.name, 'ready');
+  assert.equal(parsed.known, true);
+});
+
+test('buildReadyReply: 已登录 / 仍需登录 两种结果', () => {
+  assert.match(
+    buildReadyReply({ needsUser: false, okSince: '2026-11-03T12:00:00.000Z', timeZone: TZ }),
+    /✅ 已登录，会话正常（自 11\/3 07:00）/,
+  );
+  assert.match(buildReadyReply({ needsUser: false, timeZone: TZ }), /✅ 已登录，会话正常。/);
+
+  const pending = buildReadyReply({ needsUser: true, reason: 'blocked', timeZone: TZ });
+  assert.match(pending, /仍未登录（reason=blocked）/);
+  assert.match(pending, /\/ready/);
+
+  assert.match(buildReadyReply({ needsUser: true, timeZone: TZ }), /reason=unknown/);
+});
+
+test('splitForTelegram: 短回复原样返回，空回复返回空数组', () => {
+  assert.deepEqual(splitForTelegram('你好'), ['你好']);
+  assert.deepEqual(splitForTelegram(''), []);
+  assert.deepEqual(splitForTelegram(null), []);
+});
+
+test('splitForTelegram: 优先在换行处切，每段不超上限', () => {
+  const paragraph = '这是一段用于测试切分的文字，长度适中。\n';
+  const text = paragraph.repeat(400); // 约 8000 字符
+  const chunks = splitForTelegram(text);
+
+  assert.ok(chunks.length >= 2);
+  for (const chunk of chunks) {
+    assert.ok(chunk.length <= CHAT_CHUNK_LENGTH, `分段超长：${chunk.length}`);
+    assert.ok(chunk.endsWith('。') || chunk.endsWith('\n'), '应在句子/换行边界切分');
+  }
+  // 切分时吞掉的是边界换行；除这些换行外不应丢内容
+  assert.equal(chunks.join('').replace(/\n/g, ''), text.replace(/\n/g, ''));
+});
+
+test('splitForTelegram: 无换行时硬切，且不劈开 emoji 代理对', () => {
+  const text = '😀'.repeat(3000); // 6000 UTF-16 code units
+  const chunks = splitForTelegram(text, 4000);
+  assert.ok(chunks.length >= 2);
+  for (const chunk of chunks) {
+    assert.ok(chunk.length <= 4000);
+    // 每段必须以完整的 surrogate pair 结尾
+    const last = chunk.charCodeAt(chunk.length - 1);
+    assert.ok(!(last >= 0xd800 && last <= 0xdbff), '代理对被劈开了');
+  }
+  assert.equal(chunks.join(''), text);
 });
 
 test('buildStatusReply: 两个服务都正常时展示统计', () => {

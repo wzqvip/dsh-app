@@ -1,10 +1,12 @@
 /**
- * assistant 服务的只读/回写客户端（数据管线由 Lead 维护，这里只按契约调用）。
+ * assistant 服务的客户端（数据管线 / 对话由 Lead 维护，这里只按契约调用）。
  *
  * 契约（2026-11-03 Lead 定稿）：
  *   GET  /health                     → {ok:true, items, open, pending, lastTickAt, lastSyncAt}（免 token）
  *   GET  /items?status=open&limit=50 → {ok:true, count:N, items:[{id,title,course,dueAt,status,revision}]}
  *   POST /items/{id}/status {status} → {ok:true, id, status}
+ *   POST /chat {text}                → {ok:true, reply, usage}（DeepSeek，P50 2-5s，长回复 20s+）
+ *   POST /session/check {}           → {ok:true, needsUser, reason, okSince}
  *   鉴权头：x-dsh-token: <共享密钥>
  *
  * 与 telegram.js 同一条安全规则：共享密钥只进请求头，绝不进错误信息/日志。
@@ -22,6 +24,17 @@ export class AssistantError extends Error {
   }
 }
 
+/** 从 assistant 的错误返回体里抽出一句可读原因（支持 `error` 是字符串或对象） */
+function describeError(parsed, raw) {
+  const value = parsed?.error;
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (value && typeof value === 'object' && typeof value.message === 'string' && value.message.trim()) {
+    return value.message.trim();
+  }
+  if (typeof parsed?.description === 'string' && parsed.description.trim()) return parsed.description.trim();
+  return String(raw ?? '').slice(0, 300).trim();
+}
+
 /** id 形如 `canvas:assignment:123` —— 保留 `:` 字面量（服务端按原样匹配），其它字符转义 */
 function encodeItemId(id) {
   return encodeURIComponent(String(id)).replace(/%3A/gi, ':');
@@ -32,13 +45,15 @@ function encodeItemId(id) {
  * @param {string} options.baseUrl 例：http://dsh-assistant:8787
  * @param {string} options.token 共享密钥
  * @param {typeof fetch} [options.fetchImpl]
- * @param {number} [options.timeoutMs]
+ * @param {number} [options.timeoutMs] 普通请求（items/health/status）超时
+ * @param {number} [options.chatTimeoutMs] 对话请求超时（DeepSeek 长回复可能 20s+）
  */
 export function createAssistantClient({
   baseUrl,
   token,
   fetchImpl = globalThis.fetch,
   timeoutMs = 10_000,
+  chatTimeoutMs = 60_000,
 } = {}) {
   if (typeof baseUrl !== 'string' || baseUrl.trim() === '') {
     throw new Error('assistant: baseUrl 必填');
@@ -78,9 +93,7 @@ export function createAssistantClient({
       }
 
       if (!response.ok) {
-        const description = String(
-          parsed?.error?.message ?? parsed?.description ?? raw.slice(0, 200) ?? '',
-        ).trim();
+        const description = describeError(parsed, raw);
         throw new AssistantError(
           scrub(`assistant ${method} ${path}: HTTP ${response.status} ${description}`),
           {
@@ -152,6 +165,60 @@ export function createAssistantClient({
     return request('/health');
   }
 
+  /**
+   * 无状态转发一句话给 assistant 的对话逻辑（LLM/上下文/历史都在 assistant 侧）。
+   * @param {object} options
+   * @param {string} options.text 用户原始文本
+   * @returns {Promise<{ok:true, reply:string, usage?:object}>}
+   */
+  async function chat({ text } = {}) {
+    if (typeof text !== 'string' || text.trim() === '') {
+      throw new AssistantError('assistant chat: text 必填', { kind: 'validation', path: '/chat' });
+    }
+    // 对话是**唯一**允许超过默认超时的请求（DeepSeek 长回复可能 20s+）
+    const payload = await request('/chat', {
+      method: 'POST',
+      body: { text },
+      timeoutMs: chatTimeoutMs,
+    });
+    if (!payload || payload.ok !== true) {
+      const description = scrub(describeError(payload, ''));
+      throw new AssistantError(`assistant /chat 返回失败：${description}`, {
+        kind: 'chat_failed',
+        description,
+        path: '/chat',
+      });
+    }
+    if (typeof payload.reply !== 'string') {
+      throw new AssistantError('assistant /chat 返回格式不对（缺 reply 字符串）', {
+        kind: 'invalid_response',
+        path: '/chat',
+      });
+    }
+    return payload;
+  }
+
+  /**
+   * 立即验证 noVNC 会话是否已登录（维护者回复 /ready 时调用）。
+   * @returns {Promise<{needsUser:boolean, reason:string|null, okSince:string|null}>}
+   */
+  async function checkSession() {
+    const payload = await request('/session/check', { method: 'POST', body: {} });
+    if (!payload || payload.ok !== true) {
+      const description = scrub(describeError(payload, ''));
+      throw new AssistantError(`assistant /session/check 返回失败：${description}`, {
+        kind: 'session_failed',
+        description,
+        path: '/session/check',
+      });
+    }
+    return {
+      needsUser: payload.needsUser === true,
+      reason: payload.reason ?? null,
+      okSince: payload.okSince ?? null,
+    };
+  }
+
   /** 永不抛：给 /status 用 */
   async function probe() {
     const startedAt = Date.now();
@@ -175,5 +242,5 @@ export function createAssistantClient({
     }
   }
 
-  return { baseUrl: base, listItems, setStatus, health, probe };
+  return { baseUrl: base, listItems, setStatus, health, chat, checkSession, probe };
 }

@@ -35,7 +35,17 @@ function textUpdate(text, { chatId = CHAT, updateId = 1 } = {}) {
   };
 }
 
-function fakeAssistant({ items = ITEMS, count = items.length, listError = null, statusError = null, probe } = {}) {
+function fakeAssistant({
+  items = ITEMS,
+  count = items.length,
+  listError = null,
+  statusError = null,
+  probe,
+  chatReply = '最急的是明天 23:59 截止的 OPCA 作业。',
+  chatError = null,
+  session = { needsUser: false, reason: null, okSince: '2026-11-03T11:00:00.000Z' },
+  sessionError = null,
+} = {}) {
   const calls = [];
   return {
     baseUrl: 'http://dsh-assistant:8787',
@@ -49,6 +59,16 @@ function fakeAssistant({ items = ITEMS, count = items.length, listError = null, 
       calls.push({ op: 'setStatus', id, status });
       if (statusError) throw statusError;
       return { ok: true, id, status };
+    },
+    async chat({ text }) {
+      calls.push({ op: 'chat', text });
+      if (chatError) throw chatError;
+      return { ok: true, reply: chatReply, usage: { total_tokens: 1 } };
+    },
+    async checkSession() {
+      calls.push({ op: 'checkSession' });
+      if (sessionError) throw sessionError;
+      return session;
     },
     async probe() {
       calls.push({ op: 'probe' });
@@ -96,13 +116,104 @@ test('handleUpdate: 没有文本（贴纸/图片）的消息忽略', async () =>
   assert.deepEqual(result, { handled: false, reason: 'no_text' });
 });
 
-test('普通文本 → 友好提示 + 命令列表（本轮不做 LLM 对话）', async () => {
-  const { handler } = makeHandler(test);
-  const result = await handler.handleUpdate(textUpdate('今天有什么作业？'));
+test('普通文本 → 无状态转发 assistant /chat，原样回复', async () => {
+  const assistant = fakeAssistant({ chatReply: '最急的是明天的 OPCA 作业。' });
+  const { handler } = makeHandler(test, { assistant });
+
+  const result = await handler.handleUpdate(textUpdate('我现在最急的事？'));
+
   assert.equal(result.handled, true);
-  assert.equal(result.replies.length, 1);
-  assert.match(result.replies[0].text, /普通对话暂未开启/);
-  assert.match(result.replies[0].text, /\/next/);
+  assert.deepEqual(assistant.calls.at(-1), { op: 'chat', text: '我现在最急的事？' });
+  assert.deepEqual(result.replies, [{ text: '最急的是明天的 OPCA 作业。' }]);
+});
+
+test('普通文本：/chat 返回空 reply → 友好提示，不静默', async () => {
+  const assistant = fakeAssistant({ chatReply: '   ' });
+  const { handler } = makeHandler(test, { assistant });
+  const result = await handler.handleUpdate(textUpdate('你好'));
+  assert.match(result.replies[0].text, /空回复/);
+});
+
+test('普通文本：/chat 502 → 「对话服务暂时不可用」并带原因，不抛栈', async () => {
+  const assistant = fakeAssistant({
+    chatError: new AssistantError('assistant POST /chat: HTTP 502 DeepSeek 调用失败', {
+      kind: 'http',
+      status: 502,
+      description: 'DeepSeek 调用失败',
+    }),
+  });
+  const { handler } = makeHandler(test, { assistant });
+  const result = await handler.handleUpdate(textUpdate('你好'));
+  assert.match(result.replies[0].text, /对话服务暂时不可用/);
+  assert.match(result.replies[0].text, /DeepSeek 调用失败/);
+  assert.ok(!result.replies[0].text.includes('    at '), '不应把栈发给用户');
+});
+
+test('普通文本：/chat 超时 → 明确说「等待超时」', async () => {
+  const assistant = fakeAssistant({
+    chatError: new AssistantError('assistant POST /chat: 超时 60000ms', { kind: 'timeout' }),
+  });
+  const { handler } = makeHandler(test, { assistant });
+  const result = await handler.handleUpdate(textUpdate('帮我想想'));
+  assert.match(result.replies[0].text, /等待超时/);
+  assert.match(result.replies[0].text, /稍后重试/);
+});
+
+test('普通文本：/chat 不可达 → 引导看 /status', async () => {
+  const assistant = fakeAssistant({
+    chatError: new AssistantError('assistant POST /chat: fetch failed', { kind: 'unreachable' }),
+  });
+  const { handler } = makeHandler(test, { assistant });
+  const result = await handler.handleUpdate(textUpdate('在吗'));
+  assert.match(result.replies[0].text, /assistant 不可达/);
+  assert.match(result.replies[0].text, /\/status/);
+});
+
+test('普通文本：长回复按换行切成多条（每条 ≤ 4000）', async () => {
+  const paragraph = '这是一段很长的模型回复，用来验证 Telegram 4096 上限的分条逻辑。\n';
+  const chatReply = paragraph.repeat(300); // 约 9000 字符
+  const assistant = fakeAssistant({ chatReply });
+  const { handler } = makeHandler(test, { assistant });
+
+  const result = await handler.handleUpdate(textUpdate('写一篇长文'));
+
+  assert.ok(result.replies.length >= 3, `应切成多条，实际 ${result.replies.length}`);
+  for (const reply of result.replies) {
+    assert.ok(reply.text.length <= 4000, `单条超长：${reply.text.length}`);
+  }
+  assert.match(result.replies[0].text, /这是一段很长的模型回复/);
+});
+
+test('/ready: 会话已恢复 → 已登录', async () => {
+  const assistant = fakeAssistant({
+    session: { needsUser: false, reason: null, okSince: '2026-11-03T11:00:00.000Z' },
+  });
+  const { handler } = makeHandler(test, { assistant });
+
+  const result = await handler.handleUpdate(textUpdate('/ready'));
+
+  assert.deepEqual(assistant.calls.at(-1), { op: 'checkSession' });
+  assert.match(result.replies[0].text, /✅ 已登录，会话正常/);
+});
+
+test('/ready: 仍需登录 → 带上 reason', async () => {
+  const assistant = fakeAssistant({
+    session: { needsUser: true, reason: 'blocked', okSince: null },
+  });
+  const { handler } = makeHandler(test, { assistant });
+  const result = await handler.handleUpdate(textUpdate('/ready'));
+  assert.match(result.replies[0].text, /仍未登录（reason=blocked）/);
+  assert.match(result.replies[0].text, /再发 \/ready/);
+});
+
+test('/ready: assistant 不可达 → 检查失败提示，不抛异常', async () => {
+  const assistant = fakeAssistant({
+    sessionError: new AssistantError('assistant POST /session/check: fetch failed', { kind: 'unreachable' }),
+  });
+  const { handler } = makeHandler(test, { assistant });
+  const result = await handler.handleUpdate(textUpdate('/ready'));
+  assert.match(result.replies[0].text, /检查登录状态失败/);
+  assert.match(result.replies[0].text, /不可用/);
 });
 
 test('/help → 帮助', async () => {

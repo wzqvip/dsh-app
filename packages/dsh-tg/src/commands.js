@@ -3,16 +3,18 @@
  *
  * 解析规则：
  *   · 以 `/` 开头才算命令；`/list@MyBot 5` 这种带 @mention 的写法也支持（群聊里常见）
- *   · 其它文本一律当普通文本（本轮**不做 LLM 对话**，回帮助提示）
+ *   · 其它文本一律当普通文本 → 转发给 assistant 的 `/chat`（LLM/上下文都在那边）
  *   · 顺序：assistant 已经按「未到期升序 → 无截止 → 已过期（最近的在前）」排好，
  *     本服务**不再重排**（否则会把 2017 年没关的旧作业翻到 /next 第一条）。
  */
 
-export const COMMAND_NAMES = Object.freeze(['next', 'list', 'done', 'status', 'help']);
+export const COMMAND_NAMES = Object.freeze(['next', 'list', 'done', 'ready', 'status', 'help']);
 export const DEFAULT_LIST_LIMIT = 10;
 export const MAX_LIST_LIMIT = 50;
 export const NEXT_COUNT = 5;
 export const MAX_REPLY_LENGTH = 4096;
+/** 对话回复切分上限：比 4096 留 96 字符余量，避免分条时再被 Telegram 拒 */
+export const CHAT_CHUNK_LENGTH = 4000;
 
 /**
  * @param {string} input
@@ -161,16 +163,58 @@ export function buildNextReply({ items = [], timeZone, now = new Date(), limit =
   return truncateForTelegram(`${header}\n${lines.join('\n')}\n\n用 /done <序号> 标记完成。`);
 }
 
+/**
+ * 把长文本切成 ≤ max 的若干条（Telegram 单条上限 4096）。
+ *
+ * 优先在**换行**处切（不把一句话/一段代码从中间劈开），找不到换行才硬切；
+ * 硬切时避开 UTF-16 代理对，防止 emoji 变成乱码。切分本身不添加"第 N 条"标记，
+ * 保持 LLM 原本的 Markdown 结构。
+ *
+ * @param {string} text
+ * @param {number} [max]
+ * @returns {string[]}
+ */
+export function splitForTelegram(text, max = CHAT_CHUNK_LENGTH) {
+  const value = String(text ?? '');
+  if (!value) return [];
+  if (value.length <= max) return [value];
+
+  const chunks = [];
+  let rest = value;
+  while (rest.length > max) {
+    let cut = -1;
+    const floor = Math.max(1, Math.floor(max / 2));
+    for (let i = Math.min(max, rest.length - 1); i >= floor; i -= 1) {
+      if (rest[i] === '\n') {
+        cut = i;
+        break;
+      }
+    }
+    if (cut <= 0) {
+      cut = max;
+      // 不把代理对劈开（High surrogate 结尾 → 往前退一位）
+      const code = rest.charCodeAt(cut - 1);
+      if (code >= 0xd800 && code <= 0xdbff) cut -= 1;
+    }
+    if (cut <= 0) cut = 1; // 理论上到不了；防死循环
+    chunks.push(rest.slice(0, cut));
+    rest = rest.slice(cut).replace(/^\n+/, '');
+  }
+  if (rest) chunks.push(rest);
+  return chunks;
+}
+
 export function buildHelpReply() {
   return [
     '🤖 dsh-tg 命令',
     '/next — 最近 5 个未完成截止',
     `/list [n] — 未完成清单（默认 ${DEFAULT_LIST_LIMIT}，最多 ${MAX_LIST_LIMIT}）`,
     '/done <序号> — 把清单里的第 N 项标记完成',
+    '/ready — 登录 noVNC 后确认会话是否恢复',
     '/status — 两个服务的健康状况',
     '/help — 这条帮助',
     '',
-    '普通文本暂不对话（本轮只做命令；LLM 对话不在范围内）。',
+    '直接发普通文本就能对话（例如「我现在最急的事是什么？」）。',
   ].join('\n');
 }
 
@@ -178,8 +222,20 @@ export function buildUnknownCommandReply(name) {
   return `未知命令 /${name}。\n\n${buildHelpReply()}`;
 }
 
-export function buildTextReply() {
-  return `你好，我是 dsh-tg（DSH 的 Telegram 网关）。普通对话暂未开启。\n\n${buildHelpReply()}`;
+/**
+ * `/ready` 回复：会话已恢复 / 仍需登录。
+ * @param {object} options
+ * @param {boolean} options.needsUser
+ * @param {string|null} [options.reason]
+ * @param {string|null} [options.okSince]
+ * @param {string} [options.timeZone]
+ */
+export function buildReadyReply({ needsUser, reason = null, okSince = null, timeZone } = {}) {
+  if (!needsUser) {
+    const since = okSince ? `（自 ${formatDue(okSince, timeZone)}）` : '';
+    return `✅ 已登录，会话正常${since}。`;
+  }
+  return `⚠️ 仍未登录（reason=${reason ?? 'unknown'}），请完成登录后再发 /ready。`;
 }
 
 function shortDuration(ms) {
