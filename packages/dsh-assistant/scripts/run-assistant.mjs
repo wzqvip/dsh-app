@@ -661,7 +661,10 @@ const chatMaxTokens = Number(flag('chat-max-tokens', 1200));
 // 维护者 2026-11-04：允许它在必要时思考，token 预算放宽
 const chatThinking = flag('no-chat-thinking', false) !== true;
 const subAgentMaxTokens = Number(flag('subagent-max-tokens', 2500));
-const subAgentRounds = Number(flag('subagent-rounds', 6));
+const subAgentRounds = Number(flag('subagent-rounds', 30));
+// 主对话的工具轮次。维护者要求「不给限制」——默认放到 20，只作为防程序跑飞的护栏，
+// 不是为了省钱；真跑飞了（比如工具互相触发）硬停比无限烧 token 好。
+const chatToolRounds = Number(flag('chat-tool-rounds', 20));
 
 /**
  * 把「最近读到的 Canvas quiz 题目」拼成对话事实块。
@@ -722,7 +725,7 @@ async function runScript(scriptName, scriptArgs, timeoutMs = 60_000) {
  * 联网检索的日配额（**花钱的能力必须有上限**）。
  * DeepSeek Search/Fetch 每次成功请求约 $0.00075，默认每天 50 次 ≈ $0.04/天上限。
  */
-const webDailyLimit = Number(flag('web-daily-limit', 50));
+const webDailyLimit = Number(flag('web-daily-limit', 500));
 
 function webUsageToday() {
   const today = new Date().toISOString().slice(0, 10);
@@ -849,7 +852,7 @@ async function handleChat(text) {
   });
 
   let toolRounds = 0;
-  while (result.toolCalls?.length && toolRounds < 3) {
+  while (result.toolCalls?.length && toolRounds < chatToolRounds) {
     toolRounds += 1;
     messages.push(result.assistantMessage);
     for (const call of result.toolCalls) {
@@ -886,7 +889,10 @@ async function handleChat(text) {
 
   if (!result.reply) {
     // 工具轮用完还没有最终回复：给一句兜底，别把空串发出去
-    result = { ...result, reply: '（工具调用次数达到上限，我先停下来了。要我继续就再说一次。）' };
+    result = {
+      ...result,
+      reply: `（工具轮次到了硬上限 ${chatToolRounds} 轮，我先停下；要继续就再说一次）`,
+    };
   }
 
   state.chat = state.chat ?? { history: [] };
