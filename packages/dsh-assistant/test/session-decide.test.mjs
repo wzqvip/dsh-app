@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   decideSession,
+  isSessionHost,
   formatDuration,
   reasonText,
   shouldCheck,
@@ -100,4 +101,20 @@ test('decideSession: 保留 prev 上的额外字段（autoRecoverAt 冷却不能
   const prev = { needsUser: false, autoRecoverAt: '2026-11-03T11:00:00.000Z', okSince: T0.toISOString() };
   const { next } = decideSession(prev, { browserUp: true, needsUser: false }, T1);
   assert.equal(next.autoRecoverAt, '2026-11-03T11:00:00.000Z');
+});
+
+test('isSessionHost: 只认 Outlook / 微软登录域名', () => {
+  assert.equal(isSessionHost('https://outlook.cloud.microsoft/mail/'), true);
+  assert.equal(isSessionHost('https://outlook.office.com/mail/'), true);
+  assert.equal(isSessionHost('https://login.microsoftonline.com/common/login'), true);
+  // Canvas / 别的站点：不算会话站点
+  assert.equal(isSessionHost('https://osu.instructure.com/courses/220921/quizzes/1503007/take'), false);
+  assert.equal(isSessionHost('https://webauth.service.ohio-state.edu/idp/x'), false);
+  assert.equal(isSessionHost('https://example.com/'), false);
+  assert.equal(isSessionHost(''), false);
+  assert.equal(isSessionHost('not-a-url'), false);
+  // 子域应当被接受（endsWith 规则）
+  assert.equal(isSessionHost('https://mail.outlook.office.com/'), true);
+  // 但"看起来像"的域名不能混进来
+  assert.equal(isSessionHost('https://notoutlook.office.com.evil.com/'), false);
 });

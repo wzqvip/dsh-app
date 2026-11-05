@@ -48,7 +48,7 @@ import { startApiServer } from '../src/http/api.js';
 import { actOnBrowser, snapshotBrowser } from '../src/browser/client.js';
 import { attemptAutoRecover, shouldAttemptRecovery } from '../src/session/recover.js';
 import { attemptPasswordLogin, shouldAttemptLogin } from '../src/session/login.js';
-import { decideSession, shouldCheck } from '../src/session/decide.js';
+import { decideSession, isSessionHost, shouldCheck } from '../src/session/decide.js';
 import { buildFactsBlock, buildMessages, buildSystemPrompt, trimHistory } from '../src/chat/prompt.js';
 import { chatCompletion, DEFAULT_CHAT_BASE_URL, DEFAULT_CHAT_MODEL } from '../src/chat/llm.js';
 import { TOOL_DEFS, TOOL_SUMMARY, executeTool } from '../src/chat/tools.js';
@@ -930,6 +930,19 @@ async function checkBrowserSession(now, { force = false } = {}) {
   if (!snap.ok || snap.transient) {
     // Chromium 自愈期会 503：不改状态、不通知，只记一笔
     log(`会话检查跳过（浏览器暂不可用：${snap.error ?? 'unknown'}）`);
+    return;
+  }
+
+  // ⚠️ 受管页只有一个：做 Canvas 的事会把它从 Outlook 导航走。
+  // 此时若照常巡检，就是拿 Canvas 页的状态判断 Outlook 会话 → 假告警。
+  if (snap.url && !isSessionHost(snap.url)) {
+    let host = '';
+    try {
+      host = new URL(snap.url).host;
+    } catch {
+      host = String(snap.url).slice(0, 40);
+    }
+    log(`会话检查跳过（受管页当前在 ${host}，不是 Outlook）`);
     return;
   }
 

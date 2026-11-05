@@ -113,3 +113,33 @@ export function shouldCheck(prev, now = new Date(), intervalMinutes = 15) {
   if (!Number.isFinite(last)) return true;
   return nowMs - last >= intervalMinutes * 60_000;
 }
+
+/** Outlook 会话巡检只认这些站点（含它的登录页） */
+export const SESSION_HOSTS = Object.freeze([
+  'outlook.cloud.microsoft',
+  'outlook.office.com',
+  'outlook.office365.com',
+  'login.microsoftonline.com',
+  'login.live.com',
+  'login.microsoft.com',
+]);
+
+/**
+ * 当前页面是否属于"该做 Outlook 会话巡检"的站点。
+ *
+ * 为什么需要：浏览器只有**一个受管页**。做 Canvas 的事（读 quiz、登录 SSO）会把受管页
+ * 从 Outlook 导航走；此时若照常巡检，就会拿 Canvas 页面的状态去判断 Outlook 会话，
+ * 得出"需要重新登录"之类的**假告警**。
+ *
+ * 实测踩到：读 quiz 后受管页停在 osu.instructure.com，巡检仍按 Outlook 逻辑跑。
+ */
+export function isSessionHost(url) {
+  let host = '';
+  try {
+    host = new URL(String(url ?? '')).host.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (!host) return false;
+  return SESSION_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+}
