@@ -125,6 +125,22 @@ export const TOOL_DEFS = Object.freeze([
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'delegate_task',
+      description:
+        '把一件需要多步取数的活派给子代理去做（它能开网页、读 Canvas、联网检索、查论文），你只管把结论转述给主人。适合"帮我查/读/整理/起草"这类要多次调工具的任务。',
+      parameters: {
+        type: 'object',
+        properties: {
+          goal: { type: 'string', description: '要它完成的具体目标（写清楚交付物）' },
+          context: { type: 'string', description: '可选背景（主人原话、已知信息、约束）' },
+        },
+        required: ['goal'],
+      },
+    },
+  },
 ]);
 
 /** 工具名白名单（防止模型编造名字） */
@@ -211,6 +227,11 @@ export async function executeTool(name, args = {}, ctx = {}) {
       return ctx.searchPapers({ query: String(args.query ?? ''), limit: args.limit });
     }
 
+    case 'delegate_task': {
+      if (typeof ctx.delegate !== 'function') return { ok: false, error: 'delegate_task 未启用' };
+      return ctx.delegate({ goal: String(args.goal ?? ''), context: String(args.context ?? '') });
+    }
+
     case 'canvas_read_quiz': {
       if (typeof readQuiz !== 'function') return { ok: false, error: 'canvas 读取未配置' };
       const quizId = String(args.quizId ?? '').replace(/\D/g, '');
@@ -233,6 +254,7 @@ export const TOOL_SUMMARY = [
   '· canvas_read_quiz —— 读 Canvas quiz 题目（只读，不提交）',
   '· web_search / fetch_url —— 联网搜索与抓网页（每次约 $0.00075，有每日上限）',
   '· search_papers —— 查某位学者的论文（OpenAlex，免费）',
+  '· delegate_task —— 把多步任务派给子代理（它也能用上面这些工具），你只负责转述结论',
   '规则：需要网页/题目/论文内容时**先调用工具**，不要直接说看不到或"没有工具"；',
   '查"某人最近发了什么文章"优先 search_papers（免费），需要最新动态再用 web_search。',
   '工具返回 needsUser 时如实说明需要人登录，并给出 noVNC 链接（如果上下文里有）。',

@@ -53,6 +53,7 @@ import { buildFactsBlock, buildMessages, buildSystemPrompt, trimHistory } from '
 import { chatCompletion, DEFAULT_CHAT_BASE_URL, DEFAULT_CHAT_MODEL } from '../src/chat/llm.js';
 import { TOOL_DEFS, TOOL_SUMMARY, executeTool } from '../src/chat/tools.js';
 import { deepseekFetch, deepseekSearch, searchPapers } from '../src/chat/web.js';
+import { runSubAgent } from '../src/chat/subagent.js';
 import { STALE_OVERRIDE_REASON, planStaleDrops } from '../src/items.js';
 import { syncAllCourses } from '../src/sources/classpipe-sync.js';
 import { sendDelivery } from '../src/notify/dsh-im.js';
@@ -656,7 +657,11 @@ function loadLlmConfig() {
 }
 
 const llm = loadLlmConfig();
-const chatMaxTokens = Number(flag('chat-max-tokens', 600));
+const chatMaxTokens = Number(flag('chat-max-tokens', 1200));
+// 维护者 2026-11-04：允许它在必要时思考，token 预算放宽
+const chatThinking = flag('no-chat-thinking', false) !== true;
+const subAgentMaxTokens = Number(flag('subagent-max-tokens', 2500));
+const subAgentRounds = Number(flag('subagent-rounds', 6));
 
 /**
  * 把「最近读到的 Canvas quiz 题目」拼成对话事实块。
@@ -794,18 +799,53 @@ async function handleChat(text) {
     },
     searchPapers: async ({ query, limit }) => searchPapers({ query, limit }),
 
+    // 子代理：主对话只负责聊，多步取数/起草派给它（thinking 开、token 多）
+    delegate: async ({ goal, context }) => {
+      if (!llm?.apiKey) return { ok: false, error: '没有 LLM 凭据' };
+      log(`委派子代理：${String(goal).slice(0, 60)}`);
+      const started = Date.now();
+      const result = await runSubAgent({
+        llm,
+        goal,
+        context,
+        toolDefs: TOOL_DEFS,
+        toolCtx,
+        thinking: true,
+        maxTokens: subAgentMaxTokens,
+        maxRounds: subAgentRounds,
+        log: (m) => log(m),
+      });
+      log(`子代理完成：${result.ok ? 'OK' : '失败'}，${Math.round((Date.now() - started) / 1000)}s，${result.rounds} 轮工具`);
+      return result;
+    },
+
     // 读 quiz 走独立脚本（打开 → 提取 → 写缓存），只读不提交
     readQuiz: async ({ quizId, courseId }) =>
       runScript('canvas-quiz-read.mjs', ['--quiz', quizId, '--course', courseId], 90_000),
   };
 
-  let result = await chatCompletion({
+  // 开思考时若正文被 reasoning 吃光（finish=length），自动降级重试一次（关思考）
+  async function chatWithFallback(options) {
+    try {
+      return await chatCompletion(options);
+    } catch (error) {
+      const message = String(error?.message ?? error);
+      if (options.thinking === 'enabled' && /模型返回为空/.test(message)) {
+        log(`思考把正文吃光了，降级为不思考重试（${message.slice(0, 80)}）`);
+        return chatCompletion({ ...options, thinking: 'disabled' });
+      }
+      throw error;
+    }
+  }
+
+  let result = await chatWithFallback({
     apiKey: llm.apiKey,
     baseUrl: llm.baseUrl,
     model: llm.model,
     messages,
     maxTokens: chatMaxTokens,
     tools: TOOL_DEFS,
+    thinking: chatThinking ? 'enabled' : 'disabled',
   });
 
   let toolRounds = 0;
@@ -833,13 +873,14 @@ async function handleChat(text) {
         content: JSON.stringify(output).slice(0, 8000),
       });
     }
-    result = await chatCompletion({
+    result = await chatWithFallback({
       apiKey: llm.apiKey,
       baseUrl: llm.baseUrl,
       model: llm.model,
       messages,
       maxTokens: chatMaxTokens,
       tools: TOOL_DEFS,
+      thinking: chatThinking ? 'enabled' : 'disabled',
     });
   }
 
