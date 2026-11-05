@@ -13,7 +13,10 @@
  */
 
 export class AssistantError extends Error {
-  constructor(message, { kind = 'unknown', status = null, description = null, method = null, path = null } = {}) {
+  constructor(
+    message,
+    { kind = 'unknown', status = null, description = null, method = null, path = null, timeoutMs = null } = {},
+  ) {
     super(message);
     this.name = 'AssistantError';
     this.kind = kind;
@@ -21,6 +24,8 @@ export class AssistantError extends Error {
     this.description = description;
     this.method = method;
     this.path = path;
+    // 超时错误带上原始超时值：用户文案要显示"超 N 秒"
+    this.timeoutMs = Number.isFinite(timeoutMs) ? timeoutMs : null;
   }
 }
 
@@ -46,14 +51,14 @@ function encodeItemId(id) {
  * @param {string} options.token 共享密钥
  * @param {typeof fetch} [options.fetchImpl]
  * @param {number} [options.timeoutMs] 普通请求（items/health/status）超时
- * @param {number} [options.chatTimeoutMs] 对话请求超时（DeepSeek 长回复可能 20s+）
+ * @param {number} [options.chatTimeoutMs] 对话请求超时（工具轮次放开后可能跑几分钟）
  */
 export function createAssistantClient({
   baseUrl,
   token,
   fetchImpl = globalThis.fetch,
   timeoutMs = 10_000,
-  chatTimeoutMs = 60_000,
+  chatTimeoutMs = 600_000,
 } = {}) {
   if (typeof baseUrl !== 'string' || baseUrl.trim() === '') {
     throw new Error('assistant: baseUrl 必填');
@@ -114,6 +119,7 @@ export function createAssistantClient({
           kind: 'timeout',
           method,
           path,
+          timeoutMs: requestTimeout,
         });
       }
       throw new AssistantError(scrub(`assistant ${method} ${path}: ${error?.message ?? error}`), {

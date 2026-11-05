@@ -16,7 +16,7 @@ import { silentLogger } from './log.js';
 import { toIso } from './util.js';
 
 export const SERVICE_NAME = 'dsh-tg';
-export const SERVICE_VERSION = '0.2.0';
+export const SERVICE_VERSION = '0.2.1';
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -153,10 +153,15 @@ export function createHttpServer({
       lastError: rt.lastError ?? null,
       poller: {
         running: Boolean(rt.running),
+        busy: Boolean(rt.busy),
         consecutiveFailures: Number(rt.consecutiveFailures) || 0,
         stale: Boolean(rt.stale),
         pollTimeoutSec: rt.pollTimeoutSec ?? config.poller?.pollTimeoutSec ?? null,
         heartbeatStaleMs: rt.heartbeatStaleMs ?? config.poller?.heartbeatStaleMs ?? null,
+      },
+      chat: {
+        timeoutMs: config.assistant?.chatTimeoutMs ?? null,
+        progressDelayMs: config.chatProgressDelayMs ?? null,
       },
       bot: {
         tokenMasked: maskToken(config.telegram.token),

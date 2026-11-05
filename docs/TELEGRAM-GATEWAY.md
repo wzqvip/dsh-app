@@ -1,6 +1,6 @@
 # Telegram 网关（dsh-tg）
 
-> 状态：**v0.2 已部署在 ubuntu-gpu**（2026-11-03；v0.2 增加普通文本对话转发与 `/ready`）。
+> 状态：**v0.2.1 已部署在 ubuntu-gpu**（2026-11-04；对话超时放宽到 10 分钟、加进度提示与超时文案区分）。
 > 代码：[`packages/dsh-tg/`](../packages/dsh-tg/README.md) · 上游服务：[`packages/dsh-assistant/`](../packages/dsh-assistant/README.md)
 
 ## 1. 为什么单独拆一个服务
@@ -69,7 +69,7 @@
 {
   "ok": true,
   "service": "dsh-tg",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "pid": 1,
   "startedAt": "2026-11-03T19:29:39.545Z",
   "uptimeSec": 5,
@@ -79,17 +79,20 @@
   "lastError": null,
   "poller": {
     "running": true,
+    "busy": false,
     "consecutiveFailures": 0,
     "stale": false,
     "pollTimeoutSec": 30,
     "heartbeatStaleMs": 300000
   },
+  "chat": { "timeoutMs": 600000, "progressDelayMs": 3000 },
   "bot": { "tokenMasked": "907260…huVc", "chatId": "6413978793" },
   "assistant": { "baseUrl": "http://dsh-assistant:8787" }
 }
 ```
 
-`stale=true` 表示"距最近一次 `getUpdates` 成功已超过 `HEARTBEAT_STALE_MS`"，**与用户是否发消息无关**。
+`stale=true` 表示"距最近一次 `getUpdates` 成功已超过 `HEARTBEAT_STALE_MS`"，**与用户是否发消息无关**；
+`busy=true` 表示正在处理一条 update（例如一次几分钟的对话），此时不轮询属正常，`stale` 不会被误置。
 
 ### `POST /notify`（需 `x-dsh-token`）
 
@@ -162,12 +165,14 @@ POST /session/check {}                → {ok:true, needsUser, reason, okSince}
 | 成功 | 把 `reply` 发回用户；日志只记**输入/回复长度与耗时**，不记内容 |
 | `reply` 为空 | 回「🤖 对话服务返回了空回复，请再试一次。」（不静默） |
 | 长回复 | `reply` 超过 **4000** 字符时按**换行**切分，分多条发送（硬切时避开 emoji 代理对） |
-| 超时 | `CHAT_TIMEOUT_MS`（默认 **60s**）超时 → 「对话服务暂时不可用（等待超时…）」 |
+| 处理较久 | 超过 `CHAT_PROGRESS_DELAY_MS`（默认 **3s**）还没返回 → 先发「⏳ 正在处理（要调工具…）」；最终回复仍照常发送 |
+| 超时 | `CHAT_TIMEOUT_MS`（默认 **600s / 10 分钟**）→ 「这个请求比较久（超过 N 秒），可能还在跑；稍等再问我一次结果」——**不说"服务不可用"** |
 | assistant 502 | 「对话服务暂时不可用（原因…）」；原因取自返回体的 `error` |
 | assistant 503 | 「对话服务暂时不可用（后台未启用：…）」 |
 | assistant 不可达 | 「对话服务暂时不可用（assistant 不可达）」，引导看 `/status` |
 
-对话请求用独立的超时（`CHAT_TIMEOUT_MS`），不影响 `/items`、`/status` 之类的短请求（`ASSISTANT_TIMEOUT_MS`）。
+对话请求用独立的超时（`CHAT_TIMEOUT_MS`，默认 10 分钟），不影响 `/items`、`/status` 之类的短请求（`ASSISTANT_TIMEOUT_MS`）。
+工具轮次放开后，一次「看看 quiz 并调研」可能跑几分钟，所以超时文案刻意与"服务挂了"区分开。
 
 ### `/ready`：登录后立即确认会话
 
@@ -187,7 +192,9 @@ POST /session/check {}                → {ok:true, needsUser, reason, okSince}
 | **心跳告警** | 只看"距最近一次 `getUpdates` 成功"是否超过 `HEARTBEAT_STALE_MS`（默认 5 分钟）；告警按 `ALERT_THROTTLE_MS`（默认 30 分钟）限频 | 用户不发消息是正常的，不能用"没消息"判断故障 |
 | **鉴权/冲突告警** | 401/403、409（另一个实例在轮询）立即告警一次并限频 | 这两类不会自愈，需要人处理 |
 | **单条失败不毒死循环** | 处理/回复异常只记日志，offset 仍前进 | 避免同一条消息无限重放 |
-| **对话超时独立** | `/chat` 用 `CHAT_TIMEOUT_MS`（默认 60s），其余请求 10s | 模型长回复不该拖垮短查询，也不该被短超时误杀 |
+| **对话超时独立** | `/chat` 用 `CHAT_TIMEOUT_MS`（默认 600s），其余请求 10s | 工具轮次放开后一次请求可能跑几分钟；短查询不该被长超时拖住 |
+| **忙时不误报 stale** | 处理 update 期间 `poller.busy=true`，`stale` 不算 busy 时间 | 长对话期间没在长轮询是预期行为，不能看起来像故障 |
+| **长对话进度提示** | 超过 `CHAT_PROGRESS_DELAY_MS` 先发一句「正在处理」 | 用户知道请求没丢；短对话不打扰 |
 | **可中断 sleep** | SIGTERM 时中断在途长轮询 + 退避等待（上限 15s 强制退出） | `docker restart` 不用等满一个退避窗口 |
 
 ## 7. 配置项
@@ -202,7 +209,8 @@ POST /session/check {}                → {ok:true, needsUser, reason, okSince}
 | `ASSISTANT_BASE_URL` | `http://127.0.0.1:8787` | 生产为 `http://dsh-assistant:8787` |
 | `ASSISTANT_TOKEN` | 复用共享密钥 | 一般不用设 |
 | `ASSISTANT_TIMEOUT_MS` | `10000` | items/health/session 等短请求超时 |
-| `CHAT_TIMEOUT_MS` | `60000` | 对话请求超时（5s..180s；DeepSeek 长回复可能 20s+） |
+| `CHAT_TIMEOUT_MS` | `600000` | 对话请求超时（5s..900s；默认 10 分钟，工具轮次放开后可能跑几分钟） |
+| `CHAT_PROGRESS_DELAY_MS` | `3000` | 超过多久先发「正在处理」；`0` = 关闭 |
 | `POLL_TIMEOUT_SEC` | `30` | 长轮询秒数（1..60） |
 | `HEARTBEAT_STALE_MS` | `300000` | 多久没成功轮询就告警 |
 | `ALERT_THROTTLE_MS` | `1800000` | 同类告警最小间隔 |
@@ -263,11 +271,14 @@ const t = (await import('node:fs')).readFileSync('/data/api-token.txt','utf8').t
 console.log(await (await fetch('http://dsh-assistant:8787/health')).json());"
 ```
 
-真实验证记录（2026-11-03 v0.1、2026-11-04 v0.2，ubuntu-gpu）：
+真实验证记录（2026-11-03 v0.1、2026-11-04 v0.2、2026-11-05 v0.2.1，ubuntu-gpu）：
 
 ```
 $ curl -sS -w '\nHTTP %{http_code}\n' http://127.0.0.1:18788/health
-{"ok":true,"service":"dsh-tg","version":"0.2.0",...,"poller":{"running":true,"consecutiveFailures":0,"stale":false,...},"bot":{"tokenMasked":"907260…huVc",...}}
+{"ok":true,"service":"dsh-tg","version":"0.2.1",...,
+ "poller":{"running":true,"busy":false,"consecutiveFailures":0,"stale":false,...},
+ "chat":{"timeoutMs":600000,"progressDelayMs":3000},
+ "bot":{"tokenMasked":"907260…huVc",...}}
 HTTP 200
 
 $ curl ... -H 'x-dsh-token: definitely-wrong' ...
@@ -279,17 +290,21 @@ $ curl ... -H "x-dsh-token: $(cat .../token.txt)" -d '{"text":"✅ dsh-tg 部署
 HTTP 200
 ```
 
-v0.2 对话转发 + `/ready` 的真实冒烟（`docker exec dsh-tg node scripts/smoke-commands.mjs`）：
+对话转发 + `/ready` 的真实冒烟（`docker exec dsh-tg node scripts/smoke-commands.mjs`）：
 
 ```
 ===== /ready =====
-⚠️ 仍未登录（reason=blocked），请完成登录后再发 /ready。
+✅ 已登录，会话正常（自 11/4 18:45）。
 
 ===== 用一句话说我现在最急的事是什么？ =====
-最急的是明天23:59截止的 [OPCA] Potential Topic Considerations（TLIELP 5050）。
+你现在最急的是今晚 23:59 截止的 TLIELP 5050 那份 OPCA Potential Topic Considerations
+（还剩约 1 小时 40 分）……（整轮约 1.9s）
 
 [smoke] OK：全部命令都产生了回复（/chat 之外均只读，未改动真实数据）
 ```
+
+> v0.2.1 起超时默认 600s、上限 900s；超时文案与「服务不可用」区分开。
+> 长请求的「正在处理」提示由 `CHAT_PROGRESS_DELAY_MS` 控制（默认 3s），单测覆盖（真实慢请求未人为制造）。
 
 ## 10. 排错
 
@@ -303,7 +318,7 @@ v0.2 对话转发 + `/ready` 的真实冒烟（`docker exec dsh-tg node scripts/
 | `/notify` 返回 429 | 等 `retryAfter` 秒；调用方（assistant）应尊重该字段 |
 | `/done` 说"找不到第 N 项" | 序号只在最近一次 `/list`/`/next` 后有效；重启后 seq.json 仍在，但如果清单被重新分配过就按最近的来 |
 | 对话回「暂时不可用（后台未启用…）」 | assistant 侧 `/chat` 返回 503：检查 assistant 的 `/data/llm.json`（key 由 Lead 维护，本服务不碰） |
-| 对话很慢或超时 | 看 assistant 日志里的 DeepSeek 耗时；必要时调大 `CHAT_TIMEOUT_MS`（上限 180s） |
+| 对话很慢或超时 | 看 assistant 日志里的工具轮次/DeepSeek 耗时；必要时调大 `CHAT_TIMEOUT_MS`（默认 10 分钟，上限 900s） |
 | `/ready` 一直回「仍未登录（reason=blocked）」 | noVNC 登录未完成/被拦；重新登录后再发 `/ready`，不要等巡检 |
 | 长回复只收到一部分 | 本服务按 4000 字符切分；若第二条没到，查容器日志里是否有 Telegram 发送失败 |
 | 容器起不来、日志 `共享密钥缺失` | `~/dsh-assistant/data/token.txt` 不存在或权限不对（容器以 uid 1001 运行） |
@@ -318,12 +333,15 @@ node --test
 
 - 零依赖、纯 ESM、`node:test`
 - 覆盖：命令解析、offset 持久化、429/超时、鉴权失败、`/done` 调不通、心跳告警限频、HTTP 契约、
-  对话转发（成功/空回复/502/超时/不可达）、长回复切分（换行优先、emoji 安全）、`/ready` 两态、`/session/check` 失败
+  对话转发（成功/空回复/502/超时/不可达）、长回复切分（换行优先、emoji 安全）、`/ready` 两态、`/session/check` 失败、
+  超时文案与"服务不可用"的区分、长对话进度提示（延时/发送失败）、`busy` 时不误报 `stale`
 - 全部用 fake `fetch` / fake updates，不访问真实 Telegram / DeepSeek
 
-## 12. 已知限制（v0.2）
+## 12. 已知限制（v0.2.1）
 
 - **对话是无状态转发**：本服务不存聊天内容、不做上下文裁剪；历史与窗口都由 assistant 维护
+- **长对话会串行阻塞长轮询**：一次 `/chat` 最多占 10 分钟，期间新消息在 Telegram 排队（不丢），
+  但连发多条时回复会依次出现；要并发需要加 update 队列，本轮未做
 - 长回复切分**不加「第 N 条」标记**（保持模型原本的 Markdown 结构）；如果分条顺序在客户端错乱，
   可改成带序号前缀，但会牺牲一点排版
 - 展示层**不合并**同标题同截止的重复项：那是 classpipe 里两条不同 `canvas_id` 的记录，

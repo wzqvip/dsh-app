@@ -50,11 +50,18 @@ function formatAssistantError(error, action) {
 /**
  * 对话失败的用户可见文案。
  * 注意：只说"原因 + 怎么办"，**不回显栈/请求体**；具体错误进容器日志。
+ *
+ * ⚠️ 超时**不等于**服务挂了：工具轮次放开后一次请求可能跑几分钟，
+ * 所以超时文案要说"可能还在跑"，而不是"暂时不可用"。
  */
-function formatChatError(error) {
+function formatChatError(error, { timeoutSec = null } = {}) {
   const reason = error?.description || error?.message || '未知错误';
   if (error?.kind === 'timeout') {
-    return `⚠️ 对话服务暂时不可用（等待超时：${reason}）。\n请稍后重试；也可以把问题拆短一点，或发 /status 看服务状态。`;
+    const seconds = Math.max(
+      1,
+      Math.round((Number(error?.timeoutMs) || (Number(timeoutSec) * 1000) || 600_000) / 1000),
+    );
+    return `⏳ 这个请求比较久（超过 ${seconds} 秒），可能还在跑；稍等一会儿再问我一次结果。\n（如果一直没回应，发 /status 看服务状态。）`;
   }
   if (error?.kind === 'unreachable') {
     return '⚠️ 对话服务暂时不可用（assistant 不可达）。\n发 /status 查看两个服务的健康状况。';
@@ -79,6 +86,8 @@ function formatChatError(error) {
  * @param {object} [options.logger]
  * @param {() => Date} [options.now]
  * @param {() => object} [options.runtime] 返回 poller.status，供 /status 用
+ * @param {{send: (text:string)=>Promise<void>}} [options.progress]
+ *   长对话的"正在处理"提示通道（由 poller 之外的直发通道提供；不影响最终回复）
  */
 export function createCommandHandler({
   assistant,
@@ -87,6 +96,7 @@ export function createCommandHandler({
   logger = console,
   now = () => new Date(),
   runtime = () => ({}),
+  progress = null,
 } = {}) {
   if (!assistant) throw new Error('handler: assistant 客户端必填');
   if (!seq) throw new Error('handler: seq 存储必填');
@@ -95,6 +105,12 @@ export function createCommandHandler({
   const expectedChatId = String(config.telegram.chatId);
   const timeZone = config.timeZone;
   const chatId = config.telegram.chatId;
+  const progressDelayMs = Number.isFinite(Number(config.chatProgressDelayMs))
+    ? Math.max(0, Number(config.chatProgressDelayMs))
+    : 0;
+  const chatTimeoutSec = Number.isFinite(Number(config.assistant?.chatTimeoutMs))
+    ? Number(config.assistant.chatTimeoutMs) / 1000
+    : null;
 
   async function loadOpen(limit) {
     return assistant.listItems({ status: 'open', limit });
@@ -243,9 +259,26 @@ export function createCommandHandler({
   /**
    * 普通文本 → assistant `/chat`（无状态转发），长回复按换行切成多条。
    * 日志只记长度与耗时，**不记聊天内容**。
+   *
+   * 进度提示：超过 `CHAT_PROGRESS_DELAY_MS` 还没返回时，先发一句"正在处理"，
+   * 让用户知道请求没丢（工具轮次放开后可能跑几分钟）。最终回复仍由 poller 统一发送，
+   * 两者不会互相打断。
    */
   async function handleChat(text) {
     const startedAt = Date.now();
+    let finished = false;
+    let progressTimer = null;
+
+    if (progress?.send && progressDelayMs > 0) {
+      progressTimer = setTimeout(() => {
+        if (finished) return;
+        Promise.resolve()
+          .then(() => progress.send('⏳ 正在处理（要调工具，可能几十秒甚至几分钟）…'))
+          .catch((error) => logger.warn?.(`[handler] 进度提示发送失败：${error?.message ?? error}`));
+      }, progressDelayMs);
+      if (typeof progressTimer.unref === 'function') progressTimer.unref();
+    }
+
     try {
       const payload = await assistant.chat({ text });
       const reply = typeof payload?.reply === 'string' ? payload.reply.trim() : '';
@@ -265,7 +298,10 @@ export function createCommandHandler({
       logger.error?.(
         `[handler] /chat 失败：${error?.kind ?? 'unknown'}${error?.status ? ` HTTP ${error.status}` : ''} ${error?.message ?? error}`,
       );
-      return { handled: true, replies: [{ text: formatChatError(error) }] };
+      return { handled: true, replies: [{ text: formatChatError(error, { timeoutSec: chatTimeoutSec }) }] };
+    } finally {
+      finished = true;
+      if (progressTimer) clearTimeout(progressTimer);
     }
   }
 

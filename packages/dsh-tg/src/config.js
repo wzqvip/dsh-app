@@ -25,7 +25,10 @@ export const DEFAULTS = Object.freeze({
   seqFile: '/data/seq.json',
   assistantBaseUrl: 'http://127.0.0.1:8787',
   assistantTimeoutMs: 10_000,
-  chatTimeoutMs: 60_000,
+  // 维护者要求"不给限制"：工具轮次放开后一次请求可能跑几分钟
+  chatTimeoutMs: 600_000,
+  // 普通文本处理超过这个时长就先回一句"正在处理"，避免用户以为卡死
+  chatProgressDelayMs: 3000,
   timeZone: 'America/New_York',
   pollTimeoutSec: 30,
   heartbeatStaleMs: 5 * 60 * 1000,
@@ -153,8 +156,16 @@ export function loadConfig({ env = process.env, readFile = readFileSync } = {}) 
   const backoffMaxMs = numberFrom(env.BACKOFF_MAX_MS, DEFAULTS.backoffMaxMs, 'BACKOFF_MAX_MS');
   const assistantTimeoutMs = numberFrom(env.ASSISTANT_TIMEOUT_MS, DEFAULTS.assistantTimeoutMs, 'ASSISTANT_TIMEOUT_MS');
   const chatTimeoutMs = numberFrom(env.CHAT_TIMEOUT_MS, DEFAULTS.chatTimeoutMs, 'CHAT_TIMEOUT_MS');
-  if (!Number.isFinite(chatTimeoutMs) || chatTimeoutMs < 5_000 || chatTimeoutMs > 180_000) {
-    throw new Error(`CHAT_TIMEOUT_MS 必须在 5000..180000（5s..180s）：${chatTimeoutMs}`);
+  if (!Number.isFinite(chatTimeoutMs) || chatTimeoutMs < 5_000 || chatTimeoutMs > 900_000) {
+    throw new Error(`CHAT_TIMEOUT_MS 必须在 5000..900000（5s..15min）：${chatTimeoutMs}`);
+  }
+  const chatProgressDelayMs = numberFrom(
+    env.CHAT_PROGRESS_DELAY_MS,
+    DEFAULTS.chatProgressDelayMs,
+    'CHAT_PROGRESS_DELAY_MS',
+  );
+  if (!Number.isFinite(chatProgressDelayMs) || chatProgressDelayMs < 0 || chatProgressDelayMs > 60_000) {
+    throw new Error(`CHAT_PROGRESS_DELAY_MS 必须在 0..60000（0 = 不发进度提示）：${chatProgressDelayMs}`);
   }
 
   const logLevel = String(env.LOG_LEVEL ?? DEFAULTS.logLevel).trim().toLowerCase();
@@ -175,6 +186,7 @@ export function loadConfig({ env = process.env, readFile = readFileSync } = {}) 
       timeoutMs: assistantTimeoutMs,
       chatTimeoutMs,
     },
+    chatProgressDelayMs,
     stateFile: String(env.STATE_FILE ?? DEFAULTS.stateFile).trim() || DEFAULTS.stateFile,
     seqFile: String(env.SEQ_FILE ?? DEFAULTS.seqFile).trim() || DEFAULTS.seqFile,
     poller: {

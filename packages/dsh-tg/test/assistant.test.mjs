@@ -251,7 +251,7 @@ test('chat: 200 但缺 reply 字段 → invalid_response', async () => {
   await assert.rejects(() => client.chat({ text: '你好' }), (error) => error.kind === 'invalid_response');
 });
 
-test('chat: 用 chatTimeoutMs（默认 60s）而不是普通请求超时', async () => {
+test('chat: 用 chatTimeoutMs（默认 600s）而不是普通请求超时，并带上 timeoutMs', async () => {
   const hanging = (_url, { signal }) =>
     new Promise((_resolve, reject) => {
       signal.addEventListener('abort', () => {
@@ -269,7 +269,8 @@ test('chat: 用 chatTimeoutMs（默认 60s）而不是普通请求超时', async
   });
   await assert.rejects(
     () => client.chat({ text: '写一段长文' }),
-    (error) => error.kind === 'timeout' && /超时 10ms/.test(error.message),
+    (error) =>
+      error.kind === 'timeout' && /超时 10ms/.test(error.message) && error.timeoutMs === 10,
   );
 });
 

@@ -119,21 +119,35 @@ test('loadConfig: 组装完整配置，assistant token 默认复用共享密钥'
   assert.equal(config.sharedToken, SHARED);
   assert.equal(config.assistant.baseUrl, 'http://dsh-assistant:8787');
   assert.equal(config.assistant.token, SHARED);
-  assert.equal(config.assistant.chatTimeoutMs, 60_000);
+  assert.equal(config.assistant.chatTimeoutMs, 600_000);
+  assert.equal(config.chatProgressDelayMs, 3000);
   assert.equal(config.poller.pollTimeoutSec, 10);
   assert.equal(config.poller.heartbeatStaleMs, 60_000);
 });
 
-test('loadConfig: CHAT_TIMEOUT_MS 可覆盖，非法值直接失败', (t) => {
+test('loadConfig: CHAT_TIMEOUT_MS 可覆盖（上限 900s），非法值直接失败', (t) => {
   const dir = tempDir(t);
   const telegramFile = writeCredentials(dir, { chatId: 7, token: FAKE_TOKEN });
   const tokenFile = join(dir, 'api-token.txt');
   writeFileSync(tokenFile, SHARED, 'utf8');
   const base = { TELEGRAM_CONFIG: telegramFile, SHARED_TOKEN_FILE: tokenFile };
 
-  assert.equal(loadConfig({ env: { ...base, CHAT_TIMEOUT_MS: '45000' } }).assistant.chatTimeoutMs, 45_000);
+  assert.equal(loadConfig({ env: { ...base, CHAT_TIMEOUT_MS: '900000' } }).assistant.chatTimeoutMs, 900_000);
   assert.throws(() => loadConfig({ env: { ...base, CHAT_TIMEOUT_MS: '1000' } }), /CHAT_TIMEOUT_MS/);
+  assert.throws(() => loadConfig({ env: { ...base, CHAT_TIMEOUT_MS: '900001' } }), /CHAT_TIMEOUT_MS/);
   assert.throws(() => loadConfig({ env: { ...base, CHAT_TIMEOUT_MS: 'abc' } }), /CHAT_TIMEOUT_MS/);
+});
+
+test('loadConfig: CHAT_PROGRESS_DELAY_MS（0 = 关闭进度提示）', (t) => {
+  const dir = tempDir(t);
+  const telegramFile = writeCredentials(dir, { chatId: 7, token: FAKE_TOKEN });
+  const tokenFile = join(dir, 'api-token.txt');
+  writeFileSync(tokenFile, SHARED, 'utf8');
+  const base = { TELEGRAM_CONFIG: telegramFile, SHARED_TOKEN_FILE: tokenFile };
+
+  assert.equal(loadConfig({ env: { ...base, CHAT_PROGRESS_DELAY_MS: '0' } }).chatProgressDelayMs, 0);
+  assert.equal(loadConfig({ env: { ...base, CHAT_PROGRESS_DELAY_MS: '5000' } }).chatProgressDelayMs, 5000);
+  assert.throws(() => loadConfig({ env: { ...base, CHAT_PROGRESS_DELAY_MS: '-1' } }), /CHAT_PROGRESS_DELAY_MS/);
 });
 
 test('loadConfig: TZ 作为时区回退', (t) => {

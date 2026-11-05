@@ -69,12 +69,18 @@ export async function main({ env = process.env } = {}) {
     logger,
   });
 
+  // 长对话的"正在处理"提示走这条直发通道（与 poller 的最终回复互不干扰）
+  const progress = {
+    send: (text) => telegram.sendMessage({ chatId: config.telegram.chatId, text, format: 'plain' }),
+  };
+
   const handler = createCommandHandler({
     assistant,
     seq,
     config,
     logger,
     runtime: () => poller.status,
+    progress,
   });
 
   const server = createHttpServer({

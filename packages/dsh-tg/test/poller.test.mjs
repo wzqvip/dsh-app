@@ -106,6 +106,41 @@ test('成功一轮：分发 → 回复 → offset = update_id+1 并落盘', asyn
   assert.equal(telegram.pollCalls[1].offset, 21);
 });
 
+test('长时间处理 update（LLM 对话）时 busy=true，且不把 /health 标成 stale', async () => {
+  const state = createStateStore({ file: null });
+  const clock = { value: 0 };
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const telegram = makeTelegram({ responses: [[{ update_id: 1 }]] });
+  const poller = createUpdatePoller(
+    baseOptions({
+      telegram,
+      state,
+      clock,
+      handler: {
+        async handleUpdate() {
+          await gate;
+          return { handled: true, replies: [] };
+        },
+      },
+    }),
+  );
+
+  const pending = poller.runOnce();
+  await new Promise((resolve) => setTimeout(resolve, 5));
+
+  assert.equal(poller.status.busy, true);
+  clock.value = 10_000; // 已超过 heartbeatStaleMs=1000，但正在处理 update
+  assert.equal(poller.status.stale, false, '处理长请求期间不应标 stale');
+
+  release();
+  const result = await pending;
+  assert.equal(result.ok, true);
+  assert.equal(poller.status.busy, false);
+});
+
 test('offset 跨重启持久化：新 poller 从上次确认的位置继续', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'dsh-tg-poller-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

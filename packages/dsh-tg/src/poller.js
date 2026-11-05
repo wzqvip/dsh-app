@@ -97,6 +97,9 @@ export function createUpdatePoller({
   let lastUpdateAt = null;
   let lastError = null;
   let consecutiveFailures = 0;
+  // 正在处理 update（可能是一次几分钟的 LLM 对话）：这期间没在长轮询是**正常**的，
+  // 不能因此把 /health 标成 stale，否则长请求看起来像故障。
+  let busy = false;
 
   /** 发一条告警给自己（限频）；失败只记日志 —— 告警发不出去不能反噬主循环 */
   async function sendAlert(key, text) {
@@ -196,9 +199,15 @@ export function createUpdatePoller({
         lastError = null;
       }
 
-      await processUpdates(updates);
+      busy = true;
+      try {
+        await processUpdates(updates);
+      } finally {
+        busy = false;
+      }
       return { ok: true, count: updates.length, recovered };
     } catch (error) {
+      busy = false;
       if (stopping || error?.code === 'aborted' || error?.kind === 'aborted') {
         return { ok: false, aborted: true };
       }
@@ -271,6 +280,7 @@ export function createUpdatePoller({
       const since = lastPollOkAt ?? startedAt;
       return {
         running: loopPromise !== null,
+        busy,
         startedAt: toIso(startedAt),
         lastPollOkAt: toIso(lastPollOkAt),
         lastUpdateAt: toIso(lastUpdateAt),
@@ -279,7 +289,8 @@ export function createUpdatePoller({
         offset: state.offset,
         pollTimeoutSec,
         heartbeatStaleMs,
-        stale: now() - since >= heartbeatStaleMs,
+        // 正在处理长对话（busy）时不算 stale：那是**预期内**不轮询
+        stale: !busy && now() - since >= heartbeatStaleMs,
       };
     },
     get _internals() {

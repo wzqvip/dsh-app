@@ -43,6 +43,7 @@ function fakeAssistant({
   probe,
   chatReply = '最急的是明天 23:59 截止的 OPCA 作业。',
   chatError = null,
+  chatDelayMs = 0,
   session = { needsUser: false, reason: null, okSince: '2026-11-03T11:00:00.000Z' },
   sessionError = null,
 } = {}) {
@@ -62,6 +63,7 @@ function fakeAssistant({
     },
     async chat({ text }) {
       calls.push({ op: 'chat', text });
+      if (chatDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, chatDelayMs));
       if (chatError) throw chatError;
       return { ok: true, reply: chatReply, usage: { total_tokens: 1 } };
     },
@@ -77,7 +79,7 @@ function fakeAssistant({
   };
 }
 
-function makeHandler(t, { assistant = fakeAssistant(), seq, runtime } = {}) {
+function makeHandler(t, { assistant = fakeAssistant(), seq, runtime, progress = null, config: overrides = {} } = {}) {
   const store = seq ?? createSeqStore({ file: null });
   const handler = createCommandHandler({
     assistant,
@@ -86,6 +88,9 @@ function makeHandler(t, { assistant = fakeAssistant(), seq, runtime } = {}) {
       telegram: { chatId: CHAT },
       timeZone: TZ,
       poller: { pollTimeoutSec: 30 },
+      assistant: { chatTimeoutMs: 60_000 },
+      chatProgressDelayMs: 0,
+      ...overrides,
     },
     logger: { error() {}, warn() {}, info() {}, debug() {} },
     now: () => new Date('2026-11-03T12:00:00.000Z'),
@@ -99,6 +104,7 @@ function makeHandler(t, { assistant = fakeAssistant(), seq, runtime } = {}) {
         consecutiveFailures: 0,
         offset: 7,
       })),
+    progress,
   });
   return { handler, assistant, seq: store };
 }
@@ -149,14 +155,20 @@ test('普通文本：/chat 502 → 「对话服务暂时不可用」并带原因
   assert.ok(!result.replies[0].text.includes('    at '), '不应把栈发给用户');
 });
 
-test('普通文本：/chat 超时 → 明确说「等待超时」', async () => {
+test('普通文本：/chat 超时 → 说「这个请求比较久，可能还在跑」，而不是"服务挂了"', async () => {
   const assistant = fakeAssistant({
-    chatError: new AssistantError('assistant POST /chat: 超时 60000ms', { kind: 'timeout' }),
+    chatError: new AssistantError('assistant POST /chat: 超时 600000ms', {
+      kind: 'timeout',
+      timeoutMs: 600_000,
+    }),
   });
   const { handler } = makeHandler(test, { assistant });
-  const result = await handler.handleUpdate(textUpdate('帮我想想'));
-  assert.match(result.replies[0].text, /等待超时/);
-  assert.match(result.replies[0].text, /稍后重试/);
+  const result = await handler.handleUpdate(textUpdate('帮我调研一下 quiz'));
+  assert.match(result.replies[0].text, /这个请求比较久/);
+  assert.match(result.replies[0].text, /超过 600 秒/);
+  assert.match(result.replies[0].text, /可能还在跑/);
+  assert.match(result.replies[0].text, /再问我一次结果/);
+  assert.ok(!/对话服务暂时不可用/.test(result.replies[0].text), '超时不应说成服务不可用');
 });
 
 test('普通文本：/chat 不可达 → 引导看 /status', async () => {
@@ -182,6 +194,66 @@ test('普通文本：长回复按换行切成多条（每条 ≤ 4000）', async
     assert.ok(reply.text.length <= 4000, `单条超长：${reply.text.length}`);
   }
   assert.match(result.replies[0].text, /这是一段很长的模型回复/);
+});
+
+test('长对话：超过 CHAT_PROGRESS_DELAY_MS 先发「正在处理」，最终回复照常返回', async () => {
+  const assistant = fakeAssistant({ chatReply: '最终答案', chatDelayMs: 60 });
+  const progressMessages = [];
+  const progress = {
+    async send(text) {
+      progressMessages.push(text);
+    },
+  };
+  const { handler } = makeHandler(test, {
+    assistant,
+    progress,
+    config: { chatProgressDelayMs: 10 },
+  });
+
+  const result = await handler.handleUpdate(textUpdate('看看 quiz 并做份调研'));
+
+  assert.equal(progressMessages.length, 1);
+  assert.match(progressMessages[0], /正在处理/);
+  assert.match(progressMessages[0], /要调工具/);
+  assert.deepEqual(result.replies, [{ text: '最终答案' }]);
+});
+
+test('短对话：未超过进度延迟则不发「正在处理」（不打扰）', async () => {
+  const assistant = fakeAssistant({ chatReply: '快答案' });
+  const progressMessages = [];
+  const progress = {
+    async send(text) {
+      progressMessages.push(text);
+    },
+  };
+  const { handler } = makeHandler(test, {
+    assistant,
+    progress,
+    config: { chatProgressDelayMs: 50 },
+  });
+
+  const result = await handler.handleUpdate(textUpdate('在吗'));
+
+  assert.equal(progressMessages.length, 0);
+  assert.deepEqual(result.replies, [{ text: '快答案' }]);
+});
+
+test('进度提示发送失败不影响最终回复', async () => {
+  const assistant = fakeAssistant({ chatReply: '最终答案', chatDelayMs: 40 });
+  const progress = {
+    async send() {
+      throw new Error('telegram down');
+    },
+  };
+  const { handler } = makeHandler(test, {
+    assistant,
+    progress,
+    config: { chatProgressDelayMs: 5 },
+  });
+
+  const result = await handler.handleUpdate(textUpdate('慢慢想'));
+
+  assert.deepEqual(result.replies, [{ text: '最终答案' }]);
 });
 
 test('/ready: 会话已恢复 → 已登录', async () => {

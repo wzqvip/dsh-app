@@ -14,7 +14,8 @@ function testConfig(overrides = {}) {
   return {
     telegram: { token: FAKE_TOKEN, chatId: CHAT },
     sharedToken: SHARED,
-    assistant: { baseUrl: 'http://dsh-assistant:8787' },
+    assistant: { baseUrl: 'http://dsh-assistant:8787', chatTimeoutMs: 600_000 },
+    chatProgressDelayMs: 3000,
     poller: { pollTimeoutSec: 30, heartbeatStaleMs: 300_000 },
     ...overrides,
   };
@@ -34,6 +35,7 @@ function fakeTelegram({ error = null } = {}) {
 
 const RUNTIME = {
   running: true,
+  busy: false,
   startedAt: '2026-11-03T10:00:00.000Z',
   lastPollOkAt: '2026-11-03T11:59:00.000Z',
   lastUpdateAt: '2026-11-03T11:30:00.000Z',
@@ -80,6 +82,9 @@ test('GET /health: 200，暴露轮询健康度，但不泄露 token', async (t) 
   assert.equal(body.offset, 5);
   assert.equal(body.lastPollOkAt, RUNTIME.lastPollOkAt);
   assert.equal(body.poller.running, true);
+  assert.equal(body.poller.busy, false);
+  assert.equal(body.chat.timeoutMs, 600_000);
+  assert.equal(body.chat.progressDelayMs, 3000);
   assert.equal(body.bot.tokenMasked, maskToken(FAKE_TOKEN));
   assert.equal(body.assistant.baseUrl, 'http://dsh-assistant:8787');
 
