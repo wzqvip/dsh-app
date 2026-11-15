@@ -1,0 +1,4972 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xmeml>
+<xmeml version="4">
+	<sequence id="sequence-1" TL.SQAudioVisibleBase="0" TL.SQVideoVisibleBase="0" TL.SQVisibleBaseTime="31895383470162" TL.SQAVDividerPosition="0.5" TL.SQHideShyTracks="0" TL.SQHeaderWidth="236" TL.SQDataTrackViewControlState="0" Monitor.ProgramZoomOut="41319936000000" Monitor.ProgramZoomIn="20384784000000" TL.SQTimePerPixel="0.026757625949858112" MZ.EditLine="35022456000000" MZ.Sequence.PreviewFrameSizeHeight="1080" MZ.Sequence.PreviewFrameSizeWidth="1920" MZ.Sequence.AudioTimeDisplayFormat="200" MZ.Sequence.PreviewRenderingClassID="1297106761" MZ.Sequence.PreviewRenderingPresetCodec="1297107278" MZ.Sequence.PreviewRenderingPresetPath="EncoderPresets/SequencePreview/d1a7275c-0f2f-41e8-89f5-3a75ab997b57/I-Frame Only MPEG.epr" MZ.Sequence.PreviewUseMaxBitDepth="false" MZ.Sequence.EditingModeGUID="d1a7275c-0f2f-41e8-89f5-3a75ab997b57" MZ.Sequence.VideoTimeDisplayFormat="100" explodedTracks="true">
+		<uuid>8b4a5243-e252-468d-bb7a-88e257af0482</uuid>
+		<duration>4272</duration>
+		<rate>
+			<timebase>24</timebase>
+			<ntsc>FALSE</ntsc>
+		</rate>
+		<name>NGNL Zero AMV v20 (178s)</name>
+		<media>
+			<video>
+				<format>
+					<samplecharacteristics>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<codec>
+							<name>Apple ProRes 422</name>
+							<appspecificdata>
+								<appname>Final Cut Pro</appname>
+								<appmanufacturer>Apple Inc.</appmanufacturer>
+								<appversion>7.0</appversion>
+								<data>
+									<qtcodec>
+										<codecname>Apple ProRes 422</codecname>
+										<codectypename>Apple ProRes 422</codectypename>
+										<codectypecode>apcn</codectypecode>
+										<codecvendorcode>appl</codecvendorcode>
+										<spatialquality>1024</spatialquality>
+										<temporalquality>0</temporalquality>
+										<keyframerate>0</keyframerate>
+										<datarate>0</datarate>
+									</qtcodec>
+								</data>
+							</appspecificdata>
+						</codec>
+						<width>1920</width>
+						<height>1080</height>
+						<anamorphic>FALSE</anamorphic>
+						<pixelaspectratio>square</pixelaspectratio>
+						<fielddominance>none</fielddominance>
+						<colordepth>24</colordepth>
+					</samplecharacteristics>
+				</format>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<clipitem id="clipitem-1">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>01 白虚空与巨大棋盘</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>0</start>
+						<end>-1</end>
+						<in>40</in>
+						<out>272</out>
+						<pproTicksIn>423360000000</pproTicksIn>
+						<pproTicksOut>2878848000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-1">
+							<name>[VCB-Studio] No Game No Life Zero [Ma10p_1080p][x265_flac].mkv</name>
+							<pathurl>file://localhost/D%3a/bitcomet%20download/[VCB-Studio]%20No%20Game%20No%20Life%20Zero%20[Ma10p_1080p]/[VCB-Studio]%20No%20Game%20No%20Life%20Zero%20[Ma10p_1080p][x265_flac].mkv</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>TRUE</ntsc>
+							</rate>
+							<duration>152495</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>TRUE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>TRUE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+								<audio>
+									<samplecharacteristics>
+										<depth>16</depth>
+										<samplerate>48000</samplerate>
+									</samplecharacteristics>
+									<channelcount>1</channelcount>
+									<layout>stereo</layout>
+									<audiochannel>
+										<sourcechannel>1</sourcechannel>
+										<channellabel>left</channellabel>
+									</audiochannel>
+								</audio>
+								<audio>
+									<samplecharacteristics>
+										<depth>16</depth>
+										<samplerate>48000</samplerate>
+									</samplecharacteristics>
+									<channelcount>1</channelcount>
+									<layout>stereo</layout>
+									<audiochannel>
+										<sourcechannel>2</sourcechannel>
+										<channellabel>right</channellabel>
+									</audiochannel>
+								</audio>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<transitionitem>
+						<start>221</start>
+						<end>246</end>
+						<alignment>center</alignment>
+						<cutPointTicks>190512000000</cutPointTicks>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<effect>
+							<name>Cross Dissolve</name>
+							<effectid>Cross Dissolve</effectid>
+							<effectcategory>Dissolve</effectcategory>
+							<effecttype>transition</effecttype>
+							<mediatype>video</mediatype>
+							<wipecode>0</wipecode>
+							<wipeaccuracy>100</wipeaccuracy>
+							<startratio>0</startratio>
+							<endratio>1</endratio>
+							<reverse>FALSE</reverse>
+						</effect>
+					</transitionitem>
+					<clipitem id="clipitem-2">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>02 红星球与毁灭星辰的大战</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>-1</start>
+						<end>522</end>
+						<in>6257</in>
+						<out>6549</out>
+						<pproTicksIn>66224088000000</pproTicksIn>
+						<pproTicksOut>69314616000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-3">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>04 天空积满灰烬 黑灰飘落废墟</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>522</start>
+						<end>-1</end>
+						<in>13281</in>
+						<out>13561</out>
+						<pproTicksIn>140566104000000</pproTicksIn>
+						<pproTicksOut>143529624000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<transitionitem>
+						<start>808</start>
+						<end>816</end>
+						<alignment>center</alignment>
+						<cutPointTicks>31752000000</cutPointTicks>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<effect>
+							<name>Cross Dissolve</name>
+							<effectid>Cross Dissolve</effectid>
+							<effectcategory>Dissolve</effectcategory>
+							<effecttype>transition</effecttype>
+							<mediatype>video</mediatype>
+							<wipecode>0</wipecode>
+							<wipeaccuracy>100</wipeaccuracy>
+							<startratio>0.0774194</startratio>
+							<endratio>1</endratio>
+							<reverse>FALSE</reverse>
+						</effect>
+					</transitionitem>
+					<clipitem id="clipitem-4">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>05 国际象棋 如果我赢了 将本机带回</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>-1</start>
+						<end>1327</end>
+						<in>27081</in>
+						<out>27575</out>
+						<pproTicksIn>286625304000000</pproTicksIn>
+						<pproTicksOut>291853800000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-5">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>06 里克 笑了 只有在那个时候笑了</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1327</start>
+						<end>1565</end>
+						<in>44746</in>
+						<out>44972</out>
+						<pproTicksIn>473591664000000</pproTicksIn>
+						<pproTicksOut>475983648000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-6">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>07 好漂亮 我不再是自己一个</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1565</start>
+						<end>1778</end>
+						<in>60887</in>
+						<out>61089</out>
+						<pproTicksIn>644428008000000</pproTicksIn>
+						<pproTicksOut>646565976000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-7">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>08 我们是幽灵 全种族包括神灵种</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1778</start>
+						<end>1955</end>
+						<in>69951</in>
+						<out>70119</out>
+						<pproTicksIn>740361384000000</pproTicksIn>
+						<pproTicksOut>742139496000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-8">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>09 向共同的意志起誓</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1955</start>
+						<end>2134</end>
+						<in>73215</in>
+						<out>73385</out>
+						<pproTicksIn>774907560000000</pproTicksIn>
+						<pproTicksOut>776706840000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-9">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>10 可以成为我的妻子吗 休比</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2134</start>
+						<end>2321</end>
+						<in>80323</in>
+						<out>80501</out>
+						<pproTicksIn>850138632000000</pproTicksIn>
+						<pproTicksOut>852022584000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-10">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>11 绝对不让里克死去 一同活下去</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2321</start>
+						<end>2461</end>
+						<in>82260</in>
+						<out>82394</out>
+						<pproTicksIn>870639840000000</pproTicksIn>
+						<pproTicksOut>872058096000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-11">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>12 谁也不会死 我不会让任何人死的</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2461</start>
+						<end>2600</end>
+						<in>84416</in>
+						<out>84548</out>
+						<pproTicksIn>893458944000000</pproTicksIn>
+						<pproTicksOut>894856032000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-12">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>13 休比 存在着游戏之神吗</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2600</start>
+						<end>2738</end>
+						<in>95241</in>
+						<out>95373</out>
+						<pproTicksIn>1008030744000000</pproTicksIn>
+						<pproTicksOut>1009427832000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-13">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>14 CODE1673B743EIF255 脚本E启动</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2738</start>
+						<end>2797</end>
+						<in>108902</in>
+						<out>108953</out>
+						<pproTicksIn>1152618768000000</pproTicksIn>
+						<pproTicksOut>1153158552000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-14">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>15 【典开】伪典·焉龙啸</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2797</start>
+						<end>2836</end>
+						<in>110435</in>
+						<out>110465</out>
+						<pproTicksIn>1168844040000000</pproTicksIn>
+						<pproTicksOut>1169161560000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-15">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>15 【典开】伪典·焉龙啸</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2836</start>
+						<end>2913</end>
+						<in>110474</in>
+						<out>110542</out>
+						<pproTicksIn>1169256816000000</pproTicksIn>
+						<pproTicksOut>1169976528000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-16">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>15 【典开】伪典·焉龙啸</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2913</start>
+						<end>3096</end>
+						<in>110551</in>
+						<out>110725</out>
+						<pproTicksIn>1170071784000000</pproTicksIn>
+						<pproTicksOut>1171913400000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-17">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>17 全典开 将这所有都赌在这251秒里</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3096</start>
+						<end>3309</end>
+						<in>116002</in>
+						<out>116206</out>
+						<pproTicksIn>1227765168000000</pproTicksIn>
+						<pproTicksOut>1229924304000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-gap-cantdie">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>GAP 不能死 我还不能死！</name>
+						<enabled>TRUE</enabled>
+						<duration>152647</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3309</start>
+						<end>3436</end>
+						<in>118186</in>
+						<out>118313</out>
+						<pproTicksIn>1227765168000000</pproTicksIn>
+						<pproTicksOut>1229924304000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-18">
+						<masterclipid>masterclip-2</masterclipid>
+						<name>1192_05037.24-05051.00_13.76s.mp4</name>
+						<enabled>TRUE</enabled>
+						<duration>330</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3436</start>
+						<end>3511</end>
+						<in>255</in>
+						<out>330</out>
+						<pproTicksIn>2698920000000</pproTicksIn>
+						<pproTicksOut>3492720000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-2">
+							<name>1192_05037.24-05051.00_13.76s.mp4</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/shots_clip_part3_0801-1200/1192_05037.24-05051.00_13.76s.mp4</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>TRUE</ntsc>
+							</rate>
+							<duration>330</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>TRUE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>TRUE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+								<audio>
+									<samplecharacteristics>
+										<depth>16</depth>
+										<samplerate>48000</samplerate>
+									</samplecharacteristics>
+									<channelcount>2</channelcount>
+								</audio>
+							</media>
+						</file>
+						<link>
+							<linkclipref>clipitem-18</linkclipref>
+							<mediatype>video</mediatype>
+							<trackindex>1</trackindex>
+							<clipindex>20</clipindex>
+						</link>
+						<link>
+							<linkclipref>clipitem-74</linkclipref>
+							<mediatype>audio</mediatype>
+							<trackindex>2</trackindex>
+							<clipindex>1</clipindex>
+							<groupindex>1</groupindex>
+						</link>
+						<link>
+							<linkclipref>clipitem-75</linkclipref>
+							<mediatype>audio</mediatype>
+							<trackindex>3</trackindex>
+							<clipindex>1</clipindex>
+							<groupindex>1</groupindex>
+						</link>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-19">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>20 为什么要把心赋予我</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3511</start>
+						<end>3650</end>
+						<in>123048</in>
+						<out>123181</out>
+						<pproTicksIn>1302340032000000</pproTicksIn>
+						<pproTicksOut>1303747704000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-20">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>21 将军了 里克 接下来就交给你了</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3650</start>
+						<end>3791</end>
+						<in>125111</in>
+						<out>125245</out>
+						<pproTicksIn>1324174824000000</pproTicksIn>
+						<pproTicksOut>1325593080000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-21">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>22 星杯便会显现于你的手中</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3791</start>
+						<end>3930</end>
+						<in>126538</in>
+						<out>126670</out>
+						<pproTicksIn>1339278192000000</pproTicksIn>
+						<pproTicksOut>1340675280000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-22">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>23 髓爆全弹发射 神击</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3930</start>
+						<end>4056</end>
+						<in>131030</in>
+						<out>131150</out>
+						<pproTicksIn>1386821520000000</pproTicksIn>
+						<pproTicksOut>1388091600000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-23">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>24 所有的能量互相碰撞</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>4056</start>
+						<end>4157</end>
+						<in>131548</in>
+						<out>131644</out>
+						<pproTicksIn>1392304032000000</pproTicksIn>
+						<pproTicksOut>1393320096000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-24">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>25 真典·弑星者托付于你</name>
+						<enabled>TRUE</enabled>
+						<duration>152648</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>4157</start>
+						<end>4272</end>
+						<in>133032</in>
+						<out>133141</out>
+						<pproTicksIn>1408010688000000</pproTicksIn>
+						<pproTicksOut>1409164344000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1" />
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0">
+					<clipitem id="clipitem-25">
+						<masterclipid>masterclip-3</masterclipid>
+						<name>L02_022.84-030.39_Fromathousandyears.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>182</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>548</start>
+						<end>729</end>
+						<in>0</in>
+						<out>175</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1852200000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-3">
+							<name>L02_022.84-030.39_Fromathousandyears.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L02_022.84-030.39_Fromathousandyears.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>182</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-26">
+						<masterclipid>masterclip-4</masterclipid>
+						<name>L03_030.42-036.31_Alduinsolevarion.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>142</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>730</start>
+						<end>871</end>
+						<in>0</in>
+						<out>121</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1280664000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-4">
+							<name>L03_030.42-036.31_Alduinsolevarion.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L03_030.42-036.31_Alduinsolevarion.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>142</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-27">
+						<masterclipid>masterclip-5</masterclipid>
+						<name>L07_051.81-055.80_Atinyflameinsideco.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>96</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1243</start>
+						<end>1339</end>
+						<in>0</in>
+						<out>92</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>973728000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-5">
+							<name>L07_051.81-055.80_Atinyflameinsideco.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L07_051.81-055.80_Atinyflameinsideco.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>96</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-28">
+						<masterclipid>masterclip-6</masterclipid>
+						<name>L08_057.18-060.85_名前もないこの世界で.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>89</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1372</start>
+						<end>1460</end>
+						<in>0</in>
+						<out>89</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>941976000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-6">
+							<name>L08_057.18-060.85_名前もないこの世界で.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L08_057.18-060.85_%e5%90%8d%e5%89%8d%e3%82%82%e3%81%aa%e3%81%84%e3%81%93%e3%81%ae%e4%b8%96%e7%95%8c%e3%81%a7.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>89</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-29">
+						<masterclipid>masterclip-7</masterclipid>
+						<name>L09_060.88-064.14_Weholdthetruthinsi.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>79</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1461</start>
+						<end>1539</end>
+						<in>0</in>
+						<out>79</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>836136000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-7">
+							<name>L09_060.88-064.14_Weholdthetruthinsi.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L09_060.88-064.14_Weholdthetruthinsi.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>79</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-30">
+						<masterclipid>masterclip-8</masterclipid>
+						<name>L10_065.22-071.65_ガラスの瞳に映る夜明け.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>155</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1565</start>
+						<end>1720</end>
+						<in>0</in>
+						<out>155</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1640520000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-8">
+							<name>L10_065.22-071.65_ガラスの瞳に映る夜明け.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L10_065.22-071.65_%e3%82%ac%e3%83%a9%e3%82%b9%e3%81%ae%e7%9e%b3%e3%81%ab%e6%98%a0%e3%82%8b%e5%a4%9c%e6%98%8e%e3%81%91.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>155</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-31">
+						<masterclipid>masterclip-9</masterclipid>
+						<name>L11_071.68-077.89_Onefragiletouchout.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>150</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1720</start>
+						<end>1869</end>
+						<in>0</in>
+						<out>150</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1587600000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-9">
+							<name>L11_071.68-077.89_Onefragiletouchout.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L11_071.68-077.89_Onefragiletouchout.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>150</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-32">
+						<masterclipid>masterclip-10</masterclipid>
+						<name>L12_077.92-083.53_Dovahkiinsolevari.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>135</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1870</start>
+						<end>2005</end>
+						<in>0</in>
+						<out>102</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1079568000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-10">
+							<name>L12_077.92-083.53_Dovahkiinsolevari.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L12_077.92-083.53_Dovahkiinsolevari.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>135</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-33">
+						<masterclipid>masterclip-11</masterclipid>
+						<name>L13_083.56-090.89_神々の盤上を塗り替える光.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>176</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2005</start>
+						<end>2181</end>
+						<in>0</in>
+						<out>176</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1862784000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-11">
+							<name>L13_083.56-090.89_神々の盤上を塗り替える光.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L13_083.56-090.89_%e7%a5%9e%e3%80%85%e3%81%ae%e7%9b%a4%e4%b8%8a%e3%82%92%e5%a1%97%e3%82%8a%e6%9b%bf%e3%81%88%e3%82%8b%e5%85%89.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>176</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-34">
+						<masterclipid>masterclip-12</masterclipid>
+						<name>L15_097.32-105.73_Elensilathuumvari.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>202</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2336</start>
+						<end>2538</end>
+						<in>0</in>
+						<out>168</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1778112000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-12">
+							<name>L15_097.32-105.73_Elensilathuumvari.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L15_097.32-105.73_Elensilathuumvari.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>202</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-35">
+						<masterclipid>masterclip-13</masterclipid>
+						<name>L16_105.76-110.91_千年の夜を越え君に逢いにゆく.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>124</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2538</start>
+						<end>2662</end>
+						<in>1</in>
+						<out>124</out>
+						<pproTicksIn>10584000000</pproTicksIn>
+						<pproTicksOut>1312416000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-13">
+							<name>L16_105.76-110.91_千年の夜を越え君に逢いにゆく.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L16_105.76-110.91_%e5%8d%83%e5%b9%b4%e3%81%ae%e5%a4%9c%e3%82%92%e8%b6%8a%e3%81%88%e5%90%9b%e3%81%ab%e9%80%a2%e3%81%84%e3%81%ab%e3%82%86%e3%81%8f.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>124</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-36">
+						<masterclipid>masterclip-14</masterclipid>
+						<name>L17_110.94-113.45_Rewritingfateupont.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>61</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2663</start>
+						<end>2723</end>
+						<in>0</in>
+						<out>61</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>645624000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-14">
+							<name>L17_110.94-113.45_Rewritingfateupont.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L17_110.94-113.45_Rewritingfateupont.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>61</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-37">
+						<masterclipid>masterclip-15</masterclipid>
+						<name>L18_113.48-115.65_Dovahlokkyuriano.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>53</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2724</start>
+						<end>2776</end>
+						<in>0</in>
+						<out>53</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>560952000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-15">
+							<name>L18_113.48-115.65_Dovahlokkyuriano.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L18_113.48-115.65_Dovahlokkyuriano.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>53</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-38">
+						<masterclipid>masterclip-16</masterclipid>
+						<name>L19_115.68-119.58_Ancientoathscarved.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>94</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2776</start>
+						<end>2870</end>
+						<in>0</in>
+						<out>93</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>984312000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-16">
+							<name>L19_115.68-119.58_Ancientoathscarved.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L19_115.68-119.58_Ancientoathscarved.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>94</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-39">
+						<masterclipid>masterclip-17</masterclipid>
+						<name>L20_120.42-124.67_今歯車が回り出す.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>102</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2890</start>
+						<end>2992</end>
+						<in>0</in>
+						<out>102</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1079568000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-17">
+							<name>L20_120.42-124.67_今歯車が回り出す.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L20_120.42-124.67_%e4%bb%8a%e6%ad%af%e8%bb%8a%e3%81%8c%e5%9b%9e%e3%82%8a%e5%87%ba%e3%81%99.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>102</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-40">
+						<masterclipid>masterclip-18</masterclipid>
+						<name>L21_124.70-128.29_Hearthisfragilehum.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>87</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2993</start>
+						<end>3079</end>
+						<in>0</in>
+						<out>87</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>920808000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-18">
+							<name>L21_124.70-128.29_Hearthisfragilehum.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L21_124.70-128.29_Hearthisfragilehum.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>87</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-41">
+						<masterclipid>masterclip-19</masterclipid>
+						<name>L22_128.32-152.82_Alenariovarion.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>588</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3080</start>
+						<end>3668</end>
+						<in>25</in>
+						<out>265</out>
+						<pproTicksIn>264600000000</pproTicksIn>
+						<pproTicksOut>2804760000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-19">
+							<name>L22_128.32-152.82_Alenariovarion.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L22_128.32-152.82_Alenariovarion.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>588</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-42">
+						<masterclipid>masterclip-20</masterclipid>
+						<name>L23_152.85-156.34_Dovahkiinsolevari.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>84</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3668</start>
+						<end>3752</end>
+						<in>0</in>
+						<out>84</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>889056000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-20">
+							<name>L23_152.85-156.34_Dovahkiinsolevari.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L23_152.85-156.34_Dovahkiinsolevari.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>84</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-43">
+						<masterclipid>masterclip-21</masterclipid>
+						<name>L24_156.37-162.64_神々の盤上を塗り替える光.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>151</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3753</start>
+						<end>3903</end>
+						<in>0</in>
+						<out>151</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1598184000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-21">
+							<name>L24_156.37-162.64_神々の盤上を塗り替える光.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L24_156.37-162.64_%e7%a5%9e%e3%80%85%e3%81%ae%e7%9b%a4%e4%b8%8a%e3%82%92%e5%a1%97%e3%82%8a%e6%9b%bf%e3%81%88%e3%82%8b%e5%85%89.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>151</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-44">
+						<masterclipid>masterclip-22</masterclipid>
+						<name>L25_162.67-167.34_Wearethesparksinth.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>113</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3904</start>
+						<end>4016</end>
+						<in>0</in>
+						<out>113</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1195992000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-22">
+							<name>L25_162.67-167.34_Wearethesparksinth.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L25_162.67-167.34_Wearethesparksinth.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>113</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-45">
+						<masterclipid>masterclip-23</masterclipid>
+						<name>L26_167.37-172.09_Elensilathuumvari.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>114</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>4017</start>
+						<end>4130</end>
+						<in>0</in>
+						<out>114</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1206576000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-23">
+							<name>L26_167.37-172.09_Elensilathuumvari.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L26_167.37-172.09_Elensilathuumvari.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>114</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-46">
+						<masterclipid>masterclip-24</masterclipid>
+						<name>L28_175.75-178.05_Rewritingfateupont.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>56</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>4218</start>
+						<end>4273</end>
+						<in>0</in>
+						<out>56</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>592704000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-24">
+							<name>L28_175.75-178.05_Rewritingfateupont.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L28_175.75-178.05_Rewritingfateupont.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>56</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0">
+					<clipitem id="clipitem-47">
+						<masterclipid>masterclip-25</masterclipid>
+						<name>L01_016.44-022.81_Dovahkiinlokthuumv.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>153</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>395</start>
+						<end>547</end>
+						<in>0</in>
+						<out>153</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1619352000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-25">
+							<name>L01_016.44-022.81_Dovahkiinlokthuumv.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L01_016.44-022.81_Dovahkiinlokthuumv.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>153</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-48">
+						<masterclipid>masterclip-26</masterclipid>
+						<name>L04_036.34-040.49_Beforethesilentgod.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>100</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>872</start>
+						<end>972</end>
+						<in>0</in>
+						<out>76</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>804384000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-26">
+							<name>L04_036.34-040.49_Beforethesilentgod.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L04_036.34-040.49_Beforethesilentgod.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>100</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-49">
+						<masterclipid>masterclip-27</masterclipid>
+						<name>L05_040.52-044.91_Alamiraoranathe.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>106</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>972</start>
+						<end>1078</end>
+						<in>0</in>
+						<out>106</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1121904000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-27">
+							<name>L05_040.52-044.91_Alamiraoranathe.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L05_040.52-044.91_Alamiraoranathe.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>106</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-50">
+						<masterclipid>masterclip-28</masterclipid>
+						<name>L06_044.94-046.44_灰色の空に星が落ちる.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>36</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1079</start>
+						<end>1115</end>
+						<in>0</in>
+						<out>36</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>381024000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-28">
+							<name>L06_044.94-046.44_灰色の空に星が落ちる.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L06_044.94-046.44_%e7%81%b0%e8%89%b2%e3%81%ae%e7%a9%ba%e3%81%ab%e6%98%9f%e3%81%8c%e8%90%bd%e3%81%a1%e3%82%8b.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>36</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<clipitem id="clipitem-51">
+						<masterclipid>masterclip-29</masterclipid>
+						<name>L14_090.92-097.29_Wearethesparksinth.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>153</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2182</start>
+						<end>2335</end>
+						<in>0</in>
+						<out>153</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1619352000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-29">
+							<name>L14_090.92-097.29_Wearethesparksinth.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/lyrics/L14_090.92-097.29_Wearethesparksinth.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>153</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+					</clipitem>
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0">
+					<clipitem id="clipitem-52">
+						<masterclipid>masterclip-30</masterclipid>
+						<name>N01_002.50-006.80_距今六千年前在十条盟约尚未诞生的世界.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>104</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>60</start>
+						<end>163</end>
+						<in>0</in>
+						<out>104</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1100736000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-30">
+							<name>N01_002.50-006.80_距今六千年前在十条盟约尚未诞生的世界.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N01_002.50-006.80_%e8%b7%9d%e4%bb%8a%e5%85%ad%e5%8d%83%e5%b9%b4%e5%89%8d%e5%9c%a8%e5%8d%81%e6%9d%a1%e7%9b%9f%e7%ba%a6%e5%b0%9a%e6%9c%aa%e8%af%9e%e7%94%9f%e7%9a%84%e4%b8%96%e7%95%8c.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>104</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-53">
+						<masterclipid>masterclip-31</masterclipid>
+						<name>N02_007.20-011.60_为了争夺唯一神的宝座神明与造物掀起了.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>106</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>173</start>
+						<end>278</end>
+						<in>0</in>
+						<out>106</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1121904000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-31">
+							<name>N02_007.20-011.60_为了争夺唯一神的宝座神明与造物掀起了.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N02_007.20-011.60_%e4%b8%ba%e4%ba%86%e4%ba%89%e5%a4%ba%e5%94%af%e4%b8%80%e7%a5%9e%e7%9a%84%e5%ae%9d%e5%ba%a7%e7%a5%9e%e6%98%8e%e4%b8%8e%e9%80%a0%e7%89%a9%e6%8e%80%e8%b5%b7%e4%ba%86.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>106</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-54">
+						<masterclipid>masterclip-32</masterclipid>
+						<name>N03_012.60-017.60_众神无尽的纷争烧毁了大地天空降下致命.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>120</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>302</start>
+						<end>422</end>
+						<in>0</in>
+						<out>120</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1270080000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-32">
+							<name>N03_012.60-017.60_众神无尽的纷争烧毁了大地天空降下致命.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N03_012.60-017.60_%e4%bc%97%e7%a5%9e%e6%97%a0%e5%b0%bd%e7%9a%84%e7%ba%b7%e4%ba%89%e7%83%a7%e6%af%81%e4%ba%86%e5%a4%a7%e5%9c%b0%e5%a4%a9%e7%a9%ba%e9%99%8d%e4%b8%8b%e8%87%b4%e5%91%bd.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>120</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-55">
+						<masterclipid>masterclip-33</masterclipid>
+						<name>N04_022.40-033.60_既没有魔法也没有力量的最弱种族人类只.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>269</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>538</start>
+						<end>806</end>
+						<in>0</in>
+						<out>269</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>2847096000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-33">
+							<name>N04_022.40-033.60_既没有魔法也没有力量的最弱种族人类只.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N04_022.40-033.60_%e6%97%a2%e6%b2%a1%e6%9c%89%e9%ad%94%e6%b3%95%e4%b9%9f%e6%b2%a1%e6%9c%89%e5%8a%9b%e9%87%8f%e7%9a%84%e6%9c%80%e5%bc%b1%e7%a7%8d%e6%97%8f%e4%ba%ba%e7%b1%bb%e5%8f%aa.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>269</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-56">
+						<masterclipid>masterclip-34</masterclipid>
+						<name>N05_034.50-044.50_直到那一天被废弃的机凯种少女在废墟中.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>240</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>828</start>
+						<end>1068</end>
+						<in>0</in>
+						<out>240</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>2540160000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-34">
+							<name>N05_034.50-044.50_直到那一天被废弃的机凯种少女在废墟中.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N05_034.50-044.50_%e7%9b%b4%e5%88%b0%e9%82%a3%e4%b8%80%e5%a4%a9%e8%a2%ab%e5%ba%9f%e5%bc%83%e7%9a%84%e6%9c%ba%e5%87%af%e7%a7%8d%e5%b0%91%e5%a5%b3%e5%9c%a8%e5%ba%9f%e5%a2%9f%e4%b8%ad.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>240</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-57">
+						<masterclipid>masterclip-35</masterclipid>
+						<name>N06_045.00-054.60_决胜若本机获胜便要一直留在里克身边.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>231</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1080</start>
+						<end>1310</end>
+						<in>0</in>
+						<out>231</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>2444904000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-35">
+							<name>N06_045.00-054.60_决胜若本机获胜便要一直留在里克身边.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N06_045.00-054.60_%e5%86%b3%e8%83%9c%e8%8b%a5%e6%9c%ac%e6%9c%ba%e8%8e%b7%e8%83%9c%e4%be%bf%e8%a6%81%e4%b8%80%e7%9b%b4%e7%95%99%e5%9c%a8%e9%87%8c%e5%85%8b%e8%ba%ab%e8%be%b9.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>231</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-58">
+						<masterclipid>masterclip-36</masterclipid>
+						<name>N07_055.40-064.40_只为解析那超越逻辑的人类语言称作心的.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>216</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1330</start>
+						<end>1546</end>
+						<in>0</in>
+						<out>216</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>2286144000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-36">
+							<name>N07_055.40-064.40_只为解析那超越逻辑的人类语言称作心的.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N07_055.40-064.40_%e5%8f%aa%e4%b8%ba%e8%a7%a3%e6%9e%90%e9%82%a3%e8%b6%85%e8%b6%8a%e9%80%bb%e8%be%91%e7%9a%84%e4%ba%ba%e7%b1%bb%e8%af%ad%e8%a8%80%e7%a7%b0%e4%bd%9c%e5%bf%83%e7%9a%84.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>216</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-59">
+						<masterclipid>masterclip-37</masterclipid>
+						<name>N08_065.40-073.40_里克笑了只有在下棋的时候笑了.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>192</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1570</start>
+						<end>1762</end>
+						<in>0</in>
+						<out>192</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>2032128000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-37">
+							<name>N08_065.40-073.40_里克笑了只有在下棋的时候笑了.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N08_065.40-073.40_%e9%87%8c%e5%85%8b%e7%ac%91%e4%ba%86%e5%8f%aa%e6%9c%89%e5%9c%a8%e4%b8%8b%e6%a3%8b%e7%9a%84%e6%97%b6%e5%80%99%e7%ac%91%e4%ba%86.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>192</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-60">
+						<masterclipid>masterclip-38</masterclipid>
+						<name>N09_074.40-080.40_在这个没有希望的世界里既然神明不肯赐.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>144</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1786</start>
+						<end>1930</end>
+						<in>0</in>
+						<out>144</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1524096000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-38">
+							<name>N09_074.40-080.40_在这个没有希望的世界里既然神明不肯赐.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N09_074.40-080.40_%e5%9c%a8%e8%bf%99%e4%b8%aa%e6%b2%a1%e6%9c%89%e5%b8%8c%e6%9c%9b%e7%9a%84%e4%b8%96%e7%95%8c%e9%87%8c%e6%97%a2%e7%84%b6%e7%a5%9e%e6%98%8e%e4%b8%8d%e8%82%af%e8%b5%90.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>144</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-61">
+						<masterclipid>masterclip-39</masterclipid>
+						<name>N10_081.40-087.40_我们是无名的幽灵不能杀死任何一人也不.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>144</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>1954</start>
+						<end>2098</end>
+						<in>0</in>
+						<out>144</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1524096000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-39">
+							<name>N10_081.40-087.40_我们是无名的幽灵不能杀死任何一人也不.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N10_081.40-087.40_%e6%88%91%e4%bb%ac%e6%98%af%e6%97%a0%e5%90%8d%e7%9a%84%e5%b9%bd%e7%81%b5%e4%b8%8d%e8%83%bd%e6%9d%80%e6%ad%bb%e4%bb%bb%e4%bd%95%e4%b8%80%e4%ba%ba%e4%b9%9f%e4%b8%8d.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>144</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-62">
+						<masterclipid>masterclip-40</masterclipid>
+						<name>N11_088.40-095.40_向共同的意志起誓来吧我们开始游戏吧.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>168</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2122</start>
+						<end>2290</end>
+						<in>0</in>
+						<out>168</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1778112000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-40">
+							<name>N11_088.40-095.40_向共同的意志起誓来吧我们开始游戏吧.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N11_088.40-095.40_%e5%90%91%e5%85%b1%e5%90%8c%e7%9a%84%e6%84%8f%e5%bf%97%e8%b5%b7%e8%aa%93%e6%9d%a5%e5%90%a7%e6%88%91%e4%bb%ac%e5%bc%80%e5%a7%8b%e6%b8%b8%e6%88%8f%e5%90%a7.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>168</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-63">
+						<masterclipid>masterclip-41</masterclipid>
+						<name>N12_096.40-101.40_无论过去现在还是未来请成为我的妻子吧.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>120</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2314</start>
+						<end>2434</end>
+						<in>0</in>
+						<out>120</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1270080000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-41">
+							<name>N12_096.40-101.40_无论过去现在还是未来请成为我的妻子吧.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N12_096.40-101.40_%e6%97%a0%e8%ae%ba%e8%bf%87%e5%8e%bb%e7%8e%b0%e5%9c%a8%e8%bf%98%e6%98%af%e6%9c%aa%e6%9d%a5%e8%af%b7%e6%88%90%e4%b8%ba%e6%88%91%e7%9a%84%e5%a6%bb%e5%ad%90%e5%90%a7.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>120</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-64">
+						<masterclipid>masterclip-42</masterclipid>
+						<name>N13_102.40-107.40_赌上全部知性与生命去赢下这场胜率不足.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>120</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2458</start>
+						<end>2578</end>
+						<in>0</in>
+						<out>120</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1270080000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-42">
+							<name>N13_102.40-107.40_赌上全部知性与生命去赢下这场胜率不足.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N13_102.40-107.40_%e8%b5%8c%e4%b8%8a%e5%85%a8%e9%83%a8%e7%9f%a5%e6%80%a7%e4%b8%8e%e7%94%9f%e5%91%bd%e5%8e%bb%e8%b5%a2%e4%b8%8b%e8%bf%99%e5%9c%ba%e8%83%9c%e7%8e%87%e4%b8%8d%e8%b6%b3.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>120</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-65">
+						<masterclipid>masterclip-43</masterclipid>
+						<name>N14_108.40-113.40_面对天翼种的绝对暴力胜率计算为零但是.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>120</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2602</start>
+						<end>2722</end>
+						<in>0</in>
+						<out>120</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1270080000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-43">
+							<name>N14_108.40-113.40_面对天翼种的绝对暴力胜率计算为零但是.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N14_108.40-113.40_%e9%9d%a2%e5%af%b9%e5%a4%a9%e7%bf%bc%e7%a7%8d%e7%9a%84%e7%bb%9d%e5%af%b9%e6%9a%b4%e5%8a%9b%e8%83%9c%e7%8e%87%e8%ae%a1%e7%ae%97%e4%b8%ba%e9%9b%b6%e4%bd%86%e6%98%af.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>120</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-66">
+						<masterclipid>masterclip-44</masterclipid>
+						<name>N15_120.40-126.40_全典开将所有的思念与心全部赌在这最后.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>144</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>2890</start>
+						<end>3034</end>
+						<in>0</in>
+						<out>144</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1524096000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-44">
+							<name>N15_120.40-126.40_全典开将所有的思念与心全部赌在这最后.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N15_120.40-126.40_%e5%85%a8%e5%85%b8%e5%bc%80%e5%b0%86%e6%89%80%e6%9c%89%e7%9a%84%e6%80%9d%e5%bf%b5%e4%b8%8e%e5%bf%83%e5%85%a8%e9%83%a8%e8%b5%8c%e5%9c%a8%e8%bf%99%e6%9c%80%e5%90%8e.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>144</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-67">
+						<masterclipid>masterclip-45</masterclipid>
+						<name>N16_127.40-132.40_不要再说废话了把我这份感情传承下去啊.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>120</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3058</start>
+						<end>3178</end>
+						<in>0</in>
+						<out>120</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1270080000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-45">
+							<name>N16_127.40-132.40_不要再说废话了把我这份感情传承下去啊.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N16_127.40-132.40_%e4%b8%8d%e8%a6%81%e5%86%8d%e8%af%b4%e5%ba%9f%e8%af%9d%e4%ba%86%e6%8a%8a%e6%88%91%e8%bf%99%e4%bb%bd%e6%84%9f%e6%83%85%e4%bc%a0%e6%89%bf%e4%b8%8b%e5%8e%bb%e5%95%8a.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>120</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-68">
+						<masterclipid>masterclip-46</masterclipid>
+						<name>N17_140.40-145.40_即便机体化为灰烬这份名为爱的错误信号.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>120</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3370</start>
+						<end>3490</end>
+						<in>0</in>
+						<out>120</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1270080000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-46">
+							<name>N17_140.40-145.40_即便机体化为灰烬这份名为爱的错误信号.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N17_140.40-145.40_%e5%8d%b3%e4%be%bf%e6%9c%ba%e4%bd%93%e5%8c%96%e4%b8%ba%e7%81%b0%e7%83%ac%e8%bf%99%e4%bb%bd%e5%90%8d%e4%b8%ba%e7%88%b1%e7%9a%84%e9%94%99%e8%af%af%e4%bf%a1%e5%8f%b7.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>120</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-69">
+						<masterclipid>masterclip-47</masterclipid>
+						<name>N18_152.40-157.40_将军了里克接下来就交给你了.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>120</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3658</start>
+						<end>3778</end>
+						<in>0</in>
+						<out>120</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1270080000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-47">
+							<name>N18_152.40-157.40_将军了里克接下来就交给你了.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N18_152.40-157.40_%e5%b0%86%e5%86%9b%e4%ba%86%e9%87%8c%e5%85%8b%e6%8e%a5%e4%b8%8b%e6%9d%a5%e5%b0%b1%e4%ba%a4%e7%bb%99%e4%bd%a0%e4%ba%86.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>120</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-70">
+						<masterclipid>masterclip-48</masterclipid>
+						<name>N19_164.40-168.40_虚空第零加护髓爆神击集结全星球最强之.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>96</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3946</start>
+						<end>4042</end>
+						<in>0</in>
+						<out>96</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1016064000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-48">
+							<name>N19_164.40-168.40_虚空第零加护髓爆神击集结全星球最强之.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N19_164.40-168.40_%e8%99%9a%e7%a9%ba%e7%ac%ac%e9%9b%b6%e5%8a%a0%e6%8a%a4%e9%ab%93%e7%88%86%e7%a5%9e%e5%87%bb%e9%9b%86%e7%bb%93%e5%85%a8%e6%98%9f%e7%90%83%e6%9c%80%e5%bc%ba%e4%b9%8b.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>96</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-71">
+						<masterclipid>masterclip-49</masterclipid>
+						<name>N20_173.40-177.80_以四千八百机凯种的意志为引真典弑星者.mov</name>
+						<enabled>TRUE</enabled>
+						<duration>106</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>4162</start>
+						<end>4267</end>
+						<in>0</in>
+						<out>106</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>1121904000000</pproTicksOut>
+						<alphatype>straight</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-49">
+							<name>N20_173.40-177.80_以四千八百机凯种的意志为引真典弑星者.mov</name>
+							<pathurl>file://localhost/C%3a/Users/WANGZ/Desktop/sshtest/edit-out/%e5%ad%97%e5%b9%95%e5%88%86%e5%8f%a5_v20/narrative/N20_173.40-177.80_%e4%bb%a5%e5%9b%9b%e5%8d%83%e5%85%ab%e7%99%be%e6%9c%ba%e5%87%af%e7%a7%8d%e7%9a%84%e6%84%8f%e5%bf%97%e4%b8%ba%e5%bc%95%e7%9c%9f%e5%85%b8%e5%bc%91%e6%98%9f%e8%80%85.mov</pathurl>
+							<rate>
+								<timebase>24</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>106</duration>
+							<timecode>
+								<rate>
+									<timebase>24</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>24</timebase>
+											<ntsc>FALSE</ntsc>
+										</rate>
+										<width>1920</width>
+										<height>1080</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Violet</label2>
+						</labels>
+					</clipitem>
+					<enabled>FALSE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+			</video>
+			<audio>
+				<numOutputChannels>2</numOutputChannels>
+				<format>
+					<samplecharacteristics>
+						<depth>16</depth>
+						<samplerate>48000</samplerate>
+					</samplecharacteristics>
+				</format>
+				<outputs>
+					<group>
+						<index>1</index>
+						<numchannels>1</numchannels>
+						<downmix>0</downmix>
+						<channel>
+							<index>1</index>
+						</channel>
+					</group>
+					<group>
+						<index>2</index>
+						<numchannels>1</numchannels>
+						<downmix>0</downmix>
+						<channel>
+							<index>2</index>
+						</channel>
+					</group>
+				</outputs>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="1" PannerCurrentValue="0.5" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="0" totalExplodedTrackCount="1" premiereTrackType="Stereo">
+					<clipitem id="clipitem-72" premiereChannelType="mono">
+						<masterclipid>masterclip-50</masterclipid>
+						<name>song_1794608919</name>
+						<enabled>TRUE</enabled>
+						<duration>4415</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>0</start>
+						<end>4217</end>
+						<in>0</in>
+						<out>4217</out>
+						<pproTicksIn>0</pproTicksIn>
+						<pproTicksOut>44632728000000</pproTicksOut>
+						<file id="file-50">
+							<name>song_1794608919.flac</name>
+							<pathurl>file://localhost/D%3a/bitcomet%20download/[VCB-Studio]%20No%20Game%20No%20Life%20Zero%20[Ma10p_1080p]/song_1794608919.flac</pathurl>
+							<rate>
+								<timebase>25</timebase>
+								<ntsc>FALSE</ntsc>
+							</rate>
+							<duration>4599</duration>
+							<timecode>
+								<rate>
+									<timebase>25</timebase>
+									<ntsc>FALSE</ntsc>
+								</rate>
+								<string>00:00:00:00</string>
+								<frame>0</frame>
+								<displayformat>NDF</displayformat>
+							</timecode>
+							<media>
+								<audio>
+									<samplecharacteristics>
+										<depth>16</depth>
+										<samplerate>48000</samplerate>
+									</samplecharacteristics>
+									<channelcount>1</channelcount>
+									<layout>stereo</layout>
+									<audiochannel>
+										<sourcechannel>1</sourcechannel>
+										<channellabel>left</channellabel>
+									</audiochannel>
+								</audio>
+								<audio>
+									<samplecharacteristics>
+										<depth>16</depth>
+										<samplerate>48000</samplerate>
+									</samplecharacteristics>
+									<channelcount>1</channelcount>
+									<layout>stereo</layout>
+									<audiochannel>
+										<sourcechannel>2</sourcechannel>
+										<channellabel>right</channellabel>
+									</audiochannel>
+								</audio>
+							</media>
+						</file>
+						<sourcetrack>
+							<mediatype>audio</mediatype>
+							<trackindex>1</trackindex>
+						</sourcetrack>
+						<filter>
+							<effect>
+								<name>Audio Levels</name>
+								<effectid>audiolevels</effectid>
+								<effectcategory>audiolevels</effectcategory>
+								<effecttype>audiolevels</effecttype>
+								<mediatype>audio</mediatype>
+								<pproBypass>false</pproBypass>
+								<parameter authoringApp="PremierePro">
+									<parameterid>level</parameterid>
+									<name>Level</name>
+									<valuemin>0</valuemin>
+									<valuemax>3.98109</valuemax>
+									<value>1</value>
+								</parameter>
+							</effect>
+						</filter>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Caribbean</label2>
+						</labels>
+					</clipitem>
+					<clipitem id="clipitem-73" premiereChannelType="mono">
+						<masterclipid>masterclip-50</masterclipid>
+						<name>song_1794608919</name>
+						<enabled>TRUE</enabled>
+						<duration>4415</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>4217</start>
+						<end>-1</end>
+						<in>4217</in>
+						<out>4272</out>
+						<pproTicksIn>44632728000000</pproTicksIn>
+						<pproTicksOut>45214848000000</pproTicksOut>
+						<file id="file-50" />
+						<sourcetrack>
+							<mediatype>audio</mediatype>
+							<trackindex>1</trackindex>
+						</sourcetrack>
+						<filter>
+							<effect>
+								<name>Audio Levels</name>
+								<effectid>audiolevels</effectid>
+								<effectcategory>audiolevels</effectcategory>
+								<effecttype>audiolevels</effecttype>
+								<mediatype>audio</mediatype>
+								<pproBypass>false</pproBypass>
+								<parameter authoringApp="PremierePro">
+									<parameterid>level</parameterid>
+									<name>Level</name>
+									<valuemin>0</valuemin>
+									<valuemax>3.98109</valuemax>
+									<value>1</value>
+								</parameter>
+							</effect>
+						</filter>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Caribbean</label2>
+						</labels>
+					</clipitem>
+					<transitionitem>
+						<start>4248</start>
+						<end>4272</end>
+						<pproTicksIn>44960832000000</pproTicksIn>
+						<pproTicksOut>45214848000000</pproTicksOut>
+						<alignment>end-black</alignment>
+						<cutPointTicks>254016000000</cutPointTicks>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<effect>
+							<name>Cross Fade ( 0dB)</name>
+							<effectid>KGAudioTransCrossFade0dB</effectid>
+							<effecttype>transition</effecttype>
+							<mediatype>audio</mediatype>
+							<wipecode>0</wipecode>
+							<wipeaccuracy>100</wipeaccuracy>
+							<startratio>0</startratio>
+							<endratio>1</endratio>
+							<reverse>FALSE</reverse>
+						</effect>
+					</transitionitem>
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>1</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="0" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<clipitem id="clipitem-74" premiereChannelType="stereo">
+						<masterclipid>masterclip-2</masterclipid>
+						<name>1192_05037.24-05051.00_13.76s.mp4</name>
+						<enabled>TRUE</enabled>
+						<duration>330</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3436</start>
+						<end>3511</end>
+						<in>255</in>
+						<out>330</out>
+						<pproTicksIn>2698920000000</pproTicksIn>
+						<pproTicksOut>3492720000000</pproTicksOut>
+						<file id="file-2" />
+						<sourcetrack>
+							<mediatype>audio</mediatype>
+							<trackindex>1</trackindex>
+						</sourcetrack>
+						<link>
+							<linkclipref>clipitem-18</linkclipref>
+							<mediatype>video</mediatype>
+							<trackindex>1</trackindex>
+							<clipindex>20</clipindex>
+						</link>
+						<link>
+							<linkclipref>clipitem-74</linkclipref>
+							<mediatype>audio</mediatype>
+							<trackindex>2</trackindex>
+							<clipindex>1</clipindex>
+							<groupindex>1</groupindex>
+						</link>
+						<link>
+							<linkclipref>clipitem-75</linkclipref>
+							<mediatype>audio</mediatype>
+							<trackindex>3</trackindex>
+							<clipindex>1</clipindex>
+							<groupindex>1</groupindex>
+						</link>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>2</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="1" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<clipitem id="clipitem-75" premiereChannelType="stereo">
+						<masterclipid>masterclip-2</masterclipid>
+						<name>1192_05037.24-05051.00_13.76s.mp4</name>
+						<enabled>TRUE</enabled>
+						<duration>330</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>FALSE</ntsc>
+						</rate>
+						<start>3436</start>
+						<end>3511</end>
+						<in>255</in>
+						<out>330</out>
+						<pproTicksIn>2698920000000</pproTicksIn>
+						<pproTicksOut>3492720000000</pproTicksOut>
+						<file id="file-2" />
+						<sourcetrack>
+							<mediatype>audio</mediatype>
+							<trackindex>2</trackindex>
+						</sourcetrack>
+						<link>
+							<linkclipref>clipitem-18</linkclipref>
+							<mediatype>video</mediatype>
+							<trackindex>1</trackindex>
+							<clipindex>20</clipindex>
+						</link>
+						<link>
+							<linkclipref>clipitem-74</linkclipref>
+							<mediatype>audio</mediatype>
+							<trackindex>2</trackindex>
+							<clipindex>1</clipindex>
+							<groupindex>1</groupindex>
+						</link>
+						<link>
+							<linkclipref>clipitem-75</linkclipref>
+							<mediatype>audio</mediatype>
+							<trackindex>3</trackindex>
+							<clipindex>1</clipindex>
+							<groupindex>1</groupindex>
+						</link>
+						<logginginfo>
+							<description />
+							<scene />
+							<shottake />
+							<lognote />
+							<good />
+							<originalvideofilename />
+							<originalaudiofilename />
+						</logginginfo>
+						<colorinfo>
+							<lut />
+							<lut1 />
+							<asc_sop />
+							<asc_sat />
+							<lut2 />
+						</colorinfo>
+						<labels>
+							<label2>Iris</label2>
+						</labels>
+					</clipitem>
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>2</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="0" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>1</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="1" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>2</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="0" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>1</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="1" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>2</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="0" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>1</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="1" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>2</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="0" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>1</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="25" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="1" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>2</outputchannelindex>
+				</track>
+			</audio>
+		</media>
+		<timecode>
+			<rate>
+				<timebase>24</timebase>
+				<ntsc>FALSE</ntsc>
+			</rate>
+			<string>00:00:00:00</string>
+			<frame>0</frame>
+			<displayformat>NDF</displayformat>
+		</timecode>
+			<marker>
+				<comment>片名 LOGO</comment>
+				<name>cut 03</name>
+				<in>444</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>向共同的意志起誓</comment>
+				<name>cut 09</name>
+				<in>1955</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>可以成为我的妻子吗 休比</comment>
+				<name>cut 10</name>
+				<in>2132</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>谁也不会死 我不会让任何人死的</comment>
+				<name>cut 12</name>
+				<in>2459</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>【典开】伪典·焉龙啸</comment>
+				<name>cut 15</name>
+				<in>2891</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>休比手中的戒指</comment>
+				<name>cut 19</name>
+				<in>3472</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>星杯便会显现于你的手中</comment>
+				<name>cut 22</name>
+				<in>3790</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>休比 存在着游戏之神吗</comment>
+				<name>cut 13</name>
+				<in>2599</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>全典开 将这所有都赌在这251秒里</comment>
+				<name>cut 17</name>
+				<in>3206</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>将军了 里克 接下来就交给你了</comment>
+				<name>cut 21</name>
+				<in>3650</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>我们是幽灵 全种族包括神灵种</comment>
+				<name>cut 08</name>
+				<in>1778</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>真典·弑星者托付于你</comment>
+				<name>cut 25</name>
+				<in>4157</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>里克 笑了 只有在那个时候笑了</comment>
+				<name>cut 06</name>
+				<in>1327</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>CODE1673B743EIF255 脚本E启动</comment>
+				<name>cut 14</name>
+				<in>2738</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>髓爆全弹发射 神击</comment>
+				<name>cut 23</name>
+				<in>3930</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>天翼种降在灰烬中</comment>
+				<name>cut 18</name>
+				<in>3383</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>为什么要把心赋予我</comment>
+				<name>cut 20</name>
+				<in>3511</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>绝对不让里克死去 一同活下去</comment>
+				<name>cut 11</name>
+				<in>2320</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>好漂亮 我不再是自己一个</comment>
+				<name>cut 07</name>
+				<in>1565</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>国际象棋 如果我赢了 将本机带回</comment>
+				<name>cut 05</name>
+				<in>811</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>天翼种降临 出现在机凯种背后</comment>
+				<name>cut 16</name>
+				<in>3067</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>白虚空与巨大棋盘</comment>
+				<name>cut 01</name>
+				<in>0</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>所有的能量互相碰撞</comment>
+				<name>cut 24</name>
+				<in>4056</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>红星球与毁灭星辰的大战</comment>
+				<name>cut 02</name>
+				<in>268</in>
+				<out>-1</out>
+			</marker>
+			<marker>
+				<comment>天空积满灰烬 黑灰飘落废墟</comment>
+				<name>cut 04</name>
+				<in>520</in>
+				<out>-1</out>
+			</marker>
+		<labels>
+			<label2>Forest</label2>
+		</labels>
+		<logginginfo>
+			<description />
+			<scene />
+			<shottake />
+			<lognote />
+			<good />
+			<originalvideofilename />
+			<originalaudiofilename />
+		</logginginfo>
+	</sequence>
+</xmeml>

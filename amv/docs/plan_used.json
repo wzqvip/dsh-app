@@ -1,0 +1,492 @@
+{
+ "project_meta": {
+  "title": "NGNL Zero AMV v20",
+  "source_video": "ngnl_zero.mkv",
+  "source_audio": "song_1794608919.flac",
+  "total_duration_s": 178.0,
+  "color_grade_preset": "ngnl",
+  "revision_notes": "2:08 天翼种降临；2:24 天翼种；戒指移到里克之前"
+ },
+ "clips": [
+  {
+   "clip_index": 1,
+   "section": "Intro - 白虚空",
+   "music_start_s": 0,
+   "music_end_s": 12,
+   "music_dur_s": 12,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 0.0,
+   "film_end_s": 12.0,
+   "speed": 1.0,
+   "transition_out": "crossfade_1.0s",
+   "narrative_note": "白虚空与巨大棋盘",
+   "_parts": [
+    0
+   ],
+   "_sides": [
+    12.0
+   ]
+  },
+  {
+   "clip_index": 2,
+   "section": "Intro - 远古大战",
+   "music_start_s": 12.0,
+   "music_end_s": 19.0,
+   "music_dur_s": 7.0,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 258.4,
+   "film_end_s": 265.4,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "红星球与毁灭星辰的大战"
+  },
+  {
+   "clip_index": 3,
+   "section": "Intro - 标题",
+   "music_start_s": 19.0,
+   "music_end_s": 22.0,
+   "music_dur_s": 3.0,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 268.3,
+   "film_end_s": 271.3,
+   "speed": 1.0,
+   "transition_out": "cut",
+   "narrative_note": "片名 LOGO"
+  },
+  {
+   "clip_index": 4,
+   "section": "Intro - 黑灰",
+   "music_start_s": 22.0,
+   "music_end_s": 34.0,
+   "music_dur_s": 12.0,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 553.3,
+   "film_end_s": 565.3,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "天空积满灰烬 黑灰飘落废墟"
+  },
+  {
+   "clip_index": 5,
+   "section": "Verse - 初遇与对弈",
+   "music_start_s": 34,
+   "music_end_s": 55,
+   "music_dur_s": 21,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 1128.52,
+   "film_end_s": 1149.52,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.6s",
+   "narrative_note": "国际象棋 如果我赢了 将本机带回",
+   "_parts": [
+    313,
+    314,
+    315,
+    316,
+    317
+   ],
+   "_sides": [
+    3.1,
+    4.8,
+    4.9,
+    2.5,
+    5.8
+   ]
+  },
+  {
+   "clip_index": 6,
+   "section": "Verse - 微笑",
+   "music_start_s": 55,
+   "music_end_s": 65,
+   "music_dur_s": 10,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 1864.4,
+   "film_end_s": 1874.4,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.6s",
+   "narrative_note": "里克 笑了 只有在那个时候笑了",
+   "_parts": [
+    465,
+    466
+   ],
+   "_sides": [
+    4.5,
+    5.5
+   ]
+  },
+  {
+   "clip_index": 7,
+   "section": "Verse - 星空",
+   "music_start_s": 65,
+   "music_end_s": 74,
+   "music_dur_s": 9,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 2536.96,
+   "film_end_s": 2545.96,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.6s",
+   "narrative_note": "好漂亮 我不再是自己一个",
+   "_parts": [
+    605
+   ],
+   "_sides": [
+    9.0
+   ]
+  },
+  {
+   "clip_index": 8,
+   "section": "Chorus - 幽灵",
+   "music_start_s": 74,
+   "music_end_s": 81,
+   "music_dur_s": 7,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 2914.62,
+   "film_end_s": 2921.62,
+   "speed": 1.0,
+   "transition_out": "cut",
+   "narrative_note": "我们是幽灵 全种族包括神灵种",
+   "_parts": [
+    685
+   ],
+   "_sides": [
+    7.0
+   ]
+  },
+  {
+   "clip_index": 9,
+   "section": "Chorus - 起誓",
+   "music_start_s": 81,
+   "music_end_s": 88,
+   "music_dur_s": 7,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 3050.63,
+   "film_end_s": 3057.63,
+   "speed": 1.0,
+   "transition_out": "cut",
+   "narrative_note": "向共同的意志起誓",
+   "_parts": [
+    716
+   ],
+   "_sides": [
+    7.0
+   ]
+  },
+  {
+   "clip_index": 10,
+   "section": "Chorus - 求婚",
+   "music_start_s": 88,
+   "music_end_s": 96,
+   "music_dur_s": 8,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 3346.76,
+   "film_end_s": 3354.76,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.6s",
+   "narrative_note": "可以成为我的妻子吗 休比",
+   "_parts": [
+    777
+   ],
+   "_sides": [
+    8.0
+   ]
+  },
+  {
+   "clip_index": 11,
+   "section": "Chorus - 誓言",
+   "music_start_s": 96,
+   "music_end_s": 102,
+   "music_dur_s": 6,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 3427.51,
+   "film_end_s": 3433.51,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "绝对不让里克死去 一同活下去",
+   "_parts": [
+    786
+   ],
+   "_sides": [
+    6.0
+   ]
+  },
+  {
+   "clip_index": 12,
+   "section": "Bridge - 誓言",
+   "music_start_s": 102,
+   "music_end_s": 108,
+   "music_dur_s": 6,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 3515.68,
+   "film_end_s": 3521.68,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "谁也不会死 我不会让任何人死的",
+   "_parts": [
+    804
+   ],
+   "_sides": [
+    6.0
+   ]
+  },
+  {
+   "clip_index": 13,
+   "section": "Bridge - 游戏之神",
+   "music_start_s": 108,
+   "music_end_s": 114,
+   "music_dur_s": 6,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 3968.34,
+   "film_end_s": 3974.34,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "休比 存在着游戏之神吗",
+   "_parts": [
+    890
+   ],
+   "_sides": [
+    6.0
+   ]
+  },
+  {
+   "clip_index": 14,
+   "section": "Bridge - 遭遇",
+   "music_start_s": 114,
+   "music_end_s": 120,
+   "music_dur_s": 6,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 4537.57,
+   "film_end_s": 4543.57,
+   "speed": 1.0,
+   "transition_out": "cut",
+   "narrative_note": "CODE1673B743EIF255 脚本E启动",
+   "_parts": [
+    1018
+   ],
+   "_sides": [
+    6.0
+   ]
+  },
+  {
+   "clip_index": 15,
+   "section": "Bridge - 典开",
+   "music_start_s": 120,
+   "music_end_s": 127,
+   "music_dur_s": 7,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 4600.81,
+   "film_end_s": 4607.81,
+   "speed": 1.0,
+   "transition_out": "cut",
+   "narrative_note": "【典开】伪典·焉龙啸",
+   "_parts": [
+    1050,
+    1051,
+    1052
+   ],
+   "_sides": [
+    2.1,
+    2.2,
+    2.7
+   ]
+  },
+  {
+   "clip_index": 16,
+   "section": "Bridge",
+   "music_start_s": 127.0,
+   "music_end_s": 133.0,
+   "music_dur_s": 6.0,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 4470.0,
+   "film_end_s": 4476.0,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "天翼种降临 出现在机凯种背后"
+  },
+  {
+   "clip_index": 17,
+   "section": "Bridge - 全典开",
+   "music_start_s": 133,
+   "music_end_s": 140,
+   "music_dur_s": 7,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 4831.08,
+   "film_end_s": 4838.08,
+   "speed": 1.0,
+   "transition_out": "cut",
+   "narrative_note": "全典开 将这所有都赌在这251秒里",
+   "_parts": [
+    1129
+   ],
+   "_sides": [
+    7.0
+   ]
+  },
+  {
+   "clip_index": 18,
+   "section": "Bridge",
+   "music_start_s": 140.0,
+   "music_end_s": 144.0,
+   "music_dur_s": 4.0,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 4476.0,
+   "film_end_s": 4480.0,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "天翼种降在灰烬中"
+  },
+  {
+   "clip_index": 19,
+   "section": "Bridge",
+   "music_start_s": 144.0,
+   "music_end_s": 146.0,
+   "music_dur_s": 2.0,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 3347.5,
+   "film_end_s": 3349.5,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "休比手中的戒指"
+  },
+  {
+   "clip_index": 20,
+   "section": "Bridge - 崩溃",
+   "music_start_s": 146,
+   "music_end_s": 152,
+   "music_dur_s": 6,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 5127.0,
+   "film_end_s": 5133.0,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "为什么要把心赋予我",
+   "_parts": [
+    1212
+   ],
+   "_sides": [
+    6.0
+   ]
+  },
+  {
+   "clip_index": 21,
+   "section": "Outro - 托付",
+   "music_start_s": 152,
+   "music_end_s": 158,
+   "music_dur_s": 6,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 5212.96,
+   "film_end_s": 5218.96,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "将军了 里克 接下来就交给你了",
+   "_parts": [
+    1226
+   ],
+   "_sides": [
+    6.0
+   ]
+  },
+  {
+   "clip_index": 22,
+   "section": "Outro - 星杯",
+   "music_start_s": 158,
+   "music_end_s": 164,
+   "music_dur_s": 6,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 5272.39,
+   "film_end_s": 5278.39,
+   "speed": 1.0,
+   "transition_out": "crossfade_0.5s",
+   "narrative_note": "星杯便会显现于你的手中",
+   "_parts": [
+    1235
+   ],
+   "_sides": [
+    6.0
+   ]
+  },
+  {
+   "clip_index": 23,
+   "section": "Outro - 髓爆",
+   "music_start_s": 164,
+   "music_end_s": 169,
+   "music_dur_s": 5,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 5459.58,
+   "film_end_s": 5464.58,
+   "speed": 1.0,
+   "transition_out": "cut",
+   "narrative_note": "髓爆全弹发射 神击",
+   "_parts": [
+    1311
+   ],
+   "_sides": [
+    5.0
+   ]
+  },
+  {
+   "clip_index": 24,
+   "section": "Outro - 碰撞",
+   "music_start_s": 169,
+   "music_end_s": 173,
+   "music_dur_s": 4,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 5481.15,
+   "film_end_s": 5485.15,
+   "speed": 1.0,
+   "transition_out": "cut",
+   "narrative_note": "所有的能量互相碰撞",
+   "_parts": [
+    1318
+   ],
+   "_sides": [
+    4.0
+   ]
+  },
+  {
+   "clip_index": 25,
+   "section": "Outro - 弑星者",
+   "music_start_s": 173,
+   "music_end_s": 178.0,
+   "music_dur_s": 5.0,
+   "source_type": "video_shot",
+   "shot_id": null,
+   "film_start_s": 5543.0,
+   "film_end_s": 5548.0,
+   "speed": 1.0,
+   "transition_out": "flash_white_0.4s",
+   "narrative_note": "真典·弑星者托付于你",
+   "_parts": [
+    1342,
+    1343
+   ],
+   "_sides": [
+    2.0,
+    2.0
+   ]
+  }
+ ]
+}

@@ -1,0 +1,71 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: JP,Noto Serif CJK JP,44,&H00E6D6F8,&H000000FF,&H00704A8C,&H00402A50,0,0,0,0,100,100,1,0,1,1.7,2.2,8,0,0,0,1
+Style: DR,Noto Serif CJK JP,44,&H00FFB4F0,&H000000FF,&H006A1B9A,&H00402A50,0,-1,0,0,100,100,2,0,1,2.0,2.6,8,0,0,0,1
+Style: CN,Noto Serif CJK SC,42,&H00DEC8E8,&H000000FF,&H00704A8C,&H00402A50,0,0,0,0,100,100,1,0,1,1.7,2.2,8,0,0,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:16.44,0:00:22.81,DR,,0,0,0,,{\an8\pos(1836,328)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}Do-vah-kiin lok thu-um va-ri
+Dialogue: 0,0:00:16.44,0:00:22.81,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}无\N名\N幽\N灵\N \N以\N意\N志\N起\N誓
+Dialogue: 0,0:00:22.84,0:00:30.39,JP,,0,0,0,,{\an8\pos(1836,335)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}From a thousand years of ash
+Dialogue: 0,0:00:22.84,0:00:30.39,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}自\N那\N跨\N越\N千\N年\N的\N黑\N灰\N彼\N端
+Dialogue: 0,0:00:30.42,0:00:36.31,DR,,0,0,0,,{\an8\pos(1836,275)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}Al-du-in so-le-va-ri-on
+Dialogue: 0,0:00:30.42,0:00:36.31,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}终\N焉\N神\N战\N \N星\N辰\N低\N吟
+Dialogue: 0,0:00:36.34,0:00:40.49,JP,,0,0,0,,{\an8\pos(1836,301)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}Before the silent gods fell
+Dialogue: 0,0:00:36.34,0:00:40.49,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}在\N沉\N默\N的\N众\N神\N陨\N落\N之\N前
+Dialogue: 0,0:00:40.52,0:00:44.91,DR,,0,0,0,,{\an8\pos(1836,272)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}A-la-mi-ra o-ra-na-the
+Dialogue: 0,0:00:40.52,0:00:44.91,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}远\N古\N的\N祈\N愿\N \N永\N不\N熄\N灭
+Dialogue: 0,0:00:44.94,0:00:51.78,JP,,0,0,0,,{\an8\pos(1836,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}灰\N色\Nの\N空\Nに\N \N星\Nが\N落\Nち\Nる
+Dialogue: 0,0:00:44.94,0:00:51.78,CN,,0,0,0,,{\an8\pos(1787,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}灰\N暗\N的\N天\N幕\N下\N \N星\N辰\N坠\N落
+Dialogue: 0,0:00:51.81,0:00:55.80,JP,,0,0,0,,{\an8\pos(1836,329)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}A tiny flame inside cold steel
+Dialogue: 0,0:00:51.81,0:00:55.80,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}冰\N冷\N钢\N铁\N之\N中\N \N燃\N起\N微\N弱\N火\N光
+Dialogue: 0,0:00:57.18,0:01:00.85,JP,,0,0,0,,{\an8\pos(1836,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}名\N前\Nも\Nな\Nい\N \Nこ\Nの\N世\N界\Nで
+Dialogue: 0,0:00:57.18,0:01:00.85,CN,,0,0,0,,{\an8\pos(1787,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}在\N这\N连\N名\N字\N都\N不\N曾\N拥\N有\N的\N世\N界\N里
+Dialogue: 0,0:01:00.88,0:01:04.14,JP,,0,0,0,,{\an8\pos(1836,366)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}We hold the truth inside our eyes
+Dialogue: 0,0:01:00.88,0:01:04.14,CN,,0,0,0,,{\an8\pos(1765,92)\fs40\fad(300,300)\blur0.5\bord1.7\shad2.2}我\N们\N的\N眼\N眸\N深\N处\N \N紧\N握\N着\N唯\N一\N的\N真\N实
+Dialogue: 0,0:01:05.22,0:01:11.65,JP,,0,0,0,,{\an8\pos(1836,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}ガ\Nラ\Nス\Nの\N瞳\Nに\N \N映\Nる\N夜\N明\Nけ
+Dialogue: 0,0:01:05.22,0:01:11.65,CN,,0,0,0,,{\an8\pos(1787,92)\fs40\fad(300,300)\blur0.5\bord1.7\shad2.2}玻\N璃\N般\N的\N瞳\N孔\N中\N \N倒\N映\N出\N黎\N明\N的\N微\N光
+Dialogue: 0,0:01:11.68,0:01:17.89,JP,,0,0,0,,{\an8\pos(1836,372)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}One fragile touch outlives all time
+Dialogue: 0,0:01:11.68,0:01:17.89,CN,,0,0,0,,{\an8\pos(1765,92)\fs40\fad(300,300)\blur0.5\bord1.7\shad2.2}一\N瞬\N脆\N弱\N的\N触\N碰\N \N却\N超\N越\N了\N永\N恒\N时\N光
+Dialogue: 0,0:01:17.92,0:01:23.53,DR,,0,0,0,,{\an8\pos(1836,277)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}Do-vah-kiin so-le-va-ri
+Dialogue: 0,0:01:17.92,0:01:23.53,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}意\N志\N之\N誓\N \N破\N晓\N圣\N咏
+Dialogue: 0,0:01:23.56,0:01:30.89,JP,,0,0,0,,{\an8\pos(1836,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}神\N々\Nの\N盤\N上\Nを\N \N塗\Nり\N替\Nえ\Nる\N光
+Dialogue: 0,0:01:23.56,0:01:30.89,CN,,0,0,0,,{\an8\pos(1787,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}改\N写\N神\N明\N棋\N局\N的\N那\N道\N光\N芒
+Dialogue: 0,0:01:30.92,0:01:37.29,JP,,0,0,0,,{\an8\pos(1836,390)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}We are the sparks in the endless ash
+Dialogue: 0,0:01:30.92,0:01:37.29,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}我\N们\N便\N是\N无\N尽\N黑\N灰\N中\N迸\N发\N的\N星\N火
+Dialogue: 0,0:01:37.32,0:01:45.73,DR,,0,0,0,,{\an8\pos(1836,285)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}E-len-si-la thu-um-va-ri
+Dialogue: 0,0:01:37.32,0:01:45.73,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}星\N杯\N微\N光\N \N共\N誓\N不\N移
+Dialogue: 0,0:01:45.76,0:01:50.91,JP,,0,0,0,,{\an8\pos(1836,92)\fs43\fad(300,300)\blur0.5\bord1.7\shad2.2}千\N年\Nの\N夜\Nを\N越\Nえ\N \N君\Nに\N逢\Nい\Nに\Nゆ\Nく
+Dialogue: 0,0:01:45.76,0:01:50.91,CN,,0,0,0,,{\an8\pos(1790,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}跨\N越\N千\N年\N的\N长\N夜\N \N只\N为\N与\N你\N重\N逢
+Dialogue: 0,0:01:50.94,0:01:53.45,JP,,0,0,0,,{\an8\pos(1836,424)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}Rewriting fate upon the shattered board
+Dialogue: 0,0:01:50.94,0:01:53.45,CN,,0,0,0,,{\an8\pos(1765,92)\fs43\fad(300,300)\blur0.5\bord1.7\shad2.2}在\N破\N碎\N的\N棋\N盘\N上\N \N重\N写\N既\N定\N的\N宿\N命
+Dialogue: 0,0:01:53.48,0:01:55.65,DR,,0,0,0,,{\an8\pos(1836,278)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}Do-vah lok kyu-ri-a-no
+Dialogue: 0,0:01:53.48,0:01:55.65,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}神\N代\N废\N墟\N \N刻\N下\N密\N约
+Dialogue: 0,0:01:55.68,0:01:59.58,JP,,0,0,0,,{\an8\pos(1836,368)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}Ancient oaths carved in the stone
+Dialogue: 0,0:01:55.68,0:01:59.58,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}铭\N刻\N于\N残\N碑\N之\N上\N的\N远\N古\N誓\N约
+Dialogue: 0,0:02:00.42,0:02:04.67,JP,,0,0,0,,{\an8\pos(1836,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}今\N \N歯\N車\Nが\N回\Nり\N出\Nす
+Dialogue: 0,0:02:00.42,0:02:04.67,CN,,0,0,0,,{\an8\pos(1787,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}此\N刻\N \N命\N运\N的\N齿\N轮\N再\N次\N转\N动
+Dialogue: 0,0:02:04.70,0:02:08.29,JP,,0,0,0,,{\an8\pos(1836,348)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}Hear this fragile human prayer
+Dialogue: 0,0:02:04.70,0:02:08.29,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}聆\N听\N这\N凡\N人\N脆\N弱\N却\N坚\N定\N的\N祈\N祷
+Dialogue: 0,0:02:08.32,0:02:32.82,DR,,0,0,0,,{\an8\pos(1836,256)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}A-le-na-ri o-va-ri-on
+Dialogue: 0,0:02:08.32,0:02:32.82,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}心\N意\N相\N连\N \N直\N至\N终\N章
+Dialogue: 0,0:02:32.85,0:02:36.34,DR,,0,0,0,,{\an8\pos(1836,277)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}Do-vah-kiin so-le-va-ri
+Dialogue: 0,0:02:32.85,0:02:36.34,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}意\N志\N之\N誓\N \N破\N晓\N圣\N咏
+Dialogue: 0,0:02:36.37,0:02:42.64,JP,,0,0,0,,{\an8\pos(1836,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}神\N々\Nの\N盤\N上\Nを\N \N塗\Nり\N替\Nえ\Nる\N光
+Dialogue: 0,0:02:36.37,0:02:42.64,CN,,0,0,0,,{\an8\pos(1787,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}改\N写\N神\N明\N棋\N局\N的\N那\N道\N光\N芒
+Dialogue: 0,0:02:42.67,0:02:47.34,JP,,0,0,0,,{\an8\pos(1836,390)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}We are the sparks in the endless ash
+Dialogue: 0,0:02:42.67,0:02:47.34,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}我\N们\N便\N是\N无\N尽\N黑\N灰\N中\N迸\N发\N的\N星\N火
+Dialogue: 0,0:02:47.37,0:02:52.09,DR,,0,0,0,,{\an8\pos(1836,285)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}E-len-si-la thu-um-va-ri
+Dialogue: 0,0:02:47.37,0:02:52.09,CN,,0,0,0,,{\an8\pos(1765,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}星\N杯\N微\N光\N \N共\N誓\N不\N移
+Dialogue: 0,0:02:52.33,0:02:55.72,JP,,0,0,0,,{\an8\pos(1836,92)\fs43\fad(300,300)\blur0.5\bord1.7\shad2.2}千\N年\Nの\N夜\Nを\N越\Nえ\N \N君\Nに\N逢\Nい\Nに\Nゆ\Nく
+Dialogue: 0,0:02:52.33,0:02:55.72,CN,,0,0,0,,{\an8\pos(1790,92)\fs46\fad(300,300)\blur0.5\bord1.7\shad2.2}跨\N越\N千\N年\N的\N长\N夜\N \N只\N为\N与\N你\N重\N逢
+Dialogue: 0,0:02:55.75,0:03:00.80,JP,,0,0,0,,{\an8\pos(1836,424)\fs46\frz270\fad(300,300)\blur0.5\bord1.7\shad2.2}Rewriting fate upon the shattered board
+Dialogue: 0,0:02:55.75,0:03:00.80,CN,,0,0,0,,{\an8\pos(1765,92)\fs43\fad(300,300)\blur0.5\bord1.7\shad2.2}在\N破\N碎\N的\N棋\N盘\N上\N \N重\N写\N既\N定\N的\N宿\N命

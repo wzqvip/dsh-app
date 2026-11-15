@@ -1,0 +1,34 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: StorySub,Noto Serif CJK SC,38,&H00F5F5F5,&H000000FF,&H001A1026,&H90000000,-1,0,0,0,100,100,4,0,1,2.2,1.5,2,110,110,58,1
+Style: TitleCard,Noto Serif CJK SC,44,&H00F0E6FF,&H000000FF,&H002A1245,&H00000000,-1,0,0,0,100,100,6,0,1,2.0,1.6,5,120,120,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 2,0:00:02.50,0:00:06.80,TitleCard,,0,0,0,,{\fad(500,500)}距今六千年前 —— 在「十条盟约」尚未诞生的世界
+Dialogue: 2,0:00:07.20,0:00:11.60,TitleCard,,0,0,0,,{\fad(500,500)}为了争夺唯一神的宝座  神明与造物掀起了毁灭星辰的悠久战争
+Dialogue: 1,0:00:12.60,0:00:17.60,StorySub,,0,0,0,,{\fad(320,700)}众神无尽的纷争烧毁了大地  天空降下致命的「黑灰」
+Dialogue: 1,0:00:22.40,0:00:33.60,StorySub,,0,0,0,,{\fad(320,320)}既没有魔法也没有力量的最弱种族——人类  只能在绝望的灰烬中苟延残喘
+Dialogue: 1,0:00:34.50,0:00:44.50,StorySub,,0,0,0,,{\fad(320,320)}直到那一天  被废弃的机凯种少女在废墟中向人类少年发起了挑战 ——「游戏001：国际象棋」
+Dialogue: 1,0:00:45.00,0:00:54.60,StorySub,,0,0,0,,{\fad(320,320)}【决胜】若本机获胜  便要一直留在里克身边
+Dialogue: 1,0:00:55.40,0:01:04.40,StorySub,,0,0,0,,{\fad(320,320)}只为解析那超越逻辑的人类语言 —— 称作「心」的奇迹
+Dialogue: 1,0:01:05.40,0:01:13.40,StorySub,,0,0,0,,{\fad(320,320)}「里克  笑了 —— 只有在下棋的时候笑了」
+Dialogue: 1,0:01:14.40,0:01:20.40,StorySub,,0,0,0,,{\fad(320,320)}在这个没有希望的世界里  既然神明不肯赐予救赎  那就用我们的双手去改写规则
+Dialogue: 1,0:01:21.40,0:01:27.40,StorySub,,0,0,0,,{\fad(320,320)}我们是无名的「幽灵」—— 不能杀死任何一人  也不能被任何种族察觉
+Dialogue: 1,0:01:28.40,0:01:35.40,StorySub,,0,0,0,,{\fad(320,320)}「向共同的意志起誓 —— 来吧  我们开始游戏吧！」
+Dialogue: 1,0:01:36.40,0:01:41.40,StorySub,,0,0,0,,{\fad(320,320)}「无论过去、现在还是未来 —— 请成为我的妻子吧  休比」
+Dialogue: 1,0:01:42.40,0:01:47.40,StorySub,,0,0,0,,{\fad(320,320)}赌上全部知性与生命  去赢下这场胜率不足 1% 的豪赌
+Dialogue: 1,0:01:48.40,0:01:53.40,StorySub,,0,0,0,,{\fad(320,320)}面对天翼种的绝对暴力  胜率计算为零 ——「但是  概率论中零是不存在的！」
+Dialogue: 1,0:02:00.40,0:02:06.40,StorySub,,0,0,0,,{\fad(320,320)}【全典开】将所有的思念与「心」  全部赌在这最后的 251 秒里！
+Dialogue: 1,0:02:07.40,0:02:12.40,StorySub,,0,0,0,,{\fad(320,320)}「不要再说废话了 —— 把我这份感情传承下去啊！」
+Dialogue: 1,0:02:20.40,0:02:25.40,StorySub,,0,0,0,,{\fad(320,320)}即便机体化为灰烬  这份名为「爱」的错误信号  也已跨越生死传达到了同伴手中
+Dialogue: 1,0:02:32.40,0:02:37.40,StorySub,,0,0,0,,{\fad(320,320)}「将军了  里克 —— 接下来就交给你了」
+Dialogue: 1,0:02:44.40,0:02:48.40,StorySub,,0,0,0,,{\fad(320,320)}「虚空第零加护」「髓爆」「神击」—— 集结全星球最强之力的终极碰撞！
+Dialogue: 1,0:02:53.40,0:02:57.80,StorySub,,0,0,0,,{\fad(320,320)}以四千八百机凯种的意志为引 ——【真典·弑星者】贯穿星球  迎来人类最初的胜利！
