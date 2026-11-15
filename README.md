@@ -373,6 +373,7 @@ dsh plugin --profile web allow-version <包名>@<版本> --dsh-version <运行�
 | [HOST-WATCHDOG.md](docs/HOST-WATCHDOG.md) | 主机健康看门狗：僵尸进程/负载/内存/磁盘异常 → Telegram 告警 |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | 贡献指南与**许可/署名必读** |
 | [`research/`](research/) | 源码级调研报告：插件架构、嵌入方案、局域网安全、响应式、显示模式 |
+| [`amv/`](amv/README.md) | 全自动音乐影像剪辑：镜头切分 + CLIP 检索 + 歌词对齐 + Premiere XML 往返 |
 | [`.github/REPO-METADATA.md`](.github/REPO-METADATA.md) | 仓库 Description / Topics / Social preview 文案（需手动填到 GitHub 设置） |
 
 > 相对链接由
