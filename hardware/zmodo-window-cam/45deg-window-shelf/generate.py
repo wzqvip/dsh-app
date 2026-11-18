@@ -57,7 +57,8 @@ PLATE_T = 4.0       # 斜面厚
 Z_TOP = 70.0        # 斜面顶端（靠门那端）的高度
 Y0 = 5.0            # 斜面顶端离门面的距离 = 背板厚
 BRACKET_T = 5.0     # 贴门背板厚
-BRACKET_DROP = 22.0 # 背板在斜面顶端以下延伸多少（不能再低，会进视锥）
+BRACKET_DROP = 16.0 # 背板在斜面顶端以下延伸多少。**不能再低**：罩子顶壁在 y=5 处
+                    # 已经到 z≈51.6，背板下沿必须让开它（原来是 22，即 z=48，会撞）
 BRACKET_RISE = 8.0  # 背板在斜面顶端以上延伸多少（给胶面积和打印底面积）
 PLATE_INSET = 1.5   # 斜面顶端插进背板里的量（让接缝是实体重叠，不是刀口对刀口）
 
@@ -216,9 +217,10 @@ def build(angle=ANGLE, cam_w=CAM_W, cam_h=CAM_H, cam_r=CAM_R,
         -PLATE_T, 0.0, M,
     )
 
-    # 2) 上沿挡边：相机沿斜面往下滑（重力分量）时顶住它；上端插进背板 1mm
+    # 2) 上沿挡边：相机沿斜面往下滑（重力分量）时顶住它；上端插进背板 1mm，
+    #    底面再扎进斜面板 1mm —— 只"贴着"会留下共面内壁，STL 会多出洞来。
     stop_cy = STOP_L / 2.0 - STOP_INSET
-    stop = face_prism(rrect(plate_w, STOP_L, 2.0, 0.0, stop_cy), 0.0, STOP_H, M)
+    stop = face_prism(rrect(plate_w, STOP_L, 2.0, 0.0, stop_cy), -1.0, STOP_H, M)
 
     # 3) 贴门背板 —— 只在斜面上方/背后一条，绝不伸进视锥
     bracket = plate_xz(
@@ -282,12 +284,13 @@ def door_loop(cx: float, cz: float, w: float, h: float, r: float) -> np.ndarray:
     return np.column_stack([cx + pts[:, 0], np.zeros(len(pts)), cz + pts[:, 1]])
 
 
-def _sort_by_angle(pts: np.ndarray, axis: np.ndarray, origin: np.ndarray) -> np.ndarray:
-    """把环上的点按绕轴的角度排序。
+def _angle_order(pts: np.ndarray, axis: np.ndarray, origin: np.ndarray) -> np.ndarray:
+    """按绕轴的角度给出点的顺序（index）。
 
-    两个环是分别在不同平面里生成的，点序的起始位置和方向都不一样；
-    直接按 index 配对会把放样拧成蝴蝶结（体积只剩 1/7，STL 还照样"水密"）。
-    按绕轴角度排序后两边自然对上，且同向。
+    两个环分别在不同平面里生成，点序的起始位置和方向都不一样；直接按 index 配对
+    会把放样拧成蝴蝶结。**而且内环必须沿用外环的配对** —— 各自按自己的角度排，
+    内壁和外壁的对应点会错开，壁厚在某些角上被夹到 0，布尔差集就会在那里挖出
+    小洞（Euler 数从 0 掉到 −2，切片器看到的就是"破面"）。
     """
     axis = axis / np.linalg.norm(axis)
     ref = np.array([0.0, 0.0, 1.0])
@@ -297,25 +300,28 @@ def _sort_by_angle(pts: np.ndarray, axis: np.ndarray, origin: np.ndarray) -> np.
     e1 /= np.linalg.norm(e1)
     e2 = np.cross(axis, e1)
     v = pts - origin
-    ang = np.arctan2(v @ e2, v @ e1)
-    return pts[np.argsort(ang)]
+    return np.argsort(np.arctan2(v @ e2, v @ e1))
 
 
-def loft(A: np.ndarray, B: np.ndarray) -> trimesh.Trimesh:
-    """两个环之间放样（侧面 + 两端扇形封口），环先按绕轴角度对齐。"""
-    axis = B.mean(0) - A.mean(0)
-    A = _sort_by_angle(A, axis, A.mean(0))
-    B = _sort_by_angle(B, axis, B.mean(0))
+def shell(a_out: np.ndarray, b_out: np.ndarray, a_in: np.ndarray, b_in: np.ndarray,
+          order: np.ndarray) -> trimesh.Trimesh:
+    """直接拼出闭合的「管壁」：外壁 + 内壁（反向）+ 两道端面。
+
+    不走「外实体 − 内实体」：两个端面共面时，差集会在端面上切出一堆退化三角
+    （实测 34 个零面积面），切片器就报破面。拼壳体没有布尔，也就没有这个风险。
+    """
+    A, B, Ai, Bi = (np.asarray(x)[order] for x in (a_out, b_out, a_in, b_in))
     n = len(A)
-    V = np.vstack([A, B, A.mean(0), B.mean(0)])
-    ia, ib = 2 * n, 2 * n + 1
+    V = np.vstack([A, B, Ai, Bi])
+    oA, oB, iA, iB = 0, n, 2 * n, 3 * n
     F = []
     for i in range(n):
         j = (i + 1) % n
-        F += [[i, j, n + j], [i, n + j, n + i]]
-        F += [[ia, j, i], [ib, n + i, n + j]]
+        F += [[oA + i, oA + j, oB + j], [oA + i, oB + j, oB + i]]    # 外壁
+        F += [[iA + i, iB + j, iA + j], [iA + i, iB + i, iB + j]]    # 内壁（反向）
+        F += [[oA + i, iA + i, iA + j], [oA + i, iA + j, oA + j]]    # 窗口端面
+        F += [[oB + i, oB + j, iB + j], [oB + i, iB + j, iB + i]]    # 罩口端面
     m = trimesh.Trimesh(V, F, process=True)
-    # 整体绕反了就翻过来（不用 fix_normals：它依赖 scipy 的连通分量，本机没装）
     if m.volume < 0:
         m.invert()
     return m
@@ -343,13 +349,9 @@ def build_hood(angle=ANGLE, wall=HOOD_WALL, margin=HOOD_MARGIN,
     b_in = door_loop(0.0, (z0 + z1) / 2, 2 * hx, z1 - z0, 12.0)
     b_out = door_loop(0.0, (z0 + z1) / 2, 2 * hx + 2 * wall, z1 - z0 + 2 * wall, 12.0 + wall)
 
-    hood = loft(a_out, b_out).difference(loft(a_in, b_in), engine="manifold")
-
-    # 罩子顶上靠门那头会蹭到贴门背板（背板下沿 48，罩子在 y=5 处已经到 51）。
-    # 把背板所占的那块空间（留 2.5mm 余量）从罩子上切掉，两个件各让一步。
-    keep_out = box(-200, 200, -20, BRACKET_T + 1.5, Z_TOP - BRACKET_DROP - 2.0, 200)
-    hood = hood.difference(keep_out, engine="manifold")
-    return hood
+    # 内外两层用**同一套配对**（由外环算），壁厚才处处一致
+    order = _angle_order(a_out, b_out.mean(0) - a_out.mean(0), a_out.mean(0))
+    return shell(a_out, b_out, a_in, b_in, order)
 
 
 # ---------------- 自检 ----------------
@@ -408,11 +410,25 @@ def overhang_report(mesh: trimesh.Trimesh) -> tuple[float, float]:
     return float(a[down][ang < 44.0].sum()), float(ang.min())
 
 
-def report(name: str, part: trimesh.Trimesh) -> None:
+def topology(mesh: trimesh.Trimesh) -> tuple[int, int, int]:
+    """拓扑体检：(非流形边数, Euler 数, 退化成零面积的面数)。
+
+    Euler 数是判断"破面"最直接的指标：实心件 = 2；每多一个贯穿的洞就 −2。
+    对不上就说明有共面内壁或壁厚被夹断 —— STL 照样报 watertight，切片器却会报错。
+    """
+    e = np.sort(mesh.edges, axis=1)
+    _, cnt = np.unique(e, axis=0, return_counts=True)
+    return int((cnt != 2).sum()), int(mesh.euler_number), int((mesh.area_faces < 1e-9).sum())
+
+
+def report(name: str, part: trimesh.Trimesh, holes: int = 0) -> None:
     ext = part.extents
+    nm, euler, degen = topology(part)
     print(f"{name}: {ext[0]:.1f} x {ext[1]:.1f} x {ext[2]:.1f} mm")
-    print(f"  watertight={part.is_watertight} volume={part.volume / 1000:.1f} cm3 "
-          f"PETG~{part.volume / 1000 * 1.27:.0f} g solid")
+    print(f"  watertight={part.is_watertight} winding={part.is_winding_consistent} "
+          f"volume={part.volume / 1000:.1f} cm3 PETG~{part.volume / 1000 * 1.27:.0f} g solid")
+    print(f"  拓扑：非流形边 {nm}（应 0）、退化面 {degen}（应 0）、"
+          f"Euler {euler}（应 {2 - 2 * holes}，即 {holes} 个贯穿洞）")
     area, worst = overhang_report(part)
     print(f"  最平朝下面 {worst:.0f}°（≥45° 免支撑）  需支撑面积 {area:.0f} mm2")
 
@@ -457,13 +473,13 @@ def main() -> int:
     print(f"支架与罩子是否互相插进去（应为 0）：{clash.volume:.2f} mm3")
 
     pose = to_print_pose(mount.copy())
-    report(args.out, pose)
+    report(args.out, pose, holes=3)
     pose.export(args.out)
 
     hood_pose = hood.copy()
     hood_pose.apply_transform(_rot("x", args.angle))
     hood_pose.apply_translation((0.0, 0.0, -hood_pose.bounds[0][2]))
-    report(args.hood_out, hood_pose)
+    report(args.hood_out, hood_pose, holes=1)
     hood_pose.export(args.hood_out)
 
     cam.export("zmodo-camera-mock.stl")
@@ -473,3 +489,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
