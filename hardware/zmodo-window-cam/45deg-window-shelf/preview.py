@@ -14,8 +14,9 @@ import numpy as np
 import trimesh
 from PIL import Image, ImageDraw, ImageFont
 
-from generate import (ANGLE, CAM_W, PLATE_L, STOP_INSET, STOP_L, Y0, Z_TOP,
-                      build, camera_mock, key_points, to_print_pose)
+from generate import (ANGLE, CAM_W, PLATE_L, STOP_INSET, STOP_L, Y0, Z_TOP, _rot,
+                      build, build_hood, camera_mock, key_points, mouth_rect,
+                      to_print_pose)
 from render import look_at, render_scene
 
 FONT_PATHS = [
@@ -26,6 +27,7 @@ FONT_PATHS = [
 
 PLASTIC = (206, 211, 219)
 CAMERA = (86, 92, 102)
+HOOD = (118, 128, 146)
 DOOR = (236, 231, 221)
 BED = (203, 208, 215)
 INK = (38, 42, 50)
@@ -105,11 +107,12 @@ def draw_principle(cam_c: float) -> None:
     d.text((W - 150, 40), "室 内", font=f_title, fill=(150, 144, 132))
 
     # 门
+    hx, z0, z1 = mouth_rect()
     d.line([P(0, -6), P(0, 100)], fill=(146, 141, 130), width=4)
     for zz in np.arange(-4, 100, 4.0):
         d.line([P(0, zz), P(-2.2, zz + 2.2)], fill=(206, 200, 188), width=2)
-    d.line([P(0, -20), P(0, 42)], fill=BLUE, width=9)
-    d.text((P(0, -24)[0] - 26, P(0, -24)[1]), "玻璃", font=fs, fill=BLUE, anchor="rm")
+    d.line([P(0, z0 - 4), P(0, z1 + 4)], fill=BLUE, width=10)
+    d.text((P(0, z0 - 8)[0] - 26, P(0, z0 - 8)[1]), "玻璃", font=fs, fill=BLUE, anchor="rm")
 
     # 背板
     d.polygon([P(0, 48), P(5, 48), P(5, 78), P(0, 78)], fill=(120, 126, 136))
@@ -125,6 +128,15 @@ def draw_principle(cam_c: float) -> None:
         d.polygon([P(*a), P(*b), P(*(b - 4 * n)), P(*(a - 4 * n))], fill=(150, 156, 166))
     d.polygon([P(*face0), P(*(face0 + 4 * n)), P(*(face0 + 4 * n + 4 * u)),
                P(*(face0 + 4 * u))], fill=(120, 126, 136))
+
+    # 遮光罩：从窗口一路包到玻璃，罩内是暗的 → 玻璃上没有室内反光
+    m_top = np.array([0.0, z1 + 3.0])
+    m_bot = np.array([0.0, z0 - 3.0])
+    d.polygon([P(*win_a), P(*m_top), P(*m_bot), P(*win_b)], fill=(226, 230, 238))
+    for a, b in ((win_a, m_top), (win_b, m_bot)):
+        d.line([tuple(P(*a)), tuple(P(*b))], fill=(112, 122, 140), width=5)
+    d.line([tuple(P(*m_top)), tuple(P(*m_bot))], fill=BLUE, width=7)
+    d.text(P(22.0, 30.0), "罩内避光", font=fss, fill=(80, 86, 98), anchor="lm")
 
     # 相机：半透明，免得盖住窗口和斜面
     cam_a = face0 + u * (cam_c - CAM_W / 2)
@@ -170,9 +182,9 @@ def draw_principle(cam_c: float) -> None:
     leader((float(np.mean([win_a[0], win_b[0]]) - 6), float(np.mean([win_a[1], win_b[1]]) - 8)),
            (60.0, 12.0), "窗口 38×38（切穿斜面）", fs)
     leader((50.0, 25.5), (66.0, 40.0), "45° 斜面", fs, fill=(90, 96, 106))
-    d.text(P(5.5, 30), "窗后斜下方必须全空", font=fss, fill=(90, 94, 102), anchor="lm")
+    leader((0.0, (z0 + z1) / 2), (30.0, z0 + 8.0), "罩口：泡沫胶条压玻璃", fs, fill=BLUE)
 
-    label(d, (W / 2, H - 26), "剖面示意（未按比例）：相机脸贴 45° 斜面，镜头透过窗口与门玻璃看外面",
+    label(d, (W / 2, H - 26), "剖面示意（未按比例）：相机脸贴 45° 斜面，镜头 → 窗口 → 遮光罩 → 门玻璃",
           font(22), fill=(120, 124, 132), anchor="mm", bg=None)
     img.save("preview-side.png")
 
@@ -180,29 +192,36 @@ def draw_principle(cam_c: float) -> None:
 def main() -> None:
     mount = build()
     cam = camera_mock()
+    hood = build_hood()
     k = key_points()
     cam_c = STOP_L - STOP_INSET + CAM_W / 2.0
 
-    # ---------- 使用姿态 ----------
-    door = trimesh.creation.box(extents=(130.0, 14.0, 210.0))
-    door.apply_translation((0.0, -7.0, 30.0))
+    # ---------- 使用姿态（含遮光罩） ----------
+    door = trimesh.creation.box(extents=(130.0, 14.0, 220.0))
+    door.apply_translation((0.0, -7.0, 20.0))
     img, _ = render_scene(
-        [(door, DOOR), (mount, PLASTIC), (cam, CAMERA)],
-        look_at(22, 38), (1400, 1150), margin=0.86, light=(0.3, 0.75, 0.45),
+        [(door, DOOR), (mount, PLASTIC), (hood, HOOD), (cam, CAMERA)],
+        look_at(24, 38), (1400, 1150), margin=0.86, light=(0.3, 0.75, 0.45),
     )
     img.save("preview-use.png")
 
     # ---------- 原理图 ----------
     draw_principle(cam_c)
 
-    # ---------- 打印姿态 ----------
+    # ---------- 打印姿态：两件并排 ----------
     printed = to_print_pose(mount.copy())
-    bed = trimesh.creation.box(extents=(180.0, 180.0, 2.0))
+    printed.apply_translation((-62.0, 0.0, 0.0))
+    hp = hood.copy()
+    hp.apply_transform(_rot("x", ANGLE))
+    hp.apply_translation((0.0, 0.0, -hp.bounds[0][2]))
+    hp.apply_translation((46.0, 0.0, 0.0))
+    bed = trimesh.creation.box(extents=(250.0, 200.0, 2.0))
     bed.apply_translation((0.0, 0.0, -1.0))
-    img, _ = render_scene([(bed, BED), (printed, PLASTIC)], look_at(24, 158),
-                          (1300, 1000), margin=0.95, light=(0.3, 0.5, 0.8))
+    img, _ = render_scene([(bed, BED), (printed, PLASTIC), (hp, HOOD)],
+                          look_at(22, 158), (1400, 1000), margin=0.95,
+                          light=(0.3, 0.5, 0.8))
     d = ImageDraw.Draw(img)
-    label(d, (34, 26), "打印姿态：胶面（贴门那面）朝下贴床，斜面 45° 抬起，免支撑",
+    label(d, (34, 26), "打印：支架（左，胶面朝下）+ 遮光罩（右，罩口朝下）",
           font(26), fill=(74, 78, 86), anchor="la")
     img.save("preview-print.png")
 
@@ -211,5 +230,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
 

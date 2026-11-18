@@ -64,15 +64,19 @@ PLATE_INSET = 1.5   # 斜面顶端插进背板里的量（让接缝是实体重�
 WIN_W = 38.0        # 镜头窗口
 WIN_H = 38.0
 WIN_R = 10.0
-STOP_L = 4.0        # 上沿挡边：沿斜面长度
-STOP_H = 4.0        # 上沿挡边：凸出高度
+STOP_L = 5.0        # 上沿挡边：沿斜面长度
+STOP_H = 5.0        # 上沿挡边：凸出高度
 STOP_INSET = 1.0    # 挡边插进背板里的量
 
-GUSSET_T = 3.0      # 两侧三角筋厚
-GUSSET_X = 33.0     # 两侧三角筋中心 x（外表面离板边 0.5mm，避免共面）
+TIE_SLOT_W = 2.6    # 扎带孔（两侧各一个，扎带兜住相机背面）
+TIE_SLOT_L = 5.0
+TIE_SLOT_X = 32.0
 
-FOV_H = 50.0        # 视锥水平半角（用于视线自检）
-FOV_V = 30.0        # 视锥垂直半角
+# 遮光罩：把视线从窗口一路包到玻璃上，室内光进不来 → 玻璃上没有室内反光
+HOOD_WALL = 3.0     # 罩壁厚（太薄会漏光，也不算打印件）
+HOOD_MARGIN = 3.5   # 罩口比视锥落点再外扩，避免罩口自己切边
+FOV_H = 46.0        # 视锥水平半角（遮光罩按这个开喇叭口；也用于视线自检）
+FOV_V = 26.0        # 视锥垂直半角
 
 
 # ---------------- 变换 ----------------
@@ -139,6 +143,12 @@ def prism_yz(pts: list[tuple[float, float]], x0: float, x1: float) -> trimesh.Tr
     m.apply_transform(np.array([[0.0, 0.0, 1.0, 0.0], [1.0, 0.0, 0.0, 0.0],
                                 [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]]))
     m.apply_translation((float(x0), 0.0, 0.0))
+    return m
+
+
+def box(x0, x1, y0, y1, z0, z1) -> trimesh.Trimesh:
+    m = trimesh.creation.box(extents=(abs(x1 - x0), abs(y1 - y0), abs(z1 - z0)))
+    m.apply_translation(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2))
     return m
 
 
@@ -216,17 +226,15 @@ def build(angle=ANGLE, cam_w=CAM_W, cam_h=CAM_H, cam_r=CAM_R,
         BRACKET_T, 0.0,
     )
 
-    # 4) 两侧三角筋：从背板一直撑到斜面下沿（在 x=±33，挡不到中央视线）
-    z_at_back = z_top + (y0 - (BRACKET_T - 0.5)) / math.tan(t)   # 斜面表面在 y=BACK-0.5 处的高度
-    tri = [(BRACKET_T - 0.5, z_bot), (lower_y, lower_z), (BRACKET_T - 0.5, z_at_back)]
-    ribs = [prism_yz(tri, sx - GUSSET_T / 2, sx + GUSSET_T / 2)
-            for sx in (-GUSSET_X, GUSSET_X)]
+    # 4) 两侧扎带孔：相机贴好之后，还能用一根扎带从背面兜一道（防胶失效掉下来）
+    slots = [box(sx - TIE_SLOT_W / 2, sx + TIE_SLOT_W / 2,
+                 cam_c - TIE_SLOT_L / 2, cam_c + TIE_SLOT_L / 2,
+                 -PLATE_T - 1.0, 1.0) for sx in (-TIE_SLOT_X, TIE_SLOT_X)]
+    slots = [s.apply_transform(M) for s in slots]
 
-    solid = _u([plate, stop, bracket, *ribs])
-
-    # 5) 镜头窗口（切穿斜面）
-    window = face_prism(rrect(win_w, win_h, win_r, 0.0, mid), -PLATE_T * 3, 40.0, M)
-    solid = solid.difference(window, engine="manifold")
+    solid = _u([plate, stop, bracket])
+    cut = [face_prism(rrect(win_w, win_h, win_r, 0.0, mid), -PLATE_T * 3, 40.0, M), *slots]
+    solid = solid.difference(_u(cut), engine="manifold")
     return solid
 
 
@@ -244,6 +252,104 @@ def to_print_pose(part: trimesh.Trimesh) -> trimesh.Trimesh:
     part.apply_transform(_rot("x", 90))
     part.apply_translation((0.0, 0.0, -part.bounds[0][2]))
     return part
+
+
+# ---------------- 遮光罩 ----------------
+def rrect_pts(w: float, h: float, r: float, seg: int = 8) -> np.ndarray:
+    """圆角矩形的 N 个顶点（不重复首点）。放样时两边点数必须一致。"""
+    r = max(0.2, min(r, w / 2 - 0.05, h / 2 - 0.05))
+    hw, hh = w / 2 - r, h / 2 - r
+    pts = []
+    for ox, oy, a0 in ((hw, hh, 0), (-hw, hh, 90), (-hw, -hh, 180), (hw, -hh, 270)):
+        for i in range(seg + 1):
+            a = math.radians(a0 + 90.0 * i / seg)
+            pts.append((ox + r * math.cos(a), oy + r * math.sin(a)))
+    return np.array(pts[:-1])          # 最后一点 = 第一点，去掉
+
+
+def plate_loop(M: np.ndarray, z_local: float, w: float, h: float, r: float,
+               cy: float) -> np.ndarray:
+    pts = rrect_pts(w, h, r)
+    p = np.column_stack([pts[:, 0], cy + pts[:, 1], np.full(len(pts), z_local),
+                         np.ones(len(pts))])
+    return (p @ M.T)[:, :3]
+
+
+def door_loop(cx: float, cz: float, w: float, h: float, r: float) -> np.ndarray:
+    """门面（y=0）上的环。点序反过来 —— 这样它和斜面环在世界里同向，
+    放样出来的侧面才不会扭成蝴蝶结（扭了体积会只有 1/7，而且 STL 照样"水密"）。"""
+    pts = rrect_pts(w, h, r)[::-1]
+    return np.column_stack([cx + pts[:, 0], np.zeros(len(pts)), cz + pts[:, 1]])
+
+
+def _sort_by_angle(pts: np.ndarray, axis: np.ndarray, origin: np.ndarray) -> np.ndarray:
+    """把环上的点按绕轴的角度排序。
+
+    两个环是分别在不同平面里生成的，点序的起始位置和方向都不一样；
+    直接按 index 配对会把放样拧成蝴蝶结（体积只剩 1/7，STL 还照样"水密"）。
+    按绕轴角度排序后两边自然对上，且同向。
+    """
+    axis = axis / np.linalg.norm(axis)
+    ref = np.array([0.0, 0.0, 1.0])
+    if abs(ref @ axis) > 0.9:
+        ref = np.array([1.0, 0.0, 0.0])
+    e1 = np.cross(ref, axis)
+    e1 /= np.linalg.norm(e1)
+    e2 = np.cross(axis, e1)
+    v = pts - origin
+    ang = np.arctan2(v @ e2, v @ e1)
+    return pts[np.argsort(ang)]
+
+
+def loft(A: np.ndarray, B: np.ndarray) -> trimesh.Trimesh:
+    """两个环之间放样（侧面 + 两端扇形封口），环先按绕轴角度对齐。"""
+    axis = B.mean(0) - A.mean(0)
+    A = _sort_by_angle(A, axis, A.mean(0))
+    B = _sort_by_angle(B, axis, B.mean(0))
+    n = len(A)
+    V = np.vstack([A, B, A.mean(0), B.mean(0)])
+    ia, ib = 2 * n, 2 * n + 1
+    F = []
+    for i in range(n):
+        j = (i + 1) % n
+        F += [[i, j, n + j], [i, n + j, n + i]]
+        F += [[ia, j, i], [ib, n + i, n + j]]
+    m = trimesh.Trimesh(V, F, process=True)
+    # 整体绕反了就翻过来（不用 fix_normals：它依赖 scipy 的连通分量，本机没装）
+    if m.volume < 0:
+        m.invert()
+    return m
+
+
+def mouth_rect(angle=ANGLE, fov_h=FOV_H, fov_v=FOV_V, margin=HOOD_MARGIN):
+    """罩口在门面上的范围：半宽 hx、z0..z1（保证不切视锥）。"""
+    hits = sight_window(angle, fov_h, fov_v)
+    hx = float(max(abs(hits[:, 0].min()), abs(hits[:, 0].max()))) + margin
+    return hx, float(hits[:, 2].min()) - margin, float(hits[:, 2].max()) + margin
+
+
+def build_hood(angle=ANGLE, wall=HOOD_WALL, margin=HOOD_MARGIN,
+               fov_h=FOV_H, fov_v=FOV_V) -> trimesh.Trimesh:
+    """把窗口和玻璃之间整段视线包起来的罩子（安装姿态，y=0 是玻璃面）。"""
+    M = plate_frame(angle, Y0, Z_TOP)
+    cam_c = STOP_L - STOP_INSET + CAM_W / 2.0
+    # 留 0.15mm 缝：严格共面的布尔（罩子端面和斜面背面）会算出一层薄薄的"干涉"，
+    # 这点缝刚好给胶用。
+    z_back = -PLATE_T - 0.15
+    hx, z0, z1 = mouth_rect(angle, fov_h, fov_v, margin)
+
+    a_in = plate_loop(M, z_back, WIN_W - 0.4, WIN_H - 0.4, WIN_R - 0.4, cam_c)
+    a_out = plate_loop(M, z_back, WIN_W + 2 * wall, WIN_H + 2 * wall, WIN_R + wall, cam_c)
+    b_in = door_loop(0.0, (z0 + z1) / 2, 2 * hx, z1 - z0, 12.0)
+    b_out = door_loop(0.0, (z0 + z1) / 2, 2 * hx + 2 * wall, z1 - z0 + 2 * wall, 12.0 + wall)
+
+    hood = loft(a_out, b_out).difference(loft(a_in, b_in), engine="manifold")
+
+    # 罩子顶上靠门那头会蹭到贴门背板（背板下沿 48，罩子在 y=5 处已经到 51）。
+    # 把背板所占的那块空间（留 2.5mm 余量）从罩子上切掉，两个件各让一步。
+    keep_out = box(-200, 200, -20, BRACKET_T + 1.5, Z_TOP - BRACKET_DROP - 2.0, 200)
+    hood = hood.difference(keep_out, engine="manifold")
+    return hood
 
 
 # ---------------- 自检 ----------------
@@ -312,7 +418,7 @@ def report(name: str, part: trimesh.Trimesh) -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Zmodo 窗户摄像机 45° 过窗俯视支架")
+    ap = argparse.ArgumentParser(description="Zmodo 窗户摄像机 45° 过窗俯视支架 + 遮光罩")
     ap.add_argument("--angle", type=float, default=ANGLE)
     ap.add_argument("--cam-w", type=float, default=CAM_W)
     ap.add_argument("--cam-h", type=float, default=CAM_H)
@@ -320,30 +426,46 @@ def main() -> int:
     ap.add_argument("--win", type=float, default=WIN_W, help="镜头窗口边长")
     ap.add_argument("--plate-l", type=float, default=PLATE_L)
     ap.add_argument("--out", default="zmodo-45-window-shelf.stl")
+    ap.add_argument("--hood-out", default="zmodo-light-hood.stl")
     args = ap.parse_args()
 
     mount = build(args.angle, args.cam_w, args.cam_h, args.cam_r,
                   win_w=args.win, win_h=args.win, plate_l=args.plate_l)
     cam = camera_mock(args.angle, args.cam_w, args.cam_h, args.cam_r, plate_l=args.plate_l)
+    hood = build_hood(args.angle)
 
     k = key_points(args.angle, args.plate_l)
     hits = sight_window(args.angle)
     inter = mount.intersection(cam, engine="manifold")
     n_blocked, blocked = sight_check(mount, args.angle)
+    n_hood, hood_blocked = sight_check(hood, args.angle)
     z_bot = k["z_bracket_bottom"]
+    hx, z0, z1 = mouth_rect(args.angle)
+    clash = mount.intersection(hood, engine="manifold")
 
     print(f"角度 {args.angle:g}°   斜面 {args.plate_l:g} mm   背板 z {z_bot:.1f}..{Z_TOP + BRACKET_RISE:.1f}")
     print(f"镜头中心 (y={k['lens'][1]:.1f}, z={k['lens'][2]:.1f})，"
           f"轴线在门面上 z={k['hit'][2]:.1f}")
     print(f"需要的透明区域：左右各 {max(abs(hits[:, 0].min()), abs(hits[:, 0].max())):.0f} mm，"
-          f"在背板下沿再往下 {z_bot - hits[:, 2].max():.0f}…{z_bot - hits[:, 2].min():.0f} mm"
-          f"（否则画面下半部会看到门板）")
-    print(f"相机干涉 = {inter.volume:.3f} mm3（应为 0）；"
-          f"视线被挡 = {n_blocked} 条（应为 0）{blocked if blocked else ''}")
+          f"在背板下沿再往下 {z_bot - hits[:, 2].max():.0f}…{z_bot - hits[:, 2].min():.0f} mm")
+    print(f"遮光罩罩口：{2 * hx:.0f} × {z1 - z0:.0f} mm，"
+          f"z {z0:.0f}..{z1:.0f}（背板下沿 {z_bot:.0f}）")
+    print(f"相机干涉 = {inter.volume:.3f} mm3（应为 0）")
+    print(f"视线：支架挡 {n_blocked} 条（应为 0）；"
+          f"罩子挡 {n_hood} 条 {hood_blocked if hood_blocked else ''}"
+          f"（预期只有四角 —— 画面四角会是罩壁，暗的）")
+    print(f"支架与罩子是否互相插进去（应为 0）：{clash.volume:.2f} mm3")
 
     pose = to_print_pose(mount.copy())
     report(args.out, pose)
     pose.export(args.out)
+
+    hood_pose = hood.copy()
+    hood_pose.apply_transform(_rot("x", args.angle))
+    hood_pose.apply_translation((0.0, 0.0, -hood_pose.bounds[0][2]))
+    report(args.hood_out, hood_pose)
+    hood_pose.export(args.hood_out)
+
     cam.export("zmodo-camera-mock.stl")
     print("zmodo-camera-mock.stl（量具，别打印）")
     return 0
